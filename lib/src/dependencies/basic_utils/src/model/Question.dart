@@ -8,11 +8,20 @@ class Question {
   /*
    * Json to Question object
    */
-  factory Question.fromJson(Map<String, dynamic> json) =>
-      throw UnimplementedError();
+  factory Question.fromJson(Map<String, dynamic> json) {
+    return Question(
+      name: json['name'] as String,
+      type: json['type'] as int,
+    );
+  }
 
   /*
    * Question object to json
    */
-  Map<String, dynamic> toJson() => throw UnimplementedError();
+  Map<String, dynamic> toJson() {
+    return {
+      'name': name,
+      'type': type,
+    };
+  }
 }

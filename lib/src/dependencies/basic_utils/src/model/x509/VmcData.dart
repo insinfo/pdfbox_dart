@@ -1,11 +1,6 @@
-
-
-
-
 ///
 /// Model that represents a verified mark certificate data
 ///
-
 class VmcData {
   /// The base64 encoded logo
   String? base64Logo;
@@ -33,13 +28,35 @@ class VmcData {
   ///
   ///Json to VmcData object
   ///
-  factory VmcData.fromJson(Map<String, dynamic> json) =>
-          throw  UnimplementedError();
+  factory VmcData.fromJson(Map<String, dynamic> json) {
+    return VmcData(
+      base64Logo: json['base64Logo'] as String?,
+      hash: json['hash'] as String?,
+      hashAlgorithm: json['hashAlgorithm'] as String?,
+      hashAlgorithmReadable: json['hashAlgorithmReadable'] as String?,
+      type: json['type'] as String?,
+    );
+  }
 
   ///
   /// VmcData object to json
   ///
-  Map<String, dynamic> toJson() =>     throw  UnimplementedError();
+  Map<String, dynamic> toJson() {
+    final val = <String, dynamic>{};
+
+    void writeNotNull(String key, dynamic value) {
+      if (value != null) {
+        val[key] = value;
+      }
+    }
+
+    writeNotNull('base64Logo', base64Logo);
+    writeNotNull('type', type);
+    writeNotNull('hash', hash);
+    writeNotNull('hashAlgorithmReadable', hashAlgorithmReadable);
+    writeNotNull('hashAlgorithm', hashAlgorithm);
+    return val;
+  }
 
   String getFullSvgData() {
     return 'data:$type;base64,$base64Logo';

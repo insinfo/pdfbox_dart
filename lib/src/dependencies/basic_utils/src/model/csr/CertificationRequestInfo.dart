@@ -1,9 +1,6 @@
 import '../../../src/model/csr/CertificateSigningRequestExtensions.dart';
 import '../../../src/model/csr/SubjectPublicKeyInfo.dart';
 
-
-
-
 class CertificationRequestInfo {
   /// The version
   int? version;
@@ -26,11 +23,39 @@ class CertificationRequestInfo {
   /*
    * Json to CertificationRequestInfo object
    */
-  factory CertificationRequestInfo.fromJson(Map<String, dynamic> json) =>
-      throw  UnimplementedError();
+  factory CertificationRequestInfo.fromJson(Map<String, dynamic> json) {
+    return CertificationRequestInfo(
+      subject: (json['subject'] as Map<String, dynamic>?)?.map(
+        (k, e) => MapEntry(k, e as String),
+      ),
+      version: json['version'] as int?,
+      publicKeyInfo: json['publicKeyInfo'] == null
+          ? null
+          : SubjectPublicKeyInfo.fromJson(
+              json['publicKeyInfo'] as Map<String, dynamic>),
+      extensions: json['extensions'] == null
+          ? null
+          : CertificateSigningRequestExtensions.fromJson(
+              json['extensions'] as Map<String, dynamic>),
+    );
+  }
 
   /*
    * CertificationRequestInfo object to json
    */
-  Map<String, dynamic> toJson() =>  throw  UnimplementedError();
+  Map<String, dynamic> toJson() {
+    final val = <String, dynamic>{};
+
+    void writeNotNull(String key, dynamic value) {
+      if (value != null) {
+        val[key] = value;
+      }
+    }
+
+    writeNotNull('version', version);
+    writeNotNull('subject', subject);
+    writeNotNull('publicKeyInfo', publicKeyInfo?.toJson());
+    writeNotNull('extensions', extensions?.toJson());
+    return val;
+  }
 }
