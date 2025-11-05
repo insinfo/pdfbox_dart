@@ -1,0 +1,59 @@
+
+
+
+
+///
+/// Model that a public key from a X509Certificate
+///
+
+class SubjectPublicKeyInfo {
+  /// The algorithm of the public key
+  String? algorithm;
+
+  /// The readable name of the algorithm
+  String? algorithmReadableName;
+
+  /// The parameter of the public key
+  String? parameter;
+
+  /// The readable name of the parameter
+  String? parameterReadableName;
+
+  /// The key length of the public key
+  int? length;
+
+  /// The sha1 thumbprint of the public key
+  String? sha1Thumbprint;
+
+  /// The sha256 thumbprint of the public key
+  String? sha256Thumbprint;
+
+  /// The bytes representing the public key as String
+  String? bytes;
+
+  /// The exponent used on a RSA public key
+  int? exponent;
+
+  SubjectPublicKeyInfo({
+    this.algorithm,
+    this.length,
+    this.sha1Thumbprint,
+    this.sha256Thumbprint,
+    this.bytes,
+    this.algorithmReadableName,
+    this.parameter,
+    this.parameterReadableName,
+    this.exponent,
+  });
+
+  /*
+   * Json to SubjectPublicKeyInfo object
+   */
+  factory SubjectPublicKeyInfo.fromJson(Map<String, dynamic> json) =>
+      throw  UnimplementedError();
+
+  /*
+   * SubjectPublicKeyInfo object to json
+   */
+  Map<String, dynamic> toJson() =>  throw  UnimplementedError();
+}
