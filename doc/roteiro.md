@@ -114,6 +114,7 @@ dependencies:
   logging: any
 
 ideal é ir portando implementando e testando (implementando ou portando testes e executando para ver se esta funcionando) e atualizando o roteiro
+sempre executar  dart analyze para verificar se tem erros que impedem a compilação
 
 
 Roteiro Detalhado para Portar o PDFBox para Dart

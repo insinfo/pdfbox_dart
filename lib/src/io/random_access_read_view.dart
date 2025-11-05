@@ -5,7 +5,7 @@ import 'exceptions.dart';
 import 'random_access_read.dart';
 
 /// View that exposes a clipped window over another [RandomAccessRead].
-class RandomAccessReadView implements RandomAccessRead {
+class RandomAccessReadView extends RandomAccessRead {
   RandomAccessRead? _randomAccessRead;
   final int _startPosition;
   final int _streamLength;
