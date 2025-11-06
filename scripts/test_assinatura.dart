@@ -15,7 +15,7 @@ import 'package:dart_pdf/pdf.dart' as pdf;
 import 'package:crypto/crypto.dart' as crypto;
 import 'package:pdfbox_dart/basic_utils.dart';
 import 'package:pointycastle/api.dart';
-import 'package:qr/qr.dart' as qr;
+import 'package:pdfbox_dart/qr.dart' as qr;
 import 'package:pointycastle/asymmetric/api.dart';
 import 'package:pointycastle/api.dart' hide Padding;
 import 'package:pointycastle/key_generators/api.dart';
@@ -221,22 +221,23 @@ Future<void> main() async {
     // 3.1) Desenha QR com o hash ao lado da assinatura
     void drawQr(
         pdf.PdfGraphics g, double x, double y, double size, String data) {
-      qr.QrCode code;
-      for (int type = 2;; type++) {
-        try {
-          code = qr.QrCode(type, qr.QrErrorCorrectLevel.M)
-            ..addData(data)
-            ..make();
-          break;
-        } catch (_) {
-          if (type >= 40) rethrow;
-        }
-      }
-      final int count = code.moduleCount;
+      // 1. Crie o objeto de dados do QrCode usando a fábrica
+      // Isso substitui o loop try...catch
+      final qrCode = qr.QrCode.fromData(
+        data: data,
+        errorCorrectLevel: qr.QrErrorCorrectLevel.M,
+      );
+
+      // 2. Crie um objeto QrImage para renderização
+      final qrImage = qr.QrImage(qrCode);
+
+      // 3. Desenhe os módulos com base no qrImage
+      final int count = qrImage.moduleCount;
       final double cell = size / count;
       for (int r = 0; r < count; r++) {
         for (int c = 0; c < count; c++) {
-          if (code.isDark(r, c)) {
+          // Use qrImage.isDark() em vez de code.isDark()
+          if (qrImage.isDark(r, c)) {
             g.drawRectangle(
               bounds: pdf.Rect.fromLTWH(x + c * cell, y + r * cell, cell, cell),
               brush: pdf.PdfSolidBrush(pdf.PdfColor(0, 0, 0)),
@@ -244,6 +245,8 @@ Future<void> main() async {
           }
         }
       }
+
+      // 4. Desenhe a borda
       g.drawRectangle(
         bounds: pdf.Rect.fromLTWH(x, y, size, size),
         pen: pdf.PdfPen(pdf.PdfColor(0, 0, 0), width: 1),
