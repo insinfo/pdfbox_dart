@@ -1,4 +1,4 @@
-import 'ASN1DumpLine.dart';
+import 'asn1_dump_line.dart';
 
 ///
 /// Wrapper object for ASN1DumpLine

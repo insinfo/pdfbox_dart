@@ -1,5 +1,5 @@
-import '../../../src/model/csr/CertificateSigningRequestExtensions.dart';
-import '../../../src/model/csr/SubjectPublicKeyInfo.dart';
+import 'certificate_signing_request_extensions.dart';
+import 'subject_public_key_info.dart';
 
 class CertificationRequestInfo {
   /// The version

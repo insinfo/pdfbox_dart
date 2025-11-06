@@ -1,5 +1,5 @@
-import '../../../src/model/crl/CrlExtensions.dart';
-import '../../../src/model/crl/RevokedCertificate.dart';
+import 'crl_extensions.dart';
+import 'revoked_certificate.dart';
 
 class CertificateListData {
   /// The version

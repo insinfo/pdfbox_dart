@@ -1,6 +1,6 @@
 
 
-import 'MathUtils.dart';
+import 'math_utils.dart';
 
 ///
 /// Helper class for color operations.

@@ -1,5 +1,5 @@
-import '../../../src/model/x509/CertificateChainPairCheckResult.dart';
-import '../../../src/model/x509/X509CertificateData.dart';
+import 'certificate_chain_pair_check_result.dart';
+import 'x509_certificate_data.dart';
 
 ///
 /// Model for representing a certificate chain check.

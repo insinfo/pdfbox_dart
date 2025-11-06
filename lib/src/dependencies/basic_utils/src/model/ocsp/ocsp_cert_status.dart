@@ -1,4 +1,4 @@
-import '../../../src/model/ocsp/OCSPCertStatusValues.dart';
+import 'ocsp_cert_status_values.dart';
 
 ///
 ///```

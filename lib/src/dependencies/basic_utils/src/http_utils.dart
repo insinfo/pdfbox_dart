@@ -1,7 +1,7 @@
 import 'dart:convert';
 
-import '../src/model/HttpRequestReturnType.dart';
-import '../src/model/exception/HttpResponseException.dart';
+import 'model/http_request_return_type.dart';
+import 'model/exception/http_response_exception.dart';
 import 'package:http/http.dart';
 
 

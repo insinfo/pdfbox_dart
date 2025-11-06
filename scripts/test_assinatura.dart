@@ -11,12 +11,13 @@
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:math';
-
 import 'package:dart_pdf/pdf.dart' as pdf;
 import 'package:crypto/crypto.dart' as crypto;
+import 'package:pdfbox_dart/basic_utils.dart';
+import 'package:pointycastle/api.dart';
 import 'package:qr/qr.dart' as qr;
-
-import 'package:pdfbox_dart/src/dependencies/basic_utils/basic_utils.dart';
+import 'package:pointycastle/asymmetric/api.dart';
+import 'package:pointycastle/api.dart' hide Padding;
 import 'package:pointycastle/key_generators/api.dart';
 import 'package:pointycastle/key_generators/rsa_key_generator.dart';
 //import 'package:pointycastle/pointycastle.dart';

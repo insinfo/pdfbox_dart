@@ -1,10 +1,10 @@
-import '../src/StringUtils.dart';
-import '../src/library/IDNAConverter.dart';
-import '../src/model/CountryCodeList.dart';
-import '../src/model/Domain.dart';
-import '../src/model/GtldList.dart';
-import '../src/model/IdnCountryCodeList.dart';
-import '../src/model/PublicSuffix.dart';
+import 'string_utils.dart';
+import 'library/idna_converter.dart';
+import 'model/country_code_list.dart';
+import 'model/domain.dart';
+import 'model/gtld_list.dart';
+import 'model/idn_country_code_list.dart';
+import 'model/public_suffix.dart';
 
 ///
 /// Helper class for domain names

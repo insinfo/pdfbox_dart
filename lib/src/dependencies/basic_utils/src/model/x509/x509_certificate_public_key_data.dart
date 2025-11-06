@@ -1,5 +1,5 @@
 import 'dart:typed_data';
-import '../../../src/model/csr/SubjectPublicKeyInfo.dart';
+import '../csr/subject_public_key_info.dart';
 
 ///
 /// Model that a public key from a X509Certificate

@@ -1,4 +1,4 @@
-import '../../../src/model/crl/CrlReason.dart';
+import 'crl_reason.dart';
 
 class CrlEntryExtensionsData {
   CrlReason? reason;

@@ -1,9 +1,9 @@
 import 'dart:typed_data';
 
-import '../src/CryptoUtils.dart';
-import '../src/model/asn1/ASN1DumpLine.dart';
-import '../src/model/asn1/ASN1ObjectType.dart';
-import '../src/model/asn1/ASN1DumpWrapper.dart';
+import 'crypto_utils.dart';
+import 'model/asn1/asn1_dump_line.dart';
+import 'model/asn1/asn1_object_type.dart';
+import 'model/asn1/asn1_dump_wrapper.dart';
 import 'package:pointycastle/asn1.dart';
 
 class Asn1Utils {

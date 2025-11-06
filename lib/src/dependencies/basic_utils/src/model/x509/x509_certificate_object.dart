@@ -1,4 +1,4 @@
-import '../../../src/model/x509/X509CertificateData.dart';
+import 'x509_certificate_data.dart';
 
 ///
 /// Model that represents a x509Certificate

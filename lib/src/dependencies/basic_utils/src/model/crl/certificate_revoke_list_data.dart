@@ -1,4 +1,4 @@
-import '../../../src/model/crl/CertificateListData.dart';
+import 'certificate_list_data.dart';
 
 class CertificateRevokeListeData {
   /// The certificate list data

@@ -1,4 +1,4 @@
-import '../../../src/model/ocsp/OCSPResponseData.dart';
+import 'ocsp_response_data.dart';
 
 ///
 ///```

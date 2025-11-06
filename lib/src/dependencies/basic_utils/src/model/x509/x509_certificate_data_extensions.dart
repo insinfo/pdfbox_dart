@@ -1,6 +1,6 @@
-import '../../../src/model/x509/ExtendedKeyUsage.dart';
-import '../../../src/model/x509/KeyUsage.dart';
-import '../../../src/model/x509/VmcData.dart';
+import 'extended_key_usage.dart';
+import 'key_usage.dart';
+import 'vmc_data.dart';
 
 // Mapas de Enum para String (baseados no código gerado)
 const _extendedKeyUsageEnumMap = {

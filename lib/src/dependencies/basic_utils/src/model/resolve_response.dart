@@ -1,5 +1,5 @@
-import '../../src/model/Question.dart';
-import '../../src/model/RRecord.dart';
+import 'question.dart';
+import 'r_record.dart';
 
 class ResolveResponse {
   int? status;

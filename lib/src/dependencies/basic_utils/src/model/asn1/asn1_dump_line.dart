@@ -1,6 +1,6 @@
 
 
-import 'ASN1ObjectType.dart';
+import 'asn1_object_type.dart';
 
 ///
 /// A line from an ASN1 dump

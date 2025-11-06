@@ -1,6 +1,6 @@
 
 
-import 'Domain.dart';
+import 'domain.dart';
 
 ///
 /// Model that represents a email address

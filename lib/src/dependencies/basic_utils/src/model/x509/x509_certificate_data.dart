@@ -1,11 +1,11 @@
 // ignore_for_file: deprecated_member_use_from_same_package
 
-import '../../../src/model/x509/ExtendedKeyUsage.dart';
-import '../../../src/model/x509/TbsCertificate.dart';
-import '../../../src/model/x509/X509CertificateDataExtensions.dart';
-import '../../../src/model/x509/X509CertificatePublicKeyData.dart';
+import 'extended_key_usage.dart';
+import 'tbs_certificate.dart';
+import 'x509_certificate_data_extensions.dart';
+import 'x509_certificate_public_key_data.dart';
 
-import 'X509CertificateValidity.dart';
+import 'x509_certificate_validity.dart';
 
 // Mapa de Enum para String (baseado no código gerado)
 const _extendedKeyUsageEnumMap = {

@@ -1,5 +1,5 @@
-import '../../../src/model/ocsp/BasicOCSPResponse.dart';
-import '../../../src/model/ocsp/OCSPResponseStatus.dart';
+import 'basic_ocsp_response.dart';
+import 'ocsp_response_status.dart';
 
 class OCSPResponse {
   OCSPResponseStatus responseStatus;

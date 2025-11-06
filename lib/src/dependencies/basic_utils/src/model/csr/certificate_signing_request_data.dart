@@ -1,8 +1,8 @@
 // ignore_for_file: deprecated_member_use_from_same_package
 
-import '../../../src/model/csr/CertificateSigningRequestExtensions.dart';
-import '../../../src/model/csr/CertificationRequestInfo.dart';
-import '../../../src/model/csr/SubjectPublicKeyInfo.dart';
+import 'certificate_signing_request_extensions.dart';
+import 'certification_request_info.dart';
+import 'subject_public_key_info.dart';
 
 class CertificateSigningRequestData {
   /// The certificationRequestInfo
