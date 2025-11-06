@@ -1,6 +1,5 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
-
 import 'closeable.dart';
 import 'exceptions.dart';
 import 'random_access_read_view.dart';

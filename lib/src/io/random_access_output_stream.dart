@@ -1,5 +1,4 @@
 import 'dart:typed_data';
-
 import 'exceptions.dart';
 import 'random_access_read.dart';
 import 'random_access_write.dart';

@@ -1,13 +1,11 @@
 import 'dart:io';
 import 'dart:typed_data';
-
 import 'exceptions.dart';
 import 'memory_usage_setting.dart';
 import 'random_access.dart';
 import 'random_access_read.dart';
 import 'random_access_read_view.dart';
 import 'random_access_stream_cache.dart';
-
 part 'scratch_file_buffer.dart';
 
 class ScratchFile implements RandomAccessStreamCache {

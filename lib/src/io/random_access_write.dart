@@ -1,5 +1,4 @@
 import 'dart:typed_data';
-
 import 'closeable.dart';
 
 /// Dart counterpart of PDFBox's RandomAccessWrite.

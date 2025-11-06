@@ -1,7 +1,7 @@
 name: pdfbox_dart
 description: Dart port of pdfbox
 version: 1.0.0
-#homepage: https://github.com/insinfo/
+homepage: https://github.com/insinfo/pdfbox_dart
 publish_to: none
 
 environment:
@@ -23,8 +23,6 @@ dependencies:
   # xpath_selector_xml_parser: ^3.0.1
   # ninja: ^3.0.8
   
-  
-
 dev_dependencies:
   # lints: ^5.1.1
   # melos: ^6.3.2
