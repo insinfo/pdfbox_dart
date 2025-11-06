@@ -13,6 +13,7 @@ dependencies:
   collection: ^1.14.13
   archive: ^4.0.7
   crypto: ^3.0.7
+  qr: ^2.1.0
   petitparser: '>=5.1.0 <8.0.0'
   image: ^4.5.4
   http: any #^1.5.0
@@ -29,9 +30,10 @@ dev_dependencies:
   # melos: ^6.3.2
   test: any
   dart_pdf:
-   git:
-    url: https://github.com/insinfo/insinfo_dart_pdf
-    ref: 31.1.21   #branch name   
+    path: insinfo_dart_pdf
+  #  git:
+  #   url: https://github.com/insinfo/insinfo_dart_pdf
+  #   ref: 31.1.21   #branch name   
 
  
 

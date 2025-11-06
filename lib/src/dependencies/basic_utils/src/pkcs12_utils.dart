@@ -82,8 +82,14 @@ class Pkcs12Utils {
     }
 
     // CREATE SAFEBAGS WITH PEMS WRAPPED IN CERTBAG
-    var safeBags = _generateSafeBagsForCerts(certificates, localKeyId,
-        friendlyName: friendlyName);
+    // Somente o certificado folha (primeiro da lista) deve receber o mesmo
+    // localKeyId do KeyBag. Os demais (cadeia) não devem ter localKeyId igual,
+    // para evitar que consumidores selecionem o certificado errado como "signer".
+    var safeBags = _generateSafeBagsForCerts(
+      certificates,
+      localKeyId,
+      friendlyName: friendlyName,
+    );
     var safeContentsCert = ASN1SafeContents(safeBags);
 
     // CREATE CONTENT INFO
@@ -177,7 +183,9 @@ class Pkcs12Utils {
     }
 
     // CREATE AUTHENTICATED SAFE WITH CONTENTINFO ( CERT AND KEY )
-    var authSafe = ASN1AuthenticatedSafe([contentInfoCert, contentInfoKey]);
+  // Colocar o KeyBag antes dos CertBags é um arranjo comum e evita ambiguidades
+  // em alguns consumidores de PKCS#12.
+  var authSafe = ASN1AuthenticatedSafe([contentInfoKey, contentInfoCert]);
 
     // WRAP AUTHENTICATED SAFE WITHIN A CONTENTINFO
     var T = ASN1ContentInfo.forData(
@@ -262,16 +270,20 @@ class Pkcs12Utils {
     for (var pem in certificates) {
       certBags.add(ASN1CertBag.fromX509Pem(pem));
     }
-    for (var certBag in certBags) {
+    for (var i = 0; i < certBags.length; i++) {
+      var certBag = certBags[i];
       var asn1Set = ASN1Set(elements: []);
-      asn1Set.add(ASN1Pkcs12Attribute.localKeyID(localKeyId));
-      if (friendlyName != null) {
-        asn1Set.add(ASN1Pkcs12Attribute.friendlyName(friendlyName));
+      // Atribui localKeyId somente ao primeiro certificado (folha)
+      if (i == 0) {
+        asn1Set.add(ASN1Pkcs12Attribute.localKeyID(localKeyId));
+        if (friendlyName != null) {
+          asn1Set.add(ASN1Pkcs12Attribute.friendlyName(friendlyName));
+        }
       }
       safeBags.add(
         ASN1SafeBag.forCertBag(
           certBag,
-          bagAttributes: asn1Set,
+          bagAttributes: asn1Set.elements!.isEmpty ? null : asn1Set,
         ),
       );
     }

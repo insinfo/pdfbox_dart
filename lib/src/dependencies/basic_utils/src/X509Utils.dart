@@ -479,9 +479,10 @@ class X509Utils {
       }
 
       if (IterableUtils.isNotNullOrEmpty(sans)) {
+        // subjectAltName with dNSName/rfc822Name values shall be IA5String with context-specific tag
         var sanList = ASN1Sequence();
         for (var s in sans!) {
-          sanList.add(ASN1PrintableString(stringValue: s, tag: 0x82));
+          sanList.add(ASN1IA5String(stringValue: s, tag: 0x82));
         }
         var octetString = ASN1OctetString(octets: sanList.encode());
 
@@ -489,6 +490,29 @@ class X509Utils {
         sanSequence.add(ASN1ObjectIdentifier.fromIdentifierString('2.5.29.17'));
         sanSequence.add(octetString);
         extensionTopSequence.add(sanSequence);
+      }
+
+      // Subject Key Identifier (2.5.29.14): SHA-1 hash of subjectPublicKey bits
+      try {
+        var spkiBytes = _stringAsBytes(
+            csrData.certificationRequestInfo!.publicKeyInfo!.bytes!);
+        var spkiParser = ASN1Parser(spkiBytes);
+        var spkiSeq = spkiParser.nextObject() as ASN1Sequence;
+        var pubBit = spkiSeq.elements!.elementAt(1) as ASN1BitString;
+        var pubKeyBits = pubBit.valueBytes ?? Uint8List(0);
+        if (pubKeyBits.isNotEmpty && pubKeyBits.first == 0) {
+          pubKeyBits = pubKeyBits.sublist(1);
+        }
+        var skiHash = Digest('SHA-1').process(pubKeyBits);
+        // extnValue must be an OCTET STRING containing the DER-encoded value
+        var skiValue = ASN1OctetString(octets: skiHash);
+        var skiSequence = ASN1Sequence();
+        skiSequence
+            .add(ASN1ObjectIdentifier.fromIdentifierString('2.5.29.14'));
+        skiSequence.add(ASN1OctetString(octets: skiValue.encode()));
+        extensionTopSequence.add(skiSequence);
+      } catch (_) {
+        // skip SKI if anything goes wrong; not critical
       }
 
       if (cA != null) {

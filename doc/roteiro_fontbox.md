@@ -27,6 +27,9 @@ codigo original em C:\MyDartProjects\pdfbox_dart\pdfbox-java\fontbox
 - Estruturas iniciais de `fontbox/ttf` avançadas com `CmapSubtable` interpretando formatos 0/4/6/12 e testes em `test/fontbox/ttf/cmap_subtable_test.dart` cobrindo parsing binário.
 
 ### Próximas ações
+Next up, consider extending CmapSubtable to formats 2/8/10/13/14 and wiring it into the broader CmapTable workflow.
+
+
 - Integrar e exportar os modelos/parsers AFM quando houver consumidor no pacote principal.
 - Completar o pacote `org.apache.fontbox.cmap` implementando componentes consumidores (`CMapLookup` → lookup real) e amarrando a superfície pública (`pdfbox_dart.dart`).
 - Levantar dependências de `FontBoxFont`/`EncodedFont` e montar plano para conversão após concluir `cmap`.
