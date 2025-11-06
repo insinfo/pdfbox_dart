@@ -84,12 +84,10 @@ Future<void> main() async {
     issuer: caSubject, // O Emissor é a própria CA
     serialNumber: '1',
     notBefore: DateTime.now().toUtc(), // Parâmetro correto
-    // ****** CORREÇÃO AQUI ******
-    // O parâmetro na sua biblioteca é 'cA' (maiúsculo) [cite: 2723]
+    // O parâmetro na biblioteca é 'cA' (maiúsculo)
     cA: true, // Define que é uma CA
-    // ****** FIM DA CORREÇÃO ******
     keyUsage: [
-      // Enums corrigidos para maiúsculas [cite: 2618]
+      // Enums corrigidos para maiúsculas
       KeyUsage.KEY_CERT_SIGN, // Pode assinar certificados
       KeyUsage.CRL_SIGN, // Pode assinar Listas de Revogação
     ],
@@ -122,7 +120,7 @@ Future<void> main() async {
   );
 
   print(
-    '[PASSO 5/9] Gerando certificado do usuário (assinado pela CA Raiz)...');
+      '[PASSO 5/9] Gerando certificado do usuário (assinado pela CA Raiz)...');
   // Usa o *mesmo* método, mas agora passando a chave da CA e o CSR do usuário
   final userCertPem = X509Utils.generateSelfSignedCertificate(
     rootCaPrivateKey, // Assinado pela chave privada da CA
@@ -131,12 +129,12 @@ Future<void> main() async {
     issuer: caSubject, // O "emissor" (Issuer) = nossa CA
     serialNumber: '2', // Serial deve ser único
     notBefore: DateTime.now().toUtc(),
-    // ****** CORREÇÃO AQUI ******
-    // O parâmetro na sua biblioteca é 'cA' (maiúsculo) [cite: 2723]
+
+    // O parâmetro na biblioteca é 'cA' (maiúsculo)
     cA: false, // Não é uma CA
-    // ****** FIM DA CORREÇÃO ******
+
     keyUsage: [
-      // Enums corrigidos para maiúsculas [cite: 2618]
+      // Enums corrigidos para maiúsculas
       KeyUsage.DIGITAL_SIGNATURE, // Pode ser usado para assinar
       KeyUsage.NON_REPUDIATION, // Usado para não-repúdio
     ],
@@ -151,7 +149,7 @@ Future<void> main() async {
 
   // --- 3. CRIAÇÃO DO PACOTE PKCS#12 (PFX) ---
   print(
-    '[PASSO 6/9] Empacotando chave/certificados do usuário em .p12 (PFX)...');
+      '[PASSO 6/9] Empacotando chave/certificados do usuário em .p12 (PFX)...');
 
   // Converte a chave privada do formato PointyCastle para o formato PEM
   final userPrivateKeyPem =
@@ -221,7 +219,8 @@ Future<void> main() async {
     final lastG = lastPage.graphics;
 
     // 3.1) Desenha QR com o hash ao lado da assinatura
-    void drawQr(pdf.PdfGraphics g, double x, double y, double size, String data) {
+    void drawQr(
+        pdf.PdfGraphics g, double x, double y, double size, String data) {
       qr.QrCode code;
       for (int type = 2;; type++) {
         try {
@@ -274,7 +273,7 @@ Future<void> main() async {
       reason: 'Documento oficial',
       locationInfo: 'Rio das Ostras, BR',
       contactInfo: 'isaque.santana@pmro.gov.br',
-      signedName: 'Isaque Neves Sant\'Ana',
+      signedName: 'Isaque Neves Sant Ana',
     );
 
     // 6) Campo de assinatura VISÍVEL com aparência personalizada
@@ -293,7 +292,8 @@ Future<void> main() async {
     final normalAp = signatureField.appearance.normal;
     final apG = normalAp.graphics!;
     apG.drawRectangle(
-      bounds: pdf.Rect.fromLTWH(0, 0, normalAp.size.width, normalAp.size.height),
+      bounds:
+          pdf.Rect.fromLTWH(0, 0, normalAp.size.width, normalAp.size.height),
       pen: pdf.PdfPen(pdf.PdfColor(0, 51, 153), width: 1),
       brush: pdf.PdfSolidBrush(pdf.PdfColor(255, 255, 255)),
     );
@@ -394,4 +394,4 @@ Future<void> main() async {
 }
 
 String _toHex(List<int> bytes) =>
-  bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+    bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
