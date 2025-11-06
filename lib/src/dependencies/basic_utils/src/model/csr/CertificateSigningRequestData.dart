@@ -1,10 +1,8 @@
+// ignore_for_file: deprecated_member_use_from_same_package
+
 import '../../../src/model/csr/CertificateSigningRequestExtensions.dart';
 import '../../../src/model/csr/CertificationRequestInfo.dart';
 import '../../../src/model/csr/SubjectPublicKeyInfo.dart';
-
-
-
-
 
 class CertificateSigningRequestData {
   /// The certificationRequestInfo
@@ -65,11 +63,65 @@ class CertificateSigningRequestData {
   /*
    * Json to CertificateSigningRequestData object
    */
-  factory CertificateSigningRequestData.fromJson(Map<String, dynamic> json) =>
-      throw  UnimplementedError();
+  factory CertificateSigningRequestData.fromJson(Map<String, dynamic> json) {
+    return CertificateSigningRequestData(
+      subject: (json['subject'] as Map<String, dynamic>?)?.map(
+        (k, e) => MapEntry(k, e as String),
+      ),
+      version: json['version'] as int?,
+      signature: json['signature'] as String?,
+      signatureAlgorithm: json['signatureAlgorithm'] as String?,
+      signatureAlgorithmReadableName:
+          json['signatureAlgorithmReadableName'] as String?,
+      publicKeyInfo: json['publicKeyInfo'] == null
+          ? null
+          : SubjectPublicKeyInfo.fromJson(
+              json['publicKeyInfo'] as Map<String, dynamic>),
+      plain: json['plain'] as String?,
+      extensions: json['extensions'] == null
+          ? null
+          : CertificateSigningRequestExtensions.fromJson(
+              json['extensions'] as Map<String, dynamic>),
+      certificationRequestInfoSeq:
+          json['certificationRequestInfoSeq'] as String?,
+      certificationRequestInfo: json['certificationRequestInfo'] == null
+          ? null
+          : CertificationRequestInfo.fromJson(
+              json['certificationRequestInfo'] as Map<String, dynamic>),
+      // Os campos saltLength e pssDigest não estavam no código gerado fornecido,
+      // então são inicializados como nulos.
+      saltLength: json['saltLength'] as int?,
+      pssDigest: json['pssDigest'] as String?,
+    );
+  }
 
   /*
    * CertificateSigningRequestData object to json
    */
-  Map<String, dynamic> toJson() =>  throw  UnimplementedError();
+  Map<String, dynamic> toJson() {
+    final val = <String, dynamic>{};
+
+    void writeNotNull(String key, dynamic value) {
+      if (value != null) {
+        val[key] = value;
+      }
+    }
+
+    writeNotNull(
+        'certificationRequestInfo', certificationRequestInfo?.toJson());
+    writeNotNull('version', version);
+    writeNotNull('subject', subject);
+    writeNotNull('publicKeyInfo', publicKeyInfo?.toJson());
+    writeNotNull('signatureAlgorithm', signatureAlgorithm);
+    writeNotNull(
+        'signatureAlgorithmReadableName', signatureAlgorithmReadableName);
+    writeNotNull('saltLength', saltLength); // Adicionado para consistência
+    writeNotNull('pssDigest', pssDigest); // Adicionado para consistência
+    writeNotNull('signature', signature);
+    writeNotNull('plain', plain);
+    writeNotNull('extensions', extensions?.toJson());
+    writeNotNull(
+        'certificationRequestInfoSeq', certificationRequestInfoSeq);
+    return val;
+  }
 }

@@ -2,17 +2,22 @@
 # Created by `dart pub`
 .dart_tool/
 
+pubspec.lock
+
 
 codigo_fontbox.java.txt 
 codigo_mesclado.dart.txt 
 codigo_pdfbox_io.java.txt 
 codigo_pdfbox.java.txt 
 codigo_xmpbox.java.txt
-
+codigo_pdfbox_dart.dart.txt
 .local-chrome/
 
 downloads/
 
 pdfbox-java/
 
-pubspec.lock
+documento_assinado.pdf
+root_ca.crt
+user.crt
+user.p12

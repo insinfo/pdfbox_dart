@@ -1,12 +1,10 @@
 import '../../../src/model/csr/SubjectPublicKeyInfo.dart';
 import '../../../src/model/x509/X509CertificateDataExtensions.dart';
-
 import 'X509CertificateValidity.dart';
 
 ///
 /// Model that represents the data of a TbsCertificate
 ///
-
 class TbsCertificate {
   /// The version of the certificate
   int version;
@@ -50,11 +48,49 @@ class TbsCertificate {
   /*
    * Json to TbsCertificate object
    */
-  factory TbsCertificate.fromJson(Map<String, dynamic> json) =>
-      throw UnimplementedError();
+  factory TbsCertificate.fromJson(Map<String, dynamic> json) {
+    return TbsCertificate(
+      version: json['version'] as int,
+      serialNumber: BigInt.parse(json['serialNumber'] as String),
+      issuer: Map<String, String?>.from(json['issuer'] as Map),
+      validity: X509CertificateValidity.fromJson(
+          json['validity'] as Map<String, dynamic>),
+      subject: Map<String, String?>.from(json['subject'] as Map),
+      subjectPublicKeyInfo: SubjectPublicKeyInfo.fromJson(
+          json['subjectPublicKeyInfo'] as Map<String, dynamic>),
+      signatureAlgorithm: json['signatureAlgorithm'] as String,
+      signatureAlgorithmReadableName:
+          json['signatureAlgorithmReadableName'] as String?,
+      extensions: json['extensions'] == null
+          ? null
+          : X509CertificateDataExtensions.fromJson(
+              json['extensions'] as Map<String, dynamic>),
+    );
+  }
 
   /*
    * TbsCertificate object to json
    */
-  Map<String, dynamic> toJson() => throw UnimplementedError();
+  Map<String, dynamic> toJson() {
+    final val = <String, dynamic>{
+      'version': version,
+      'serialNumber': serialNumber.toString(),
+      'signatureAlgorithm': signatureAlgorithm,
+    };
+
+    void writeNotNull(String key, dynamic value) {
+      if (value != null) {
+        val[key] = value;
+      }
+    }
+
+    writeNotNull(
+        'signatureAlgorithmReadableName', signatureAlgorithmReadableName);
+    val['issuer'] = issuer;
+    val['validity'] = validity.toJson();
+    val['subject'] = subject;
+    val['subjectPublicKeyInfo'] = subjectPublicKeyInfo.toJson();
+    writeNotNull('extensions', extensions?.toJson());
+    return val;
+  }
 }
