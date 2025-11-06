@@ -1,8 +1,9 @@
 ## Plano do porte FontBox
 
 O objetivo é portar `org.apache.fontbox` para Dart seguindo a mesma abordagem incremental usada no módulo IO: implementar blocos coesos, portar testes de referência e manter documentação viva.
-
+codigo dart em: C:\MyDartProjects\pdfbox_dart\lib
 codigo original em C:\MyDartProjects\pdfbox_dart\pdfbox-java\fontbox
+testes originais em C:\MyDartProjects\pdfbox_dart\pdfbox-java\fontbox\src\test
 
 ### Estrutura de trabalho
 - Priorizar utilitários independentes (`util`, `encoding`, `cmap`) para destravar demais pacotes.
@@ -16,7 +17,7 @@ codigo original em C:\MyDartProjects\pdfbox_dart\pdfbox-java\fontbox
 4. Garantir suporte a encodings e cmaps compartilhados (`CMap`, `CMapParser`, `CMapLookup`). **(em andamento: `CMap` + `CMapParser` portados com testes; `CMapLookup` e `CmapSubtable` com parsing real para formatos 0/4/6/12 e cobertura de testes; faltam formatos restantes e integrações)**
 5. Portar formatos binários começando por CFF (depende de 1–4) e, na sequência, TTF.
 
-### Estado atual (2025-11-05)
+### Estado atual (2025-11-06)
 - `lib/src/fontbox/util/bounding_box.dart` implementado com cobertura em `test/fontbox/util/bounding_box_test.dart`.
 - `fontbox/util/autodetect` portado (`FontDirFinder`, variantes nativas e `FontFileFinder`) com testes em `test/fontbox/util/autodetect/font_file_finder_test.dart`.
 - Camada binária inicial pronta em `fontbox/io` (`TtfDataStream`, `RandomAccessReadDataStream`, `RandomAccessReadUnbufferedDataStream`, `TtcDataStream`) com testes em `test/fontbox/io/ttf_data_stream_test.dart`.
@@ -25,6 +26,7 @@ codigo original em C:\MyDartProjects\pdfbox_dart\pdfbox-java\fontbox
 - Bloco `fontbox/cmap` iniciado com `CMap`, `CodespaceRange`, `CidRange` e `CMapParser` validados em `test/fontbox/cmap/cmap_parser_test.dart`.
 - Interface `CMapLookup` portada para `lib/src/fontbox/ttf/cmap_lookup.dart`, preparando a etapa das tabelas TrueType.
 - Estruturas iniciais de `fontbox/ttf` avançadas com `CmapSubtable` interpretando formatos 0/4/6/12 e testes em `test/fontbox/ttf/cmap_subtable_test.dart` cobrindo parsing binário.
+- Infraestrutura TTF/GSUB inicial ativada com `TTFTable`, `FontHeaders`, `DigitalSignatureTable`, `OtlTable`, utilitário `Wgl4Names` e os modelos `Language`, `GsubData`, `MapBackedGsubData`, `MapBackedScriptFeature`/`ScriptFeature`, acompanhados dos testes sob `test/fontbox/ttf/` e `test/fontbox/ttf/model`.
 
 ### Próximas ações
 Next up, consider extending CmapSubtable to formats 2/8/10/13/14 and wiring it into the broader CmapTable workflow.
@@ -33,5 +35,5 @@ Next up, consider extending CmapSubtable to formats 2/8/10/13/14 and wiring it i
 - Integrar e exportar os modelos/parsers AFM quando houver consumidor no pacote principal.
 - Completar o pacote `org.apache.fontbox.cmap` implementando componentes consumidores (`CMapLookup` → lookup real) e amarrando a superfície pública (`pdfbox_dart.dart`).
 - Levantar dependências de `FontBoxFont`/`EncodedFont` e montar plano para conversão após concluir `cmap`.
-- Detalhar sequência de porte das tabelas TTF que dependem da camada `fontbox/io` (glyf, head, loca, etc.).
-- Expandir o leitor `CmapSubtable` para formatos restantes (2/8/10/13/14) e amarrar com `CmapTable`.
+- Detalhar sequência de porte das tabelas TTF que dependem da camada `fontbox/io` (glyf, head, loca, etc.) e alinhar com a modelagem recém-portada.
+- Expandir o leitor `CmapSubtable` para formatos restantes (2/8/10/13/14), introduzir `CmapTable`/`TrueTypeFont` e conectar a camada de GSUB (`GlyphSubstitutionTable`, `SubstitutingCmapLookup`).
