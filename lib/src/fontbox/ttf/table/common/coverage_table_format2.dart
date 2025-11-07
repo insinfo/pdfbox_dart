@@ -14,7 +14,9 @@ class CoverageTableFormat2 extends CoverageTableFormat1 {
     }
     final glyphIds = <int>[];
     for (final range in ranges) {
-      for (var glyphId = range.startGlyphId; glyphId <= range.endGlyphId; glyphId++) {
+      for (var glyphId = range.startGlyphId;
+          glyphId <= range.endGlyphId;
+          glyphId++) {
         glyphIds.add(glyphId);
       }
     }

@@ -23,7 +23,8 @@ class OpenTypeScript {
   /// Returns the OpenType script tags associated with [codePoint].
   static List<String> getScriptTags(int codePoint) {
     if (codePoint < 0 || codePoint > 0x10FFFF) {
-      throw ArgumentError.value(codePoint, 'codePoint', 'Invalid Unicode scalar value');
+      throw ArgumentError.value(
+          codePoint, 'codePoint', 'Invalid Unicode scalar value');
     }
     final script = _scriptForCodePoint(codePoint);
     return _scriptToTags[script] ?? const <String>[tagDefault];
@@ -45,10 +46,12 @@ class OpenTypeScript {
     return 'Common';
   }
 
-  static bool _isInRange(int value, int start, int end) => value >= start && value <= end;
+  static bool _isInRange(int value, int start, int end) =>
+      value >= start && value <= end;
 
   static bool _isLatin(int codePoint) {
-    if (_isInRange(codePoint, 0x0041, 0x005A) || _isInRange(codePoint, 0x0061, 0x007A)) {
+    if (_isInRange(codePoint, 0x0041, 0x005A) ||
+        _isInRange(codePoint, 0x0061, 0x007A)) {
       return true;
     }
     if (_isInRange(codePoint, 0x00C0, 0x02AF)) {

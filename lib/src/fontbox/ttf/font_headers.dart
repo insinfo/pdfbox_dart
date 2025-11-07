@@ -38,7 +38,8 @@ class FontHeaders {
     _fontSubFamily = subFamily;
   }
 
-  void setNonOtfGcid142(Uint8List? value) => _nonOtfGcid142 = value == null ? null : Uint8List.fromList(value);
+  void setNonOtfGcid142(Uint8List? value) =>
+      _nonOtfGcid142 = value == null ? null : Uint8List.fromList(value);
 
   void setIsOtfAndPostScript(bool value) => _isOtfAndPostScript = value;
 

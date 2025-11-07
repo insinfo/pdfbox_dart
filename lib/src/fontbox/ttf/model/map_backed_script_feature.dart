@@ -25,8 +25,8 @@ class MapBackedScriptFeature implements ScriptFeature {
   }
 
   @override
-  bool canReplaceGlyphs(List<int> glyphIds) =>
-      _featureMap.containsKey(_GlyphSequenceKey(List<int>.unmodifiable(glyphIds)));
+  bool canReplaceGlyphs(List<int> glyphIds) => _featureMap
+      .containsKey(_GlyphSequenceKey(List<int>.unmodifiable(glyphIds)));
 
   @override
   List<int> getReplacementForGlyphs(List<int> glyphIds) {
@@ -72,5 +72,6 @@ class _GlyphSequenceKey {
 
   @override
   bool operator ==(Object other) =>
-      other is _GlyphSequenceKey && const ListEquality<int>().equals(sequence, other.sequence);
+      other is _GlyphSequenceKey &&
+      const ListEquality<int>().equals(sequence, other.sequence);
 }

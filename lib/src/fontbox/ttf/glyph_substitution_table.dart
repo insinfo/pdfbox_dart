@@ -70,7 +70,8 @@ class GlyphSubstitutionTable extends TtfTable {
         : LookupListTable(0, const <LookupTable>[]);
 
     final extractor = GlyphSubstitutionDataExtractor();
-    _gsubData = extractor.getGsubData(_scriptList, _featureListTable!, _lookupListTable!);
+    _gsubData = extractor.getGsubData(
+        _scriptList, _featureListTable!, _lookupListTable!);
 
     _lookupCache.clear();
     _reverseLookup.clear();
@@ -89,11 +90,12 @@ class GlyphSubstitutionTable extends TtfTable {
       scriptOffsets[i] = data.readUnsignedShort();
     }
 
-  final scripts = LinkedHashMap<String, ScriptTable>();
+    final scripts = LinkedHashMap<String, ScriptTable>();
     for (var i = 0; i < scriptCount; i++) {
       final scriptOffset = scriptOffsets[i];
       if (scriptOffset == 0) {
-        _log.warning('Script offset at index $i is zero, skipping tag ${scriptTags[i]}');
+        _log.warning(
+            'Script offset at index $i is zero, skipping tag ${scriptTags[i]}');
         continue;
       }
       final absoluteOffset = offset + scriptOffset;
@@ -112,7 +114,8 @@ class GlyphSubstitutionTable extends TtfTable {
       langSysTags[i] = data.readString(4);
       langSysOffsets[i] = data.readUnsignedShort();
       if (i > 0 && langSysTags[i].compareTo(langSysTags[i - 1]) < 0) {
-        _log.warning('LangSysRecords not sorted alphabetically: ${langSysTags[i]} < ${langSysTags[i - 1]}');
+        _log.warning(
+            'LangSysRecords not sorted alphabetically: ${langSysTags[i]} < ${langSysTags[i - 1]}');
       }
     }
 
@@ -125,10 +128,12 @@ class GlyphSubstitutionTable extends TtfTable {
     for (var i = 0; i < langSysCount; i++) {
       final langSysOffset = langSysOffsets[i];
       if (langSysOffset == 0) {
-        _log.warning('LangSys offset is zero for tag ${langSysTags[i]}, skipping');
+        _log.warning(
+            'LangSys offset is zero for tag ${langSysTags[i]}, skipping');
         continue;
       }
-      langSysTables[langSysTags[i]] = _readLangSysTable(data, offset + langSysOffset);
+      langSysTables[langSysTags[i]] =
+          _readLangSysTable(data, offset + langSysOffset);
     }
 
     return ScriptTable(defaultLangSys, langSysTables);
@@ -140,7 +145,8 @@ class GlyphSubstitutionTable extends TtfTable {
     final requiredFeatureIndex = data.readUnsignedShort();
     final featureIndexCount = data.readUnsignedShort();
     final featureIndices = data.readUnsignedShortArray(featureIndexCount);
-    return LangSysTable(lookupOrder, requiredFeatureIndex, featureIndexCount, featureIndices);
+    return LangSysTable(
+        lookupOrder, requiredFeatureIndex, featureIndexCount, featureIndices);
   }
 
   FeatureListTable _readFeatureList(TtfDataStream data, int offset) {
@@ -153,10 +159,12 @@ class GlyphSubstitutionTable extends TtfTable {
       if (i > 0 && featureTags[i].compareTo(featureTags[i - 1]) < 0) {
         final currentTag = featureTags[i];
         final previousTag = featureTags[i - 1];
-        if (_fourCharWord.hasMatch(currentTag) && _fourCharWord.hasMatch(previousTag)) {
+        if (_fourCharWord.hasMatch(currentTag) &&
+            _fourCharWord.hasMatch(previousTag)) {
           _log.fine('Feature tags appear unsorted: $currentTag < $previousTag');
         } else {
-          _log.warning('Feature tags not sorted: $currentTag < $previousTag, using empty feature list');
+          _log.warning(
+              'Feature tags not sorted: $currentTag < $previousTag, using empty feature list');
           return FeatureListTable(0, const <FeatureRecord>[]);
         }
       }
@@ -190,7 +198,8 @@ class GlyphSubstitutionTable extends TtfTable {
     final lookups = List<LookupTable>.generate(lookupCount, (index) {
       final lookupOffset = lookupOffsets[index];
       if (lookupOffset == 0) {
-        _log.warning('Lookup offset is zero at index $index, inserting empty lookup table');
+        _log.warning(
+            'Lookup offset is zero at index $index, inserting empty lookup table');
         return LookupTable(0, 0, 0, const <LookupSubTable>[]);
       }
       return _readLookupTable(data, offset + lookupOffset);
@@ -219,13 +228,15 @@ class GlyphSubstitutionTable extends TtfTable {
         data.seek(extensionBase);
         final substFormat = data.readUnsignedShort();
         if (substFormat != 1) {
-          _log.warning('Unsupported ExtensionSubstFormat $substFormat at offset $extensionBase');
+          _log.warning(
+              'Unsupported ExtensionSubstFormat $substFormat at offset $extensionBase');
           continue;
         }
         final extensionLookupType = data.readUnsignedShort();
         final extensionOffset = data.readUnsignedInt();
         final actualOffset = extensionBase + extensionOffset;
-        final subTable = _readLookupSubtable(data, actualOffset, extensionLookupType);
+        final subTable =
+            _readLookupSubtable(data, actualOffset, extensionLookupType);
         if (subTable != null) {
           subTables.add(subTable);
           lookupType = extensionLookupType;
@@ -237,7 +248,8 @@ class GlyphSubstitutionTable extends TtfTable {
         if (relativeOffset == 0) {
           continue;
         }
-        final subTable = _readLookupSubtable(data, offset + relativeOffset, lookupType);
+        final subTable =
+            _readLookupSubtable(data, offset + relativeOffset, lookupType);
         if (subTable != null) {
           subTables.add(subTable);
         }
@@ -246,7 +258,8 @@ class GlyphSubstitutionTable extends TtfTable {
     return LookupTable(lookupType, lookupFlag, markFilteringSet, subTables);
   }
 
-  LookupSubTable? _readLookupSubtable(TtfDataStream data, int offset, int lookupType) {
+  LookupSubTable? _readLookupSubtable(
+      TtfDataStream data, int offset, int lookupType) {
     switch (lookupType) {
       case 1:
         return _readSingleLookupSubTable(data, offset);
@@ -270,35 +283,43 @@ class GlyphSubstitutionTable extends TtfTable {
         {
           final coverageOffset = data.readUnsignedShort();
           final deltaGlyphId = data.readSignedShort();
-          final coverageTable = _readCoverageTable(data, offset + coverageOffset);
-          return LookupTypeSingleSubstFormat1(substFormat, coverageTable, deltaGlyphId);
+          final coverageTable =
+              _readCoverageTable(data, offset + coverageOffset);
+          return LookupTypeSingleSubstFormat1(
+              substFormat, coverageTable, deltaGlyphId);
         }
       case 2:
         {
           final coverageOffset = data.readUnsignedShort();
           final glyphCount = data.readUnsignedShort();
           final substituteGlyphIds = data.readUnsignedShortArray(glyphCount);
-          final coverageTable = _readCoverageTable(data, offset + coverageOffset);
-          return LookupTypeSingleSubstFormat2(substFormat, coverageTable, substituteGlyphIds);
+          final coverageTable =
+              _readCoverageTable(data, offset + coverageOffset);
+          return LookupTypeSingleSubstFormat2(
+              substFormat, coverageTable, substituteGlyphIds);
         }
       default:
-        _log.warning('Unknown substFormat $substFormat in single substitution lookup');
+        _log.warning(
+            'Unknown substFormat $substFormat in single substitution lookup');
         return null;
     }
   }
 
-  LookupSubTable? _readMultipleSubstitutionSubtable(TtfDataStream data, int offset) {
+  LookupSubTable? _readMultipleSubstitutionSubtable(
+      TtfDataStream data, int offset) {
     data.seek(offset);
     final substFormat = data.readUnsignedShort();
     if (substFormat != 1) {
-      throw IOException('Expected substFormat 1 for multiple substitution, got $substFormat');
+      throw IOException(
+          'Expected substFormat 1 for multiple substitution, got $substFormat');
     }
     final coverageOffset = data.readUnsignedShort();
     final sequenceCount = data.readUnsignedShort();
     final sequenceOffsets = data.readUnsignedShortArray(sequenceCount);
     final coverageTable = _readCoverageTable(data, offset + coverageOffset);
     if (coverageTable.getSize() != sequenceCount) {
-      throw IOException('Coverage count ${coverageTable.getSize()} does not match sequence count $sequenceCount');
+      throw IOException(
+          'Coverage count ${coverageTable.getSize()} does not match sequence count $sequenceCount');
     }
     final sequences = <SequenceTable>[];
     for (var i = 0; i < sequenceCount; i++) {
@@ -307,21 +328,25 @@ class GlyphSubstitutionTable extends TtfTable {
       final substituteGlyphIds = data.readUnsignedShortArray(glyphCount);
       sequences.add(SequenceTable(glyphCount, substituteGlyphIds));
     }
-    return LookupTypeMultipleSubstitutionFormat1(substFormat, coverageTable, sequences);
+    return LookupTypeMultipleSubstitutionFormat1(
+        substFormat, coverageTable, sequences);
   }
 
-  LookupSubTable? _readAlternateSubstitutionSubtable(TtfDataStream data, int offset) {
+  LookupSubTable? _readAlternateSubstitutionSubtable(
+      TtfDataStream data, int offset) {
     data.seek(offset);
     final substFormat = data.readUnsignedShort();
     if (substFormat != 1) {
-      throw IOException('Expected substFormat 1 for alternate substitution, got $substFormat');
+      throw IOException(
+          'Expected substFormat 1 for alternate substitution, got $substFormat');
     }
     final coverageOffset = data.readUnsignedShort();
     final altSetCount = data.readUnsignedShort();
     final alternateOffsets = data.readUnsignedShortArray(altSetCount);
     final coverageTable = _readCoverageTable(data, offset + coverageOffset);
     if (coverageTable.getSize() != altSetCount) {
-      throw IOException('Coverage count ${coverageTable.getSize()} does not match alternate set count $altSetCount');
+      throw IOException(
+          'Coverage count ${coverageTable.getSize()} does not match alternate set count $altSetCount');
     }
     final alternateSets = <AlternateSetTable>[];
     for (var i = 0; i < altSetCount; i++) {
@@ -330,47 +355,57 @@ class GlyphSubstitutionTable extends TtfTable {
       final alternateGlyphIds = data.readUnsignedShortArray(glyphCount);
       alternateSets.add(AlternateSetTable(glyphCount, alternateGlyphIds));
     }
-    return LookupTypeAlternateSubstitutionFormat1(substFormat, coverageTable, alternateSets);
+    return LookupTypeAlternateSubstitutionFormat1(
+        substFormat, coverageTable, alternateSets);
   }
 
-  LookupSubTable? _readLigatureSubstitutionSubtable(TtfDataStream data, int offset) {
+  LookupSubTable? _readLigatureSubstitutionSubtable(
+      TtfDataStream data, int offset) {
     data.seek(offset);
     final substFormat = data.readUnsignedShort();
     if (substFormat != 1) {
-      throw IOException('Expected substFormat 1 for ligature substitution, got $substFormat');
+      throw IOException(
+          'Expected substFormat 1 for ligature substitution, got $substFormat');
     }
     final coverageOffset = data.readUnsignedShort();
     final ligatureCount = data.readUnsignedShort();
     final ligatureOffsets = data.readUnsignedShortArray(ligatureCount);
     final coverageTable = _readCoverageTable(data, offset + coverageOffset);
     if (coverageTable.getSize() != ligatureCount) {
-      throw IOException('Coverage count ${coverageTable.getSize()} does not match ligature count $ligatureCount');
+      throw IOException(
+          'Coverage count ${coverageTable.getSize()} does not match ligature count $ligatureCount');
     }
     final ligatureSets = <LigatureSetTable>[];
     for (var i = 0; i < ligatureCount; i++) {
       final coverageGlyphId = coverageTable.getGlyphId(i);
-      ligatureSets.add(_readLigatureSetTable(data, offset + ligatureOffsets[i], coverageGlyphId));
+      ligatureSets.add(_readLigatureSetTable(
+          data, offset + ligatureOffsets[i], coverageGlyphId));
     }
-    return LookupTypeLigatureSubstitutionSubstFormat1(substFormat, coverageTable, ligatureSets);
+    return LookupTypeLigatureSubstitutionSubstFormat1(
+        substFormat, coverageTable, ligatureSets);
   }
 
-  LigatureSetTable _readLigatureSetTable(TtfDataStream data, int offset, int coverageGlyphId) {
+  LigatureSetTable _readLigatureSetTable(
+      TtfDataStream data, int offset, int coverageGlyphId) {
     data.seek(offset);
     final ligatureCount = data.readUnsignedShort();
     final ligatureOffsets = data.readUnsignedShortArray(ligatureCount);
     final ligatures = <LigatureTable>[];
     for (var i = 0; i < ligatureCount; i++) {
-      ligatures.add(_readLigatureTable(data, offset + ligatureOffsets[i], coverageGlyphId));
+      ligatures.add(_readLigatureTable(
+          data, offset + ligatureOffsets[i], coverageGlyphId));
     }
     return LigatureSetTable(ligatureCount, ligatures);
   }
 
-  LigatureTable _readLigatureTable(TtfDataStream data, int offset, int coverageGlyphId) {
+  LigatureTable _readLigatureTable(
+      TtfDataStream data, int offset, int coverageGlyphId) {
     data.seek(offset);
     final ligatureGlyph = data.readUnsignedShort();
     final componentCount = data.readUnsignedShort();
     if (componentCount <= 0 || componentCount > 100) {
-      throw IOException('Ligature table componentCount $componentCount is implausible');
+      throw IOException(
+          'Ligature table componentCount $componentCount is implausible');
     }
     final componentGlyphIds = List<int>.filled(componentCount, 0);
     componentGlyphIds[0] = coverageGlyphId;
@@ -419,7 +454,8 @@ class GlyphSubstitutionTable extends TtfTable {
       final tag = tags.first;
       if (tag == OpenTypeScript.inherited ||
           (tag == OpenTypeScript.tagDefault && !_scriptList.containsKey(tag))) {
-        _lastUsedSupportedScript ??= _scriptList.isNotEmpty ? _scriptList.keys.first : tag;
+        _lastUsedSupportedScript ??=
+            _scriptList.isNotEmpty ? _scriptList.keys.first : tag;
         return _lastUsedSupportedScript!;
       }
     }
@@ -464,7 +500,8 @@ class GlyphSubstitutionTable extends TtfTable {
       for (final index in langSysTable.featureIndices) {
         if (index < featureRecords.length) {
           final record = featureRecords[index];
-          if (enabledFeatures == null || enabledFeatures.contains(record.featureTag)) {
+          if (enabledFeatures == null ||
+              enabledFeatures.contains(record.featureTag)) {
             result.add(record);
           }
         }
@@ -502,12 +539,14 @@ class GlyphSubstitutionTable extends TtfTable {
     final lookups = lookupList.lookups;
     for (final lookupIndex in featureRecord.featureTable.lookupListIndices) {
       if (lookupIndex < 0 || lookupIndex >= lookups.length) {
-        _log.warning('Skipping GSUB feature ${featureRecord.featureTag} with invalid lookupListIndex $lookupIndex');
+        _log.warning(
+            'Skipping GSUB feature ${featureRecord.featureTag} with invalid lookupListIndex $lookupIndex');
         continue;
       }
       final lookupTable = lookups[lookupIndex];
       if (lookupTable.lookupType != 1) {
-        _log.fine('Lookup type ${lookupTable.lookupType} not supported for feature ${featureRecord.featureTag}');
+        _log.fine(
+            'Lookup type ${lookupTable.lookupType} not supported for feature ${featureRecord.featureTag}');
         continue;
       }
       lookupResult = _doLookup(lookupTable, lookupResult);
@@ -526,7 +565,8 @@ class GlyphSubstitutionTable extends TtfTable {
   }
 
   /// Apply glyph substitutions for [gid] according to [scriptTags] and [enabledFeatures].
-  int getSubstitution(int gid, List<String> scriptTags, List<String> enabledFeatures) {
+  int getSubstitution(
+      int gid, List<String> scriptTags, List<String> enabledFeatures) {
     if (gid == -1) {
       return -1;
     }
@@ -550,7 +590,8 @@ class GlyphSubstitutionTable extends TtfTable {
   int getUnsubstitution(int substituted) {
     final original = _reverseLookup[substituted];
     if (original == null) {
-      _log.warning('Glyph $substituted was not previously substituted, returning original value');
+      _log.warning(
+          'Glyph $substituted was not previously substituted, returning original value');
       return substituted;
     }
     return original;
@@ -562,7 +603,9 @@ class GlyphSubstitutionTable extends TtfTable {
   /// Extracts GSUB data for the supplied [scriptTag] without caching.
   GsubData? getGsubDataForScript(String scriptTag) {
     final scriptTable = _scriptList[scriptTag];
-    if (scriptTable == null || _featureListTable == null || _lookupListTable == null) {
+    if (scriptTable == null ||
+        _featureListTable == null ||
+        _lookupListTable == null) {
       return null;
     }
     return GlyphSubstitutionDataExtractor().getGsubDataForScript(
@@ -574,5 +617,6 @@ class GlyphSubstitutionTable extends TtfTable {
   }
 
   /// Supported OpenType script tags exposed by this GSUB table.
-  Set<String> getSupportedScriptTags() => UnmodifiableSetView<String>(_scriptList.keys.toSet());
+  Set<String> getSupportedScriptTags() =>
+      UnmodifiableSetView<String>(_scriptList.keys.toSet());
 }

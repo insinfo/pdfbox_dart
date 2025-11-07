@@ -180,7 +180,7 @@ class RandomAccessReadBufferedFile extends RandomAccessRead {
     _raf.setPositionSync(pageOffset);
     var totalRead = 0;
     while (totalRead < _pageSize) {
-      final bytesRead = _raf.readIntoSync(page, totalRead, _pageSize - totalRead);
+      final bytesRead = _raf.readIntoSync(page, totalRead, _pageSize);
       if (bytesRead <= 0) {
         break;
       }

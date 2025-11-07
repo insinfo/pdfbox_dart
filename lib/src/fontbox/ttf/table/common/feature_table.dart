@@ -1,5 +1,6 @@
 class FeatureTable {
-  FeatureTable(this.featureParams, this.lookupIndexCount, List<int> lookupListIndices)
+  FeatureTable(
+      this.featureParams, this.lookupIndexCount, List<int> lookupListIndices)
       : lookupListIndices = List<int>.unmodifiable(lookupListIndices);
 
   final int featureParams;

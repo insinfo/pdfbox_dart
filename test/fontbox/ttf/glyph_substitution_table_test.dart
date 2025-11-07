@@ -31,6 +31,15 @@ void main() {
       expect(feature.canReplaceGlyphs(<int>[2]), isTrue);
       expect(feature.getReplacementForGlyphs(<int>[2]), equals(<int>[3]));
     });
+
+    test('getGsubDataForScript returns data for explicit script tag', () {
+      final gsub = _loadMinimalGsubTable();
+      final data = gsub.getGsubDataForScript('latn');
+      expect(data, isNotNull);
+      expect(data!.language, Language.unspecified);
+      expect(data.activeScriptName, 'latn');
+      expect(data.getSupportedFeatures(), contains('liga'));
+    });
   });
 
   group('Glyph substitution integration', () {
@@ -54,6 +63,11 @@ void main() {
       final gsub = _loadMinimalGsubTable();
       final font = TrueTypeFont()..addTable(gsub);
       expect(font.getGsubTable(), same(gsub));
+    });
+
+    test('returns original glyph id when unsubstitution misses lookup', () {
+      final gsub = _loadMinimalGsubTable();
+      expect(gsub.getUnsubstitution(99), 99);
     });
   });
 }

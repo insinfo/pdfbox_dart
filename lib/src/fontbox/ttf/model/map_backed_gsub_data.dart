@@ -10,7 +10,8 @@ class MapBackedGsubData implements GsubData {
     Map<String, Map<List<int>, List<int>>> glyphSubstitutionMap,
   ) : _features = <String, MapBackedScriptFeature>{} {
     glyphSubstitutionMap.forEach((featureName, substitutions) {
-      _features[featureName] = MapBackedScriptFeature(featureName, substitutions);
+      _features[featureName] =
+          MapBackedScriptFeature(featureName, substitutions);
     });
   }
 
@@ -23,7 +24,8 @@ class MapBackedGsubData implements GsubData {
   final Map<String, MapBackedScriptFeature> _features;
 
   @override
-  bool isFeatureSupported(String featureName) => _features.containsKey(featureName);
+  bool isFeatureSupported(String featureName) =>
+      _features.containsKey(featureName);
 
   @override
   ScriptFeature getFeature(String featureName) {
@@ -35,5 +37,6 @@ class MapBackedGsubData implements GsubData {
   }
 
   @override
-  Set<String> getSupportedFeatures() => Set<String>.unmodifiable(_features.keys);
+  Set<String> getSupportedFeatures() =>
+      Set<String>.unmodifiable(_features.keys);
 }

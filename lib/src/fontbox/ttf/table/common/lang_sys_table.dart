@@ -12,5 +12,6 @@ class LangSysTable {
   final List<int> featureIndices;
 
   @override
-  String toString() => 'LangSysTable[requiredFeatureIndex=$requiredFeatureIndex]';
+  String toString() =>
+      'LangSysTable[requiredFeatureIndex=$requiredFeatureIndex]';
 }

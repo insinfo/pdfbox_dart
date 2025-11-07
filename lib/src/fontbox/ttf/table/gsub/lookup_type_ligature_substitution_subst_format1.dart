@@ -9,14 +9,15 @@ class LookupTypeLigatureSubstitutionSubstFormat1 extends LookupSubTable {
     int substFormat,
     CoverageTable coverageTable,
     List<LigatureSetTable> ligatureSetTables,
-  )   : ligatureSetTables = UnmodifiableListView<LigatureSetTable>(ligatureSetTables),
+  )   : ligatureSetTables =
+            UnmodifiableListView<LigatureSetTable>(ligatureSetTables),
         super(substFormat, coverageTable);
 
   final List<LigatureSetTable> ligatureSetTables;
 
   @override
-  int doSubstitution(int glyphId, int coverageIndex) =>
-      throw UnsupportedError('Ligature substitution emits composed glyph sequences');
+  int doSubstitution(int glyphId, int coverageIndex) => throw UnsupportedError(
+      'Ligature substitution emits composed glyph sequences');
 
   @override
   String toString() =>

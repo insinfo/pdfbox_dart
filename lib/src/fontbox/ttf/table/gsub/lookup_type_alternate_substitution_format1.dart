@@ -9,7 +9,8 @@ class LookupTypeAlternateSubstitutionFormat1 extends LookupSubTable {
     int substFormat,
     CoverageTable coverageTable,
     List<AlternateSetTable> alternateSetTables,
-  )   : alternateSetTables = UnmodifiableListView<AlternateSetTable>(alternateSetTables),
+  )   : alternateSetTables =
+            UnmodifiableListView<AlternateSetTable>(alternateSetTables),
         super(substFormat, coverageTable);
 
   final List<AlternateSetTable> alternateSetTables;

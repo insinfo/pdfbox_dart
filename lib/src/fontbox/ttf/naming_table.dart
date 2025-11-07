@@ -12,7 +12,9 @@ class NamingTable extends TtfTable {
 
   List<NameRecord> _nameRecords = const <NameRecord>[];
   final Map<int, Map<int, Map<int, Map<int, String?>>>> _lookupTable =
-      <int, Map<int, Map<int, Map<int, String?>>>>{};
+    <int, Map<int, Map<int, Map<int, String?>>>>{};
+
+  List<String> _languageTags = const <String>[];
 
   String? _fontFamily;
   String? _fontSubFamily;
@@ -37,7 +39,10 @@ class NamingTable extends TtfTable {
 
   String? getPostScriptName() => _postScriptName;
 
-  List<NameRecord> getNameRecords() => List<NameRecord>.unmodifiable(_nameRecords);
+  List<NameRecord> getNameRecords() =>
+      List<NameRecord>.unmodifiable(_nameRecords);
+
+  List<String> get languageTags => List<String>.unmodifiable(_languageTags);
 
   String? getName(int nameId, int platformId, int encodingId, int languageId) {
     final platforms = _lookupTable[nameId];
@@ -55,18 +60,36 @@ class NamingTable extends TtfTable {
     return languages[languageId];
   }
 
-  void _readInternal(dynamic ttf, TtfDataStream data, {required bool onlyHeaders}) {
+  void _readInternal(dynamic ttf, TtfDataStream data,
+      {required bool onlyHeaders}) {
     final formatSelector = data.readUnsignedShort();
-    if (formatSelector != 0) {
-      // Only format 0 is handled at the moment; defer the rest until needed.
-      throw UnsupportedError('Naming table format $formatSelector not yet supported');
+    final bool useLongOffsets = formatSelector == 3;
+    if (formatSelector != 0 && formatSelector != 1 && formatSelector != 3) {
+      throw UnsupportedError(
+          'Naming table format $formatSelector not yet supported');
     }
     final numberOfNameRecords = data.readUnsignedShort();
-    final storageOffset = data.readUnsignedShort();
+    final int storageOffset =
+        useLongOffsets ? data.readUnsignedInt() : data.readUnsignedShort();
 
-    final records = List<NameRecord>.generate(numberOfNameRecords, (_) => NameRecord());
+    final records =
+        List<NameRecord>.generate(numberOfNameRecords, (_) => NameRecord());
     for (final record in records) {
-      record.readData(data);
+      record.readData(data, useLongOffsets: useLongOffsets);
+    }
+    final bool hasLanguageTags = formatSelector == 1 || formatSelector == 3;
+    final List<_LangTagRecord> langTagRecords;
+    if (hasLanguageTags) {
+      final count = data.readUnsignedShort();
+      langTagRecords = List<_LangTagRecord>.generate(count, (_) {
+        final length =
+            useLongOffsets ? data.readUnsignedInt() : data.readUnsignedShort();
+        final offsetValue =
+            useLongOffsets ? data.readUnsignedInt() : data.readUnsignedShort();
+        return _LangTagRecord(length, offsetValue);
+      });
+    } else {
+      langTagRecords = const <_LangTagRecord>[];
     }
 
     final filtered = <NameRecord>[];
@@ -78,23 +101,50 @@ class NamingTable extends TtfTable {
     _nameRecords = filtered;
 
     for (final record in _nameRecords) {
-      if (record.stringOffset > length) {
+      if (storageOffset + record.stringOffset > length) {
         record.string = null;
         continue;
       }
-  final absoluteOffset = offset + storageOffset + record.stringOffset;
+      final absoluteOffset = offset + storageOffset + record.stringOffset;
+      final available = offset + length - absoluteOffset;
+      if (record.stringLength > available) {
+        record.string = null;
+        continue;
+      }
       data.seek(absoluteOffset);
       record.string = _readString(data, record);
     }
 
+    if (langTagRecords.isEmpty) {
+      _languageTags = const <String>[];
+    } else {
+      final tags = <String>[];
+      for (final tag in langTagRecords) {
+        if (storageOffset + tag.offset >= length || tag.length <= 0) {
+          tags.add('');
+          continue;
+        }
+        final absoluteOffset = offset + storageOffset + tag.offset;
+        final available = offset + length - absoluteOffset;
+        if (tag.length > available) {
+          tags.add('');
+          continue;
+        }
+        data.seek(absoluteOffset);
+        final bytes = data.readBytes(tag.length);
+        tags.add(_decodeUtf16(bytes, Endian.big));
+      }
+      _languageTags = List<String>.unmodifiable(tags);
+    }
+
     _lookupTable.clear();
     for (final record in _nameRecords) {
-      final platformLookup =
-          _lookupTable.putIfAbsent(record.nameId, () => <int, Map<int, Map<int, String?>>>{});
-      final encodingLookup =
-          platformLookup.putIfAbsent(record.platformId, () => <int, Map<int, String?>>{});
-      final languageLookup =
-          encodingLookup.putIfAbsent(record.platformEncodingId, () => <int, String?>{});
+      final platformLookup = _lookupTable.putIfAbsent(
+          record.nameId, () => <int, Map<int, Map<int, String?>>>{});
+      final encodingLookup = platformLookup.putIfAbsent(
+          record.platformId, () => <int, Map<int, String?>>{});
+      final languageLookup = encodingLookup.putIfAbsent(
+          record.platformEncodingId, () => <int, String?>{});
       languageLookup[record.languageId] = record.string;
     }
 
@@ -119,8 +169,11 @@ class NamingTable extends TtfTable {
   }
 
   String? _getEnglishName(int nameId) {
-    for (var encodingId = NameRecord.encodingUnicode20Full; encodingId >= NameRecord.encodingUnicode10; encodingId--) {
-      final value = getName(nameId, NameRecord.platformUnicode, encodingId, NameRecord.languageUnicode);
+    for (var encodingId = NameRecord.encodingUnicode20Full;
+        encodingId >= NameRecord.encodingUnicode10;
+        encodingId--) {
+      final value = getName(nameId, NameRecord.platformUnicode, encodingId,
+          NameRecord.languageUnicode);
       if (value != null) {
         return value;
       }
@@ -197,4 +250,11 @@ class NamingTable extends TtfTable {
     }
     return String.fromCharCodes(codeUnits);
   }
+}
+
+class _LangTagRecord {
+  const _LangTagRecord(this.length, this.offset);
+
+  final int length;
+  final int offset;
 }

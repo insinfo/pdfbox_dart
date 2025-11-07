@@ -50,13 +50,18 @@ class NameRecord {
   String? string;
 
   /// Reads the name record metadata (without the associated string).
-  void readData(TtfDataStream data) {
+  void readData(TtfDataStream data, {bool useLongOffsets = false}) {
     platformId = data.readUnsignedShort();
     platformEncodingId = data.readUnsignedShort();
     languageId = data.readUnsignedShort();
     nameId = data.readUnsignedShort();
-    stringLength = data.readUnsignedShort();
-    stringOffset = data.readUnsignedShort();
+    if (useLongOffsets) {
+      stringLength = data.readUnsignedInt();
+      stringOffset = data.readUnsignedInt();
+    } else {
+      stringLength = data.readUnsignedShort();
+      stringOffset = data.readUnsignedShort();
+    }
   }
 
   @override

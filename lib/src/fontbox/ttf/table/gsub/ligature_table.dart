@@ -2,7 +2,8 @@ import 'dart:collection';
 
 /// Describes a ligature definition inside lookup type 4 substitutions.
 class LigatureTable {
-  LigatureTable(int ligatureGlyph, int componentCount, List<int> componentGlyphIds)
+  LigatureTable(
+      int ligatureGlyph, int componentCount, List<int> componentGlyphIds)
       : ligatureGlyph = ligatureGlyph,
         componentCount = componentCount,
         componentGlyphIds = UnmodifiableListView<int>(componentGlyphIds);
