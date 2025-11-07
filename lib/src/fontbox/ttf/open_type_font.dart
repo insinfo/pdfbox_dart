@@ -1,6 +1,8 @@
 import '../io/ttf_data_stream.dart';
 import 'cff_table.dart';
+import 'glyph_substitution_table.dart';
 import 'glyph_table.dart';
+import 'otl_table.dart';
 import 'true_type_font.dart';
 
 /// Basic representation of an OpenType font (OTF/TTF hybrid).
@@ -39,9 +41,29 @@ class OpenTypeFont extends TrueTypeFont {
       !tableMap.containsKey(CffTable.tableTag) &&
       tableMap.containsKey('CFF2'));
 
+  /// Returns true when any advanced OpenType layout table is present.
+  bool get hasLayoutTables =>
+      tableMap.containsKey('BASE') ||
+      tableMap.containsKey('GDEF') ||
+      tableMap.containsKey('GPOS') ||
+      tableMap.containsKey(GlyphSubstitutionTable.tableTag) ||
+      tableMap.containsKey(OtlTable.tableTag);
+
+  /// Returns the decoded CFF table for fonts that declare PostScript outlines.
+  CffTable getCffTable() {
+    if (!isPostScript) {
+      throw UnsupportedError('TTF fonts do not expose a CFF table');
+    }
+    final table = tableMap[CffTable.tableTag];
+    if (table is! CffTable) {
+      throw StateError('CFF table is missing or has not been initialised');
+    }
+    return table;
+  }
+
   @override
   GlyphTable? getGlyphTable() {
-    if (_hasPostScriptSfntTag) {
+    if (isPostScript) {
       throw UnsupportedError(
           'OTF fonts with PostScript outlines do not expose a glyf table');
     }

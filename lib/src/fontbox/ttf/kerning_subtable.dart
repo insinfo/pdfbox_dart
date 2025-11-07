@@ -124,7 +124,53 @@ class KerningSubtable {
   }
 
   void _readSubtable0Format2(TtfDataStream data) {
-    _log.info('Kerning subtable format 2 not yet supported.');
+    final subtableStart = data.currentPosition - 6;
+    final rowWidth = data.readUnsignedShort();
+    final leftClassOffset = data.readUnsignedShort();
+    final rightClassOffset = data.readUnsignedShort();
+    final arrayOffset = data.readUnsignedShort();
+
+    if (rowWidth <= 0) {
+      _log.warning('Kerning sub-table format 2 with invalid row width: $rowWidth');
+      return;
+    }
+
+    final leftClasses = _readClassTable(data, subtableStart, leftClassOffset);
+    final rightClasses = _readClassTable(data, subtableStart, rightClassOffset);
+
+    final leftClassCount = leftClasses.maxClass + 1;
+    final rightClassCount = rowWidth ~/ 2;
+    if (leftClassCount <= 0 || rightClassCount <= 0) {
+      _log.warning(
+        'Kerning sub-table format 2 with invalid class counts: left=$leftClassCount right=$rightClassCount',
+      );
+      return;
+    }
+
+    final kerning = List<List<int>>.generate(
+      leftClassCount,
+      (_) => List<int>.filled(rightClassCount, 0, growable: false),
+      growable: false,
+    );
+
+    final saved = data.currentPosition;
+    try {
+      data.seek(subtableStart + arrayOffset);
+      final valuesPerRow = rowWidth ~/ 2;
+      for (var left = 0; left < leftClassCount; left++) {
+        for (var right = 0; right < valuesPerRow; right++) {
+          kerning[left][right] = data.readSignedShort();
+        }
+      }
+    } finally {
+      data.seek(saved);
+    }
+
+    _pairs = _PairData0Format2(
+      leftClasses.mapping,
+      rightClasses.mapping,
+      kerning,
+    );
   }
 
   void _readSubtable1(TtfDataStream data) {
@@ -189,4 +235,64 @@ class _PairData0Format0 implements _PairData {
     }
     return 0;
   }
+}
+
+class _PairData0Format2 implements _PairData {
+  _PairData0Format2(this._leftClasses, this._rightClasses, this._matrix);
+
+  final Map<int, int> _leftClasses;
+  final Map<int, int> _rightClasses;
+  final List<List<int>> _matrix;
+
+  @override
+  void read(TtfDataStream data) {}
+
+  @override
+  int getKerning(int left, int right) {
+    final leftClass = _leftClasses[left] ?? 0;
+    final rightClass = _rightClasses[right] ?? 0;
+    if (leftClass < 0 || leftClass >= _matrix.length) {
+      return 0;
+    }
+    final row = _matrix[leftClass];
+    if (rightClass < 0 || rightClass >= row.length) {
+      return 0;
+    }
+    return row[rightClass];
+  }
+}
+
+_ClassTableData _readClassTable(
+  TtfDataStream data,
+  int subtableStart,
+  int offset,
+) {
+  if (offset == 0) {
+    return const _ClassTableData(<int, int>{}, 0);
+  }
+  final saved = data.currentPosition;
+  try {
+    data.seek(subtableStart + offset);
+    final firstGlyph = data.readUnsignedShort();
+    final glyphCount = data.readUnsignedShort();
+    final mapping = <int, int>{};
+    var maxClass = 0;
+    for (var i = 0; i < glyphCount; i++) {
+      final classValue = data.readUnsignedShort();
+      mapping[firstGlyph + i] = classValue;
+      if (classValue > maxClass) {
+        maxClass = classValue;
+      }
+    }
+    return _ClassTableData(mapping, maxClass);
+  } finally {
+    data.seek(saved);
+  }
+}
+
+class _ClassTableData {
+  const _ClassTableData(this.mapping, this.maxClass);
+
+  final Map<int, int> mapping;
+  final int maxClass;
 }

@@ -42,7 +42,13 @@ class CmapSubtable implements CMapLookup {
     final subtableStart = tableOffset + _subTableOffset;
     data.seek(subtableStart);
     _format = data.readUnsignedShort();
-    if (_format < 8) {
+    var selectorCount = 0;
+    if (_format == 14) {
+      _length = data.readUnsignedInt();
+      selectorCount = data.readUnsignedInt();
+      _version = 0;
+      _language = 0;
+    } else if (_format < 8) {
       _length = data.readUnsignedShort();
       _language = data.readUnsignedShort();
       _version = _language;
@@ -79,7 +85,7 @@ class CmapSubtable implements CMapLookup {
         _processFormat13(data, numGlyphs);
         break;
       case 14:
-        _processFormat14(data, subtableStart, _version);
+        _processFormat14(data, subtableStart, selectorCount);
         break;
       default:
         throw UnsupportedError('cmap format $_format ainda não implementado');

@@ -9,7 +9,8 @@ class FakeCMapLookup implements CMapLookup {
   final Map<int, int> _glyphMapping;
 
   @override
-  int getGlyphId(int codePoint) => _glyphMapping[codePoint] ?? 0;
+  int getGlyphId(int codePoint, [int? variationSelector]) =>
+      _glyphMapping[codePoint] ?? 0;
 
   @override
   List<int>? getCharCodes(int glyphId) => null;

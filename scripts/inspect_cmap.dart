@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:logging/logging.dart';
 import 'package:pdfbox_dart/src/fontbox/ttf/cmap_subtable.dart';
+import 'package:pdfbox_dart/src/fontbox/ttf/otf_parser.dart';
 import 'package:pdfbox_dart/src/fontbox/ttf/true_type_font.dart';
 import 'package:pdfbox_dart/src/fontbox/ttf/ttf_parser.dart';
 import 'package:pdfbox_dart/src/io/exceptions.dart';
@@ -20,14 +21,15 @@ void main(List<String> args) {
     stderr.writeln('[${record.level.name}] ${record.loggerName}: ${record.message}');
   });
 
-  final parser = TtfParser();
+  final ttfParser = TtfParser();
+  final otfParser = OtfParser();
 
   for (final path in args) {
-    _inspectFont(parser, path);
+    _inspectFont(ttfParser, otfParser, path);
   }
 }
 
-void _inspectFont(TtfParser parser, String path) {
+void _inspectFont(TtfParser ttfParser, OtfParser otfParser, String path) {
   final file = File(path);
   if (!file.existsSync()) {
     stderr.writeln('Font not found: $path');
@@ -35,11 +37,9 @@ void _inspectFont(TtfParser parser, String path) {
   }
 
   stdout.writeln('--- Inspecting $path');
-  RandomAccessReadBufferedFile? reader;
   TrueTypeFont? font;
   try {
-    reader = RandomAccessReadBufferedFile(path);
-    font = parser.parse(reader);
+    font = _parseFont(path, ttfParser, otfParser);
 
     stdout.writeln('Font version: ${font.version.toStringAsFixed(3)}');
     stdout.writeln('Number of glyphs: ${font.numberOfGlyphs}');
@@ -80,8 +80,51 @@ void _inspectFont(TtfParser parser, String path) {
       ..writeln(stack);
   } finally {
     font?.close();
-    reader?.close();
   }
+}
+
+TrueTypeFont _parseFont(String path, TtfParser ttfParser, OtfParser otfParser) {
+  final sfntTag = _readSfntTag(path);
+  final preferOtf = sfntTag == _ottoTag;
+
+  if (preferOtf) {
+    return otfParser.parse(RandomAccessReadBufferedFile(path));
+  }
+
+  try {
+    return ttfParser.parse(RandomAccessReadBufferedFile(path));
+  } on IOException catch (e) {
+    if (_shouldRetryWithOtf(e)) {
+      return otfParser.parse(RandomAccessReadBufferedFile(path));
+    }
+    rethrow;
+  }
+}
+
+const int _ottoTag = 0x4F54544F; // 'OTTO'
+
+int? _readSfntTag(String path) {
+  final file = File(path);
+  if (!file.existsSync()) {
+    return null;
+  }
+  final raf = file.openSync(mode: FileMode.read);
+  try {
+    final bytes = raf.readSync(4);
+    if (bytes.length < 4) {
+      return null;
+    }
+    return (bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3];
+  } finally {
+    raf.closeSync();
+  }
+}
+
+bool _shouldRetryWithOtf(IOException error) {
+  final message = error.message.toLowerCase();
+  return message.contains('cff outlines are not supported') ||
+      message.contains('cff') ||
+      message.contains('postscript');
 }
 
 void _dumpVariationSequences(CmapSubtable cmap) {
