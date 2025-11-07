@@ -27,6 +27,7 @@ testes originais em C:\MyDartProjects\pdfbox_dart\pdfbox-java\fontbox\src\test
 - Interface `CMapLookup` portada para `lib/src/fontbox/ttf/cmap_lookup.dart`, preparando a etapa das tabelas TrueType.
 - Estruturas iniciais de `fontbox/ttf` avançadas com `CmapSubtable` interpretando formatos 0/4/6/12 e testes em `test/fontbox/ttf/cmap_subtable_test.dart` cobrindo parsing binário.
 - Infraestrutura TTF/GSUB inicial ativada com `TTFTable`, `FontHeaders`, `DigitalSignatureTable`, `OtlTable`, utilitário `Wgl4Names` e os modelos `Language`, `GsubData`, `MapBackedGsubData`, `MapBackedScriptFeature`/`ScriptFeature`, acompanhados dos testes sob `test/fontbox/ttf/` e `test/fontbox/ttf/model`.
+- Pacote `fontbox/ttf/table/common` iniciado com `RangeRecord`, `CoverageTable*`, `Feature*`, `LangSysTable`, `ScriptTable`, `Lookup*` e bateria dedicada em `test/fontbox/ttf/table/common/common_tables_test.dart` garantindo comportamento e imutabilidade base.
 
 ### Próximas ações
 Next up, consider extending CmapSubtable to formats 2/8/10/13/14 and wiring it into the broader CmapTable workflow.

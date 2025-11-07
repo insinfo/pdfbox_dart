@@ -29,10 +29,10 @@ dev_dependencies:
   #qr: any
   test: any
   dart_pdf:
-    #path: insinfo_dart_pdf
-   git:
-    url: https://github.com/insinfo/insinfo_dart_pdf
-    ref: 31.1.21   #branch name   
+    path: insinfo_dart_pdf
+  #  git:
+  #   url: https://github.com/insinfo/insinfo_dart_pdf
+  #   ref: 31.1.21   #branch name   
 
  
 
