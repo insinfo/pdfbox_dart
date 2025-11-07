@@ -33,13 +33,15 @@ testes originais em C:\MyDartProjects\pdfbox_dart\pdfbox-java\fontbox\src\test
 - Tabelas verticais portadas (`VerticalHeaderTable`, `VerticalMetricsTable`, `VerticalOriginTable`) com cobertura sintética em `test/fontbox/ttf/vertical_tables_test.dart` e integração em `TrueTypeFont` para expor métricas verticais.
 - Script auxiliar `scripts/inspect_cmap.dart` criado para validar parsing de cmaps contra fontes reais e coletar estatísticas rápidas dos subtables.
 - Script ajustado para detectar automaticamente fontes OTF/CFF (via `OtfParser`) e validar UVS em Segoe UI Emoji e Noto Sans JP.
+- Script adicional `scripts/validate_uvs.dart` percorre diretórios de fontes, agrega estatísticas de UVS e valida que os mapeamentos padrão e alternativos estão consistentes com o cmap base.
+- `scripts/generate_unicode_scripts.dart` passou a ordenar/mesclar os intervalos de `Scripts.txt`, alimentando `unicode_scripts_data.dart` em ordem crescente; `OpenTypeScript` agora consulta o mapeamento completo via busca binária e está coberto pelos testes em `test/fontbox/ttf/open_type_script_test.dart`.
 - `OpenTypeFont` expandido com suporte a `hasLayoutTables`, exposição do `CffTable` e guarda de `glyf` alinhada ao comportamento do Java, com testes em `test/fontbox/ttf/open_type_font_test.dart`.
 - `KerningSubtable` passou a cobrir o formato 2 baseado em classes, com casos em `test/fontbox/ttf/kerning_table_test.dart` garantindo leitura e consulta dos ajustes.
 - Correção aplicada ao parser de `cmap` formato 14, eliminando o desalinhamento do cabeçalho e permitindo validar UVS reais; `seguiemj.ttf` (Segoe UI Emoji) agora é analisada com sucesso via `scripts/inspect_cmap.dart`.
 - Pacote `fontbox/cff` iniciado com infraestrutura compartilhada (`DataInput`, leitores para `Uint8List` e `RandomAccessRead`, mapeamento de operadores, `CharStringCommand`) e avançou com o suporte a nomes/encodings padrão (`CFFStandardString`, `CFFStandardEncoding`) acompanhados de testes em `test/fontbox/cff/cff_standard_encoding_test.dart`.
 
 ### Próximas ações
-- Validar as UVS decodificadas em fluxo real (ex.: PDFs com Variation Selectors, fontes Segoe UI Emoji/Noto Color Emoji), assegurando paridade com o Java e documentando eventuais gaps; Segoe UI Emoji e Noto Sans JP já foram checadas via `scripts/inspect_cmap.dart`, restando exercitar PDFs e fontes adicionais (ex.: Noto Color Emoji).
+- Validar as UVS decodificadas em fluxo real (ex.: PDFs com Variation Selectors, fontes Segoe UI Emoji/Noto Color Emoji), assegurando paridade com o Java e documentando eventuais gaps; `scripts/validate_uvs.dart` já cobre estatísticas diretas em diretórios de fontes, restando exercitar PDFs e fontes adicionais (ex.: Noto Color Emoji).
 - Portar as tabelas TTF restantes em sequência (ex.: `KerningTable`, `PostScriptTable`, `OS2WindowsMetricsTable`, `AdvancedTypographicTable`s), mantendo o contador atualizado.
 - Integrar consumidores das métricas verticais (GSUB/Glyf e camadas superiores) validando regressões com casos reais.
 - Completar o pacote `org.apache.fontbox.cmap`, conectando `CMapLookup` às estruturas reais e expondo o fluxo no pacote principal.
@@ -51,12 +53,11 @@ testes originais em C:\MyDartProjects\pdfbox_dart\pdfbox-java\fontbox\src\test
 - `lib/src/fontbox/ttf/open_type_font.dart`: já identifica PostScript, expõe `CffTable` e detecta tabelas de layout, porém ainda falta a API completa (ex.: renderização via CFF, integração com `PDType0Font`).
 - `lib/src/fontbox/ttf/ttf_parser.dart`: rejeita fontes TrueType com outlines CFF quando processadas pelo parser base; é necessário alinhar com a lógica Java que usa `OtfParser`/`CFFParser`.
 - Fluxo de validação de UVS: `seguiemj.ttf` validada após correção do formato 14; próxima etapa é exercitar PDFs reais e outras fontes (ex.: Noto Color Emoji) para confirmar substituições contextuais.
-- `lib/src/fontbox/ttf/kerning_subtable.dart`: somente o formato 0, versão 0, está implementado; formatos 1 e 2 permanecem sem suporte.
 - `lib/src/fontbox/ttf/kerning_subtable.dart`: formatos 0 e 2 implementados; formato 1 (state-based) permanece sem suporte.
 - `lib/src/fontbox/ttf/naming_table.dart`: formatos 0 e 1 cobertos; falta alinhar com o suporte Java ao formato 3 (offsets de 32 bits / lang tags avançados).
 - `lib/src/fontbox/ttf/glyph_substitution_table.dart`: parser de GSUB cobre apenas lookup types 1-4; demais tipos (5-10) e FeatureVariations ainda faltam.
 - `lib/src/fontbox/ttf/gsub/glyph_substitution_data_extractor.dart`: segue as mesmas limitações do parser (tipos 1-4), ignorando substituições complexas.
-- `lib/src/fontbox/ttf/open_type_script.dart` e `lib/src/fontbox/ttf/model/language.dart`: mapeamento reduzido a Latin + alguns scripts índicos; Scripts.txt completo e demais idiomas precisam ser incorporados.
+- `lib/src/fontbox/ttf/open_type_script.dart` e `lib/src/fontbox/ttf/model/language.dart`: o arquivo gerado cobre todos os intervalos de `Scripts.txt`, porém o dicionário `_scriptToTags` e a enumeração de idiomas ainda são parciais e precisam incorporar os demais scripts/tags definidos pelo Java.
 
 Panorama Atual
 
