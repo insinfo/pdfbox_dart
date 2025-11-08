@@ -4,7 +4,7 @@
 Garantir paridade com `org.apache.fontbox` (Java) para habilitar o porte do PDFBox sem stubs adicionais.
 
 ### Ações críticas
-- Finalizar o pipeline PostScript: parser CFF e Type 1 já estão integrados ao `CffTable`; falta portar decodificação PFB, metadados auxiliares e cobrir fluxos CID complexos.
+- Finalizar o pipeline PostScript: parser CFF, Type 1 e PFB já existem em Dart; falta portar `Type1Parser`, `Type1Font` e metadados auxiliares (`FontBoxFont`, `EncodedFont`, caches) para cobrir fluxos CID complexos.
 - Portar os modelos de fontes compostas (CIDFont, FontBoxFont, EncodedFont, GlyphList etc.) usados em fontes Type 0/CID.
 - Alinhar `TtfParser`, `OtfParser`, `OpenTypeFont` e `OtlTable` ao Java, cobrindo TTC/OTF com glyf, CFF, CFF2 e JSTF.
 - Completar GSUB/JSTF: suportar lookups 510, FeatureVariations e atualizar o extrator de substituição.
@@ -21,8 +21,7 @@ Garantir paridade com `org.apache.fontbox` (Java) para habilitar o porte do PDFB
 ### Critério de saída
 Considerar o porte concluído quando todos os itens acima estiverem implementados e cobertos por testes equivalentes aos do Java, permitindo iniciar o porte do PDFBox sem extensões temporárias no FontBox.
 
-### Próximas ações imediatas
-- Concluir o suporte a PFB (Type 1 binário) e amarrar os fluxos restantes (`Type1Font`, caches e leitura de subrotinas externas).
+- Portar `Type1Parser`/`Type1Font` consumindo o novo `PfbParser` e amarrar os fluxos restantes (`Type1Font`, caches e leitura de subrotinas externas).
 - Expandir `_scriptToTags`/`language.dart` e adicionar testes direcionados para novos scripts.
 - Validar UVS e GSUB atuais em fontes reais e documentar resultados no repositório.
 
@@ -35,6 +34,6 @@ Persistem pendências de validação prática: executar `inspect_cmap.dart`/`val
 
 ### Próximos passos sugeridos
 - Validar imediatamente os novos helpers de UVS com `dart run scripts/inspect_cmap.dart` em fontes reais (Segoe UI Emoji, Noto Color Emoji) e, se possível, em PDFs que exercitem Variation Selectors; documentar os resultados.
-- Portar e validar o leitor de PFB e os adaptadores `FontBoxFont`/`EncodedFont` que ainda faltam para liberar fontes PostScript completas.
+- Portar e validar `Type1Parser`, `Type1Font` e os adaptadores `FontBoxFont`/`EncodedFont` que ainda faltam para liberar fontes PostScript completas.
 - Ampliar o suporte GSUB/JSTF e os mapeamentos de scripts em paralelo à conclusão das tabelas TTF pendentes, antes de iniciar o porte das camadas do PDFBox que dependem dessas APIs.
 - Exercitar as novas classes de charstring (`Type2CharString`, `CFFCIDFont`) em fontes reais, documentando métricas e eventuais gaps na integração com consumidores do PDFBox.
