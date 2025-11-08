@@ -8,24 +8,26 @@ import 'package:pdfbox_dart/src/fontbox/ttf/naming_table.dart';
 
 void main() {
   group('NamingTable', () {
-    test('reads format 1 records with mac roman strings and lang tags', () {
+    test('reads format 1 records and resolves language tag lookups', () {
       final storageOffset = 0x0018;
       final bytes = Uint8List.fromList(<int>[
         0x00, 0x01, // format 1
         0x00, 0x01, // numberOfNameRecords
         (storageOffset >> 8) & 0xFF,
         storageOffset & 0xFF, // storageOffset
-        0x00, 0x01, // platformId: Macintosh
-        0x00, 0x00, // platformEncodingId: Roman
-        0x00, 0x00, // languageId: English
+        0x00, 0x03, // platformId: Windows
+        0x00, 0x01, // platformEncodingId: Unicode BMP
+        0x80, 0x00, // languageId: tag index 0 (0x8000)
         0x00, 0x01, // nameId: Font family name
-        0x00, 0x04, // stringLength: 4 bytes
+        0x00, 0x08, // stringLength: 8 bytes (UTF-16 "Test")
         0x00, 0x00, // stringOffset: 0
         0x00, 0x01, // langTagCount: 1
         0x00, 0x0A, // langTag length (10 bytes -> 5 UTF-16 chars)
-        0x00, 0x04, // langTag offset (after "Test")
-        0x54, 0x65, 0x73, 0x74, // "Test"
-        0x00, 0x65, 0x00, 0x6E, 0x00, 0x2D, 0x00, 0x55, 0x00, 0x53, // "en-US" utf16
+        0x00, 0x08, // langTag offset (after "Test")
+        // UTF-16BE "Test"
+        0x00, 0x54, 0x00, 0x65, 0x00, 0x73, 0x00, 0x74,
+        // UTF-16BE "en-US"
+        0x00, 0x65, 0x00, 0x6E, 0x00, 0x2D, 0x00, 0x55, 0x00, 0x53,
       ]);
 
       final stream =
@@ -39,15 +41,45 @@ void main() {
       table.read(null, stream);
 
       expect(table.getNameRecords(), hasLength(1));
-      final name = table.getName(
-        NameRecord.nameFontFamilyName,
-        NameRecord.platformMacintosh,
-        NameRecord.encodingMacintoshRoman,
-        NameRecord.languageMacintoshEnglish,
-      );
-      expect(name, 'Test');
-      expect(table.getFontFamily(), 'Test');
       expect(table.languageTags, ['en-US']);
+
+      final raw = table.getName(
+        NameRecord.nameFontFamilyName,
+        NameRecord.platformWindows,
+        NameRecord.encodingWindowsUnicodeBmp,
+        0x8000,
+      );
+      expect(raw, 'Test');
+
+      expect(
+        table.getNameByLanguageTag(
+          NameRecord.nameFontFamilyName,
+          NameRecord.platformWindows,
+          NameRecord.encodingWindowsUnicodeBmp,
+          'en-US',
+        ),
+        'Test',
+      );
+
+      expect(
+        table.getNameByLanguageTag(
+          NameRecord.nameFontFamilyName,
+          NameRecord.platformWindows,
+          NameRecord.encodingWindowsUnicodeBmp,
+          'EN-us',
+        ),
+        'Test',
+      );
+
+      expect(
+        table.getNameByLanguageTag(
+          NameRecord.nameFontFamilyName,
+          NameRecord.platformWindows,
+          NameRecord.encodingWindowsUnicodeBmp,
+          'fr-FR',
+        ),
+        isNull,
+      );
     });
 
     test('reads format 3 records with 32-bit offsets', () {

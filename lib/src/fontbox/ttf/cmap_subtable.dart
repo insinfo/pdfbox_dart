@@ -44,6 +44,7 @@ class CmapSubtable implements CMapLookup {
     _format = data.readUnsignedShort();
     var selectorCount = 0;
     if (_format == 14) {
+      data.readUnsignedShort(); // reserved, must be zero
       _length = data.readUnsignedInt();
       selectorCount = data.readUnsignedInt();
       _version = 0;
@@ -344,6 +345,29 @@ class CmapSubtable implements CMapLookup {
 
   int _baseGlyphId(int codePoint) => _characterCodeToGlyphId[codePoint] ?? 0;
 
+  bool _canReadBytes(TtfDataStream data, int count, int limit) {
+    if (count <= 0) {
+      return true;
+    }
+    return data.currentPosition + count <= limit;
+  }
+
+  bool _isOffsetWithinSubtable(
+    int subtableStart,
+    int subtableEnd,
+    int offset,
+    int minimumLength,
+  ) {
+    if (offset < 0) {
+      return false;
+    }
+    final absolute = subtableStart + offset;
+    if (absolute < subtableStart || absolute >= subtableEnd) {
+      return false;
+    }
+    return absolute + minimumLength <= subtableEnd;
+  }
+
   void _processFormat0(TtfDataStream data) {
     _resetMappings();
     final glyphMapping = data.readBytes(256);
@@ -414,43 +438,87 @@ class CmapSubtable implements CMapLookup {
     _variationDefaultRanges.clear();
     _variationGlyphMappings.clear();
 
+    if (_length <= 0) {
+      return;
+    }
+    final subtableEnd = subtableStart + _length;
+
     for (var i = 0; i < selectorCount; i++) {
+      if (!_canReadBytes(data, 11, subtableEnd)) {
+        break;
+      }
+
       final variationSelector = _readUInt24(data);
       final defaultOffset = data.readUnsignedInt();
       final nonDefaultOffset = data.readUnsignedInt();
       final savedPosition = data.currentPosition;
 
-      if (defaultOffset != 0) {
+      if (defaultOffset != 0 &&
+          _isOffsetWithinSubtable(
+            subtableStart,
+            subtableEnd,
+            defaultOffset,
+            4,
+          )) {
         data.seek(subtableStart + defaultOffset);
-        final rangeCount = data.readUnsignedInt();
-        final ranges = List<_VariationRange>.empty(growable: true);
-        for (var rangeIndex = 0; rangeIndex < rangeCount; rangeIndex++) {
-          final startUnicode = _readUInt24(data);
-          final additionalCount = data.readUnsignedByte();
-          ranges.add(
-            _VariationRange(
-              startUnicode,
-              startUnicode + additionalCount,
-            ),
-          );
-        }
-        if (ranges.isNotEmpty) {
-          _variationDefaultRanges[variationSelector] = ranges;
+        if (_canReadBytes(data, 4, subtableEnd)) {
+          final rangeCount = data.readUnsignedInt();
+          if (rangeCount > 0) {
+            final ranges = <_VariationRange>[];
+            final remainingBytes = subtableEnd - data.currentPosition;
+            final availableRanges = remainingBytes > 0 ? remainingBytes ~/ 4 : 0;
+            final rangesToRead = rangeCount < availableRanges
+                ? rangeCount
+                : availableRanges;
+            for (var rangeIndex = 0;
+                rangeIndex < rangesToRead &&
+                    _canReadBytes(data, 4, subtableEnd);
+                rangeIndex++) {
+              final startUnicode = _readUInt24(data);
+              final additionalCount = data.readUnsignedByte();
+              ranges.add(
+                _VariationRange(
+                  startUnicode,
+                  startUnicode + additionalCount,
+                ),
+              );
+            }
+            if (ranges.isNotEmpty) {
+              _variationDefaultRanges[variationSelector] = ranges;
+            }
+          }
         }
       }
 
-      if (nonDefaultOffset != 0) {
+      if (nonDefaultOffset != 0 &&
+          _isOffsetWithinSubtable(
+            subtableStart,
+            subtableEnd,
+            nonDefaultOffset,
+            4,
+          )) {
         data.seek(subtableStart + nonDefaultOffset);
-        final mappingCount = data.readUnsignedInt();
-        if (mappingCount > 0) {
-          final mappings = <int, int>{};
-          for (var mapIndex = 0; mapIndex < mappingCount; mapIndex++) {
-            final unicodeValue = _readUInt24(data);
-            final glyphId = data.readUnsignedShort();
-            mappings[unicodeValue] = glyphId;
-          }
-          if (mappings.isNotEmpty) {
-            _variationGlyphMappings[variationSelector] = mappings;
+        if (_canReadBytes(data, 4, subtableEnd)) {
+          final mappingCount = data.readUnsignedInt();
+          if (mappingCount > 0) {
+            final mappings = <int, int>{};
+            final remainingBytes = subtableEnd - data.currentPosition;
+            final availableMappings =
+                remainingBytes > 0 ? remainingBytes ~/ 5 : 0;
+            final mappingsToRead = mappingCount < availableMappings
+                ? mappingCount
+                : availableMappings;
+            for (var mapIndex = 0;
+                mapIndex < mappingsToRead &&
+                    _canReadBytes(data, 5, subtableEnd);
+                mapIndex++) {
+              final unicodeValue = _readUInt24(data);
+              final glyphId = data.readUnsignedShort();
+              mappings[unicodeValue] = glyphId;
+            }
+            if (mappings.isNotEmpty) {
+              _variationGlyphMappings[variationSelector] = mappings;
+            }
           }
         }
       }
@@ -458,7 +526,7 @@ class CmapSubtable implements CMapLookup {
       data.seek(savedPosition);
     }
 
-    data.seek(subtableStart + _length);
+    data.seek(subtableEnd);
   }
 
   Set<int> get variationSelectors {

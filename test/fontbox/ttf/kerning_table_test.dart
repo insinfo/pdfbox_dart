@@ -89,6 +89,53 @@ void main() {
     expect(kerning.getPairKerning(11, 6), 20);
     expect(kerning.getPairKerning(11, 4), 0); // glyph outside class table
   });
+
+  test('reads contextual kerning from format 1 subtable', () {
+    // (no-op) contextual kerning test
+    final subtable = BytesBuilder()
+      ..add(_ushort(0)) // subtable version
+      ..add(_ushort(0x0030)) // length (48 bytes)
+      ..add(_ushort(0x0101)) // coverage: horizontal + format 1
+      ..add(_ushort(6)) // stateSize (six classes)
+      ..add(_ushort(0x000A)) // classTableOffset
+      ..add(_ushort(0x0010)) // stateArrayOffset
+  ..add(_ushort(0x001C)) // entryTableOffset
+  ..add(_ushort(0x002E)) // valueTableOffset
+      ..add(_ushort(3)) // class table: firstGlyph
+      ..add(_ushort(2)) // class table: glyphCount
+      ..add(<int>[4, 5]) // class assignments: glyph 3 -> 4, glyph 4 -> 5
+      ..add(<int>[0, 0, 0, 0, 1, 0]) // state 0 row (default, push, default)
+      ..add(<int>[0, 0, 0, 0, 1, 2]) // state 1 row (default, push, apply)
+      ..add(_ushort(0x0010)) // entry 0 newState (state 0)
+      ..add(_ushort(0x0000)) // entry 0 flags
+      ..add(_ushort(0x0016)) // entry 1 newState (state 1)
+      ..add(_ushort(0x8000)) // entry 1 flags (push)
+  ..add(_ushort(0x0010)) // entry 2 newState (state 0)
+  ..add(_ushort(0x002E)) // entry 2 flags (value offset)
+      ..add(_short(-41)); // value table: apply -41 and stop
+
+    final bytes = BytesBuilder()
+      ..add(_ushort(0)) // table version
+      ..add(_ushort(1)) // num subtables
+      ..add(subtable.takeBytes());
+
+    final data = Uint8List.fromList(bytes.takeBytes());
+    final stream = RandomAccessReadDataStream.fromData(data);
+
+    final table = KerningTable()
+      ..setTag(KerningTable.tableTag)
+      ..setLength(data.length);
+    table.read(null, stream);
+
+    final kerning = table.getHorizontalKerningSubtable();
+    expect(kerning, isNotNull);
+
+    expect(kerning!.getPairKerning(3, 4), -41);
+    expect(kerning.getPairKerning(4, 3), 0);
+
+    final adjustments = kerning.getKerning(<int>[3, 4, 6]);
+    expect(adjustments, <int>[-41, 0, 0]);
+  });
 }
 
 List<int> _ushort(int value) => <int>[(value >> 8) & 0xff, value & 0xff];

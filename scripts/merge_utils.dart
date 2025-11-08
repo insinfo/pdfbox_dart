@@ -2,7 +2,7 @@ import 'dart:io';
 
 void main() {
   //final libDir = Directory(r'C:\MyDartProjects\pdfbox_dart\lib');
-  final libDir = Directory(r'C:\MyDartProjects\pdfbox_dart\lib');
+  final libDir = Directory(r'C:\MyDartProjects\pdfbox_dart\lib\src\fontbox');
   //final libDir = Directory(r'C:\MyDartProjects\canvas-editor-port\lib\test');
   final outputFile = File(r'C:\MyDartProjects\pdfbox_dart\scripts\codigo_mesclado.dart.txt');
 

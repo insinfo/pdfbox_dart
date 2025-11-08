@@ -12,13 +12,16 @@ class NamingTable extends TtfTable {
 
   List<NameRecord> _nameRecords = const <NameRecord>[];
   final Map<int, Map<int, Map<int, Map<int, String?>>>> _lookupTable =
-    <int, Map<int, Map<int, Map<int, String?>>>>{};
+      <int, Map<int, Map<int, Map<int, String?>>>>{};
 
   List<String> _languageTags = const <String>[];
+  Map<String, int> _languageTagLookup = const <String, int>{};
 
   String? _fontFamily;
   String? _fontSubFamily;
   String? _postScriptName;
+
+  static const int _languageTagBase = 0x8000;
 
   @override
   void read(dynamic ttf, TtfDataStream data) {
@@ -117,8 +120,10 @@ class NamingTable extends TtfTable {
 
     if (langTagRecords.isEmpty) {
       _languageTags = const <String>[];
+      _languageTagLookup = const <String, int>{};
     } else {
       final tags = <String>[];
+      final lookup = <String, int>{};
       for (final tag in langTagRecords) {
         if (storageOffset + tag.offset >= length || tag.length <= 0) {
           tags.add('');
@@ -135,6 +140,14 @@ class NamingTable extends TtfTable {
         tags.add(_decodeUtf16(bytes, Endian.big));
       }
       _languageTags = List<String>.unmodifiable(tags);
+      for (var i = 0; i < tags.length; i++) {
+        final normalized = _normalizeLanguageTag(tags[i]);
+        if (normalized.isEmpty) {
+          continue;
+        }
+        lookup.putIfAbsent(normalized, () => _languageTagBase + i);
+      }
+      _languageTagLookup = Map<String, int>.unmodifiable(lookup);
     }
 
     _lookupTable.clear();
@@ -154,6 +167,23 @@ class NamingTable extends TtfTable {
     if (_postScriptName != null) {
       _postScriptName = _postScriptName!.trim();
     }
+  }
+
+  String? getNameByLanguageTag(
+      int nameId, int platformId, int encodingId, String languageTag) {
+    final lookup = _languageTagLookup;
+    if (lookup.isEmpty) {
+      return null;
+    }
+    final normalized = _normalizeLanguageTag(languageTag);
+    if (normalized.isEmpty) {
+      return null;
+    }
+    final languageId = lookup[normalized];
+    if (languageId == null) {
+      return null;
+    }
+    return getName(nameId, platformId, encodingId, languageId);
   }
 
   bool _isRelevantForHeaders(NameRecord record) {
@@ -250,6 +280,8 @@ class NamingTable extends TtfTable {
     }
     return String.fromCharCodes(codeUnits);
   }
+
+  static String _normalizeLanguageTag(String value) => value.trim().toLowerCase();
 }
 
 class _LangTagRecord {
