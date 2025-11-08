@@ -11,7 +11,10 @@ class CFFStandardEncoding extends CFFEncoding {
   static final CFFStandardEncoding _instance = CFFStandardEncoding._();
 
   /// Returns the shared instance.
-  static CFFStandardEncoding getInstance() => _instance;
+  static CFFStandardEncoding get instance => _instance;
+
+  /// Legacy accessor mirroring the PDFBox API.
+  static CFFStandardEncoding getInstance() => instance;
 
   static const List<List<int>> _encodingTable = <List<int>>[
     <int>[0, 0],
