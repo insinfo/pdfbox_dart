@@ -60,7 +60,7 @@ void main() {
     expect(table.fsType, Os2WindowsMetricsTable.fsTypeEditable);
     expect(table.unicodeRange4, 4);
     expect(table.achVendId, 'TEST');
-  expect(table.typoAscender, 800);
+    expect(table.typoAscender, 800);
     expect(table.winAscent, 900);
     expect(table.codePageRange1, 0x11111111);
     expect(table.height, 450);

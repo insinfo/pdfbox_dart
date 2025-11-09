@@ -266,7 +266,7 @@ class CFFCIDFont extends CFFFont {
 
   double getWidthForCID(int cid) => getType2CharString(cid).getWidth();
 
-  bool hasCID(int cid) => cid != 0;
+  bool hasCID(int cid) => charset.getGIDForCID(cid) != 0;
 
   Type2CharStringParser _getParser() {
     return _charStringParser ??= Type2CharStringParser(name);

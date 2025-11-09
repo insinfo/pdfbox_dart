@@ -13,6 +13,11 @@ import 'font_headers.dart';
 import 'glyph_substitution_table.dart';
 import 'glyph_table.dart';
 import 'glyph_renderer.dart';
+import 'glyph_positioning_table.dart';
+import 'jstf/jstf_lookup_control.dart';
+import 'table/fvar/font_variation_axis.dart';
+import 'table/fvar/fvar_table.dart';
+import 'variation/variation_coordinate_provider.dart';
 import 'header_table.dart';
 import 'horizontal_header_table.dart';
 import 'horizontal_metrics_table.dart';
@@ -28,6 +33,7 @@ import 'ttf_table.dart';
 import 'vertical_header_table.dart';
 import 'vertical_metrics_table.dart';
 import 'vertical_origin_table.dart';
+import 'otl_table.dart';
 
 /// TrueType/OpenType font container with lazy table parsing.
 class TrueTypeFont
@@ -37,7 +43,9 @@ class TrueTypeFont
         HeaderTableProvider,
         HorizontalHeaderTableProvider,
         VerticalHeaderTableProvider,
-        GlyphTableDependencies {
+        GlyphTableDependencies,
+        VariationAxisConsumer,
+        VariationCoordinateProvider {
   TrueTypeFont({TtfDataStream? data, int glyphCount = 0})
       : _data = data,
         numberOfGlyphs = glyphCount;
@@ -63,6 +71,9 @@ class TrueTypeFont
   Map<String, int>? _postScriptNames;
   bool _postScriptNamesLoaded = false;
   static final RegExp _gidNamePattern = RegExp(r'^g\d+$');
+
+  List<FontVariationAxis> _variationAxes = const <FontVariationAxis>[];
+  List<double> _variationCoordinates = const <double>[];
 
   double get version => _version;
   void setVersion(double value) => _version = value;
@@ -173,6 +184,8 @@ class TrueTypeFont
       numberOfGlyphs = table.numGlyphs;
     } else if (table is HeaderTable) {
       _unitsPerEm = table.unitsPerEm;
+    } else if (table is FvarTable) {
+      updateVariationAxes(table.axes);
     }
   }
 
@@ -190,6 +203,40 @@ class TrueTypeFont
 
   GlyphSubstitutionTable? getGsubTable() =>
       _getTable(GlyphSubstitutionTable.tableTag) as GlyphSubstitutionTable?;
+
+  GlyphPositioningTable? getGposTable() =>
+      _getTable(GlyphPositioningTable.tableTag) as GlyphPositioningTable?;
+
+  OtlTable? getJstfTable() => _getTable(OtlTable.tableTag) as OtlTable?;
+
+  GlyphPositioningExecutor? getGlyphPositioningExecutor() {
+    final table = getGposTable();
+    if (table == null) {
+      return null;
+    }
+    return table.createExecutor();
+  }
+
+  JstfLookupControl resolveJstfLookupControl({
+    required String scriptTag,
+    String? languageTag,
+    JstfAdjustmentMode mode = JstfAdjustmentMode.none,
+  }) {
+    if (mode == JstfAdjustmentMode.none) {
+      return JstfLookupControl.empty;
+    }
+    final table = getJstfTable();
+    if (table == null || !table.hasScripts) {
+      return JstfLookupControl.empty;
+    }
+    final script = table.getScript(scriptTag);
+    if (script == null) {
+      return JstfLookupControl.empty;
+    }
+    final controller =
+        JstfPriorityController(script, languageTag: languageTag);
+    return controller.evaluate(mode);
+  }
 
   @override
   HeaderTable? getHeaderTable() =>
@@ -223,6 +270,22 @@ class TrueTypeFont
 
   KerningTable? getKerningTable() =>
       _getTable(KerningTable.tableTag) as KerningTable?;
+
+  /// Returns the kerning adjustment (in font units) for [leftGid] followed by [rightGid].
+  int getKerningAdjustment(int leftGid, int rightGid) {
+    final gpos = getGposTable();
+    final gposKerning = gpos?.getKerningValue(leftGid, rightGid) ?? 0;
+    if (gposKerning != 0) {
+      return gposKerning;
+    }
+
+    final kerning = getKerningTable();
+    final subtable = kerning?.getHorizontalKerningSubtable();
+    if (subtable == null) {
+      return 0;
+    }
+    return subtable.getPairKerning(leftGid, rightGid);
+  }
 
   Os2WindowsMetricsTable? getOs2WindowsMetricsTable() =>
       _getTable(Os2WindowsMetricsTable.tableTag) as Os2WindowsMetricsTable?;
@@ -465,6 +528,96 @@ class TrueTypeFont
     return glyphIds;
   }
 
+  List<FontVariationAxis> get variationAxes =>
+      List<FontVariationAxis>.unmodifiable(_variationAxes);
+
+  List<double> get variationCoordinates =>
+      List<double>.unmodifiable(_variationCoordinates);
+
+  @override
+  List<double> get normalizedVariationCoordinates {
+    if (_variationAxes.isEmpty) {
+      return const <double>[];
+    }
+    final normalized =
+        List<double>.filled(_variationAxes.length, 0.0, growable: false);
+    for (var i = 0; i < _variationAxes.length; i++) {
+      final coordinate =
+          i < _variationCoordinates.length ? _variationCoordinates[i] : 0.0;
+      normalized[i] = _clampNormalized(coordinate);
+    }
+    return List<double>.unmodifiable(normalized);
+  }
+
+  void setVariationCoordinates(List<double> coordinates) {
+    if (_variationAxes.isEmpty) {
+      _variationCoordinates = const <double>[];
+      return;
+    }
+    final next = List<double>.filled(_variationAxes.length, 0.0,
+        growable: false);
+    final limit =
+        coordinates.length < next.length ? coordinates.length : next.length;
+    for (var i = 0; i < limit; i++) {
+      next[i] = _clampNormalized(coordinates[i]);
+    }
+    _variationCoordinates = next;
+  }
+
+  void setVariationCoordinate(String axisTag, double value) {
+    final index = _variationAxes.indexWhere((axis) => axis.tag == axisTag);
+    if (index < 0) {
+      return;
+    }
+    _ensureVariationCoordinateCapacity();
+    _variationCoordinates[index] = _clampNormalized(value);
+  }
+
+  void setVariationCoordinateAt(int axisIndex, double value) {
+    if (axisIndex < 0) {
+      return;
+    }
+    _ensureVariationCoordinateCapacity();
+    if (axisIndex >= _variationCoordinates.length) {
+      return;
+    }
+    _variationCoordinates[axisIndex] = _clampNormalized(value);
+  }
+
+  @override
+  void updateVariationAxes(List<FontVariationAxis> axes) {
+    final previousValues = <String, double>{};
+    for (var i = 0;
+        i < _variationAxes.length && i < _variationCoordinates.length;
+        i++) {
+      previousValues[_variationAxes[i].tag] = _variationCoordinates[i];
+    }
+    _variationAxes = List<FontVariationAxis>.unmodifiable(axes);
+    _variationCoordinates = List<double>.generate(
+      _variationAxes.length,
+      (index) {
+        final axis = _variationAxes[index];
+        final existing = previousValues[axis.tag];
+        return existing == null ? 0.0 : _clampNormalized(existing);
+      },
+      growable: false,
+    );
+  }
+
+  void _ensureVariationCoordinateCapacity() {
+    if (_variationCoordinates.length == _variationAxes.length) {
+      return;
+    }
+    final next = List<double>.generate(
+      _variationAxes.length,
+      (index) => index < _variationCoordinates.length
+          ? _variationCoordinates[index]
+          : 0.0,
+      growable: false,
+    );
+    _variationCoordinates = next;
+  }
+
   void _ensurePostScriptNamesLoaded() {
     if (_postScriptNamesLoaded) {
       return;
@@ -496,6 +649,19 @@ class TrueTypeFont
       }
     }
     return -1;
+  }
+
+  double _clampNormalized(double value) {
+    if (value <= -1.0) {
+      return -1.0;
+    }
+    if (value >= 1.0) {
+      return 1.0;
+    }
+    if (value.abs() < 1e-9) {
+      return 0.0;
+    }
+    return value;
   }
 
   @override

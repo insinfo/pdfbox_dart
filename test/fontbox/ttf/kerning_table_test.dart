@@ -99,8 +99,8 @@ void main() {
       ..add(_ushort(6)) // stateSize (six classes)
       ..add(_ushort(0x000A)) // classTableOffset
       ..add(_ushort(0x0010)) // stateArrayOffset
-  ..add(_ushort(0x001C)) // entryTableOffset
-  ..add(_ushort(0x002E)) // valueTableOffset
+      ..add(_ushort(0x001C)) // entryTableOffset
+      ..add(_ushort(0x002E)) // valueTableOffset
       ..add(_ushort(3)) // class table: firstGlyph
       ..add(_ushort(2)) // class table: glyphCount
       ..add(<int>[4, 5]) // class assignments: glyph 3 -> 4, glyph 4 -> 5
@@ -110,8 +110,8 @@ void main() {
       ..add(_ushort(0x0000)) // entry 0 flags
       ..add(_ushort(0x0016)) // entry 1 newState (state 1)
       ..add(_ushort(0x8000)) // entry 1 flags (push)
-  ..add(_ushort(0x0010)) // entry 2 newState (state 0)
-  ..add(_ushort(0x002E)) // entry 2 flags (value offset)
+      ..add(_ushort(0x0010)) // entry 2 newState (state 0)
+      ..add(_ushort(0x002E)) // entry 2 flags (value offset)
       ..add(_short(-41)); // value table: apply -41 and stop
 
     final bytes = BytesBuilder()

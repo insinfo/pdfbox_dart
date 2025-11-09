@@ -25,7 +25,7 @@ class GsubWorkerFactory {
         return GsubWorkerForGujarati(cmapLookup, gsubData);
       case Language.latin:
         return GsubWorkerForLatin(cmapLookup, gsubData);
-      case Language.unspecified:
+      default:
         return DefaultGsubWorker();
     }
   }

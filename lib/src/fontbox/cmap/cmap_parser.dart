@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import '../../io/random_access_read.dart';
+import 'predefined_cmap_repository.dart';
 import 'cmap.dart';
 import 'cmap_strings.dart';
 import 'codespace_range.dart';
@@ -10,19 +11,16 @@ class CMapParser {
   static const String _markEndOfDictionary = '>>';
   static const String _markEndOfArray = ']';
 
-  CMapParser({bool strictMode = false, this.externalCMapLoader})
-      : _strictMode = strictMode;
+  CMapParser({bool strictMode = false, RandomAccessRead Function(String name)? externalCMapLoader})
+      : _strictMode = strictMode,
+        _externalCMapLoader = externalCMapLoader ?? PredefinedCMapRepository.open;
 
   bool _strictMode;
-  final RandomAccessRead Function(String name)? externalCMapLoader;
+  final RandomAccessRead Function(String name) _externalCMapLoader;
   final Uint8List _tokenBuffer = Uint8List(512);
 
   CMap parsePredefined(String name) {
-    final loader = externalCMapLoader;
-    if (loader == null) {
-      throw UnsupportedError('External CMap loading is not configured');
-    }
-    final randomAccessRead = loader(name);
+    final randomAccessRead = _externalCMapLoader(name);
     try {
       _strictMode = false;
       return parse(randomAccessRead);
@@ -76,11 +74,7 @@ class CMapParser {
   }
 
   void _parseUsecmap(_LiteralName useName, CMap target) {
-    final loader = externalCMapLoader;
-    if (loader == null) {
-      throw UnsupportedError('External CMap loading is not configured');
-    }
-    final source = loader(useName.value);
+    final source = _externalCMapLoader(useName.value);
     try {
       final useMap = parse(source);
       target.useCmap(useMap);

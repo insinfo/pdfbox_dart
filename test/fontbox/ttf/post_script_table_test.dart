@@ -23,7 +23,8 @@ void main() {
     final table = PostScriptTable()
       ..setTag(PostScriptTable.tableTag)
       ..setLength(data.length);
-    table.read(TrueTypeFont(glyphCount: 0), RandomAccessReadDataStream.fromData(data));
+    table.read(
+        TrueTypeFont(glyphCount: 0), RandomAccessReadDataStream.fromData(data));
 
     final names = table.glyphNames;
     expect(names, isNotNull);
@@ -53,7 +54,8 @@ void main() {
     final table = PostScriptTable()
       ..setTag(PostScriptTable.tableTag)
       ..setLength(data.length);
-    table.read(TrueTypeFont(glyphCount: 3), RandomAccessReadDataStream.fromData(data));
+    table.read(
+        TrueTypeFont(glyphCount: 3), RandomAccessReadDataStream.fromData(data));
 
     final names = table.glyphNames;
     expect(names, isNotNull);
@@ -81,7 +83,8 @@ void main() {
     final table = PostScriptTable()
       ..setTag(PostScriptTable.tableTag)
       ..setLength(data.length);
-    table.read(TrueTypeFont(glyphCount: glyphCount), RandomAccessReadDataStream.fromData(data));
+    table.read(TrueTypeFont(glyphCount: glyphCount),
+        RandomAccessReadDataStream.fromData(data));
 
     final names = table.glyphNames;
     expect(names, isNotNull);

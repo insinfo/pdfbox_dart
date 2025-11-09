@@ -22,7 +22,7 @@ void main() {
       expect(table.getCoverageIndex(10), 0);
       expect(table.getCoverageIndex(25), lessThan(0));
       expect(table.getGlyphId(2), 30);
-  expect(table.getSize(), 3);
+      expect(table.getSize(), 3);
 
       original[0] = 99; // ensure defensive copy
       expect(table.glyphArray.first, 10);
@@ -36,7 +36,7 @@ void main() {
       final table = CoverageTableFormat2(2, ranges);
 
       expect(table.rangeRecords, orderedEquals(ranges));
-  expect(table.getSize(), 5);
+      expect(table.getSize(), 5);
       expect(table.getGlyphId(0), 5);
       expect(table.getGlyphId(4), 11);
     });
@@ -71,7 +71,8 @@ void main() {
 
     test('script table wraps map', () {
       final langSys = LangSysTable(0, -1, 0, const <int>[]);
-      final script = ScriptTable(langSys, <String, LangSysTable>{'DFLT': langSys});
+      final script =
+          ScriptTable(langSys, <String, LangSysTable>{'DFLT': langSys});
 
       expect(script.defaultLangSysTable, same(langSys));
       expect(script.langSysTables['DFLT'], same(langSys));

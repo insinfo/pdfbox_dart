@@ -13,14 +13,18 @@ void main() {
       final sequences = feature.getAllGlyphIdsForSubstitution().toList();
       expect(sequences, hasLength(2));
       const eq = ListEquality<int>();
-      expect(sequences.any((sequence) => eq.equals(sequence, <int>[10, 11])), isTrue);
-      expect(sequences.any((sequence) => eq.equals(sequence, <int>[30, 31])), isTrue);
+      expect(sequences.any((sequence) => eq.equals(sequence, <int>[10, 11])),
+          isTrue);
+      expect(sequences.any((sequence) => eq.equals(sequence, <int>[30, 31])),
+          isTrue);
 
       expect(feature.canReplaceGlyphs(<int>[10, 11]), isTrue);
       expect(feature.canReplaceGlyphs(<int>[99]), isFalse);
 
-      expect(feature.getReplacementForGlyphs(<int>[30, 31]), orderedEquals(<int>[40, 41]));
-      expect(() => feature.getReplacementForGlyphs(<int>[1]), throwsUnsupportedError);
+      expect(feature.getReplacementForGlyphs(<int>[30, 31]),
+          orderedEquals(<int>[40, 41]));
+      expect(() => feature.getReplacementForGlyphs(<int>[1]),
+          throwsUnsupportedError);
     });
 
     test('implements equality by content', () {

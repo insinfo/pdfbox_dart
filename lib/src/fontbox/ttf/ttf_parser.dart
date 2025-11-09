@@ -27,6 +27,8 @@ import 'ttf_table.dart';
 import 'vertical_header_table.dart';
 import 'vertical_metrics_table.dart';
 import 'vertical_origin_table.dart';
+import 'glyph_positioning_table.dart';
+import 'table/fvar/fvar_table.dart';
 
 /// Parser for TrueType and OpenType font files.
 class TtfParser {
@@ -117,6 +119,11 @@ class TtfParser {
   }
 
   void _parseTables(TrueTypeFont font) {
+    final maxpEntry = font.tableMap[MaximumProfileTable.tableTag];
+    if (maxpEntry is MaximumProfileTable && !maxpEntry.initialized) {
+      font.readTable(maxpEntry);
+    }
+
     for (final table in font.tables) {
       if (!table.initialized) {
         font.readTable(table);
@@ -222,6 +229,12 @@ class TtfParser {
         break;
       case GlyphSubstitutionTable.tableTag:
         table = GlyphSubstitutionTable();
+        break;
+      case GlyphPositioningTable.tableTag:
+        table = GlyphPositioningTable();
+        break;
+      case FvarTable.tableTag:
+        table = FvarTable();
         break;
       case CffTable.tableTag:
         if (!allowCff()) {

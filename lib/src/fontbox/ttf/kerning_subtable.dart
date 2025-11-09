@@ -135,7 +135,8 @@ class KerningSubtable {
     final arrayOffset = data.readUnsignedShort();
 
     if (rowWidth <= 0) {
-      _log.warning('Kerning sub-table format 2 with invalid row width: $rowWidth');
+      _log.warning(
+          'Kerning sub-table format 2 with invalid row width: $rowWidth');
       return;
     }
 
@@ -220,7 +221,8 @@ class KerningSubtable {
     final valueTableOffset = data.readUnsignedShort();
 
     if (stateSize <= 0) {
-      _log.warning('Kerning sub-table format 1 with invalid state size: $stateSize');
+      _log.warning(
+          'Kerning sub-table format 1 with invalid state size: $stateSize');
       return;
     }
 
@@ -235,7 +237,8 @@ class KerningSubtable {
       );
       return;
     }
-    if (!_isValidOffset(stateTableStart, subtableEnd, stateArrayOffset, stateSize)) {
+    if (!_isValidOffset(
+        stateTableStart, subtableEnd, stateArrayOffset, stateSize)) {
       _log.warning(
         'Kerning sub-table format 1 with invalid state array offset: $stateArrayOffset',
       );
@@ -305,7 +308,8 @@ class KerningSubtable {
     }
 
     if (_crossStream) {
-      _log.info('Kerning sub-table format 1 cross-stream kerning is not supported.');
+      _log.info(
+          'Kerning sub-table format 1 cross-stream kerning is not supported.');
       return;
     }
 
@@ -328,8 +332,6 @@ class KerningSubtable {
         offset,
       );
     }
-
-    
 
     _kerning = _ContextualKerningEngine(
       classMapping: classMapping,

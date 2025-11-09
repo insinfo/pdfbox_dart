@@ -39,13 +39,17 @@ void main() {
 
     test('GlyphRenderer generates line segments for simple contour', () {
       final dataBytes = Uint8List.fromList(<int>[
-        0x00, 0x01,
-        0x00, 0x00,
+        0x00,
+        0x01,
+        0x00,
+        0x00,
         0x01,
         0x33,
-        0x00, 0x00,
+        0x00,
+        0x00,
         0x0A,
-        0x00, 0x00,
+        0x00,
+        0x00,
       ]);
       final stream = RandomAccessReadDataStream.fromData(dataBytes);
       final glyph = GlyfSimpleDescript(1, stream, 0);
@@ -93,7 +97,8 @@ void main() {
       expect(component.scaleY(12, -3), -3);
     });
 
-    test('GlyfCompositeDescript resolves component indices and coordinates', () {
+    test('GlyfCompositeDescript resolves component indices and coordinates',
+        () {
       final compositeBytes = Uint8List.fromList(<int>[
         0x00, 0x23, // flags: words + xy values + more components
         0x00, 0x01, // glyph index 1
@@ -135,7 +140,8 @@ void main() {
       expect(composite.pointCount, 5);
       expect(composite.contourCount, 2);
       expect(composite.getEndPtOfContours(1), 4);
-      expect(composite.getXCoordinate(2), 11); // first point of second component + translation
+      expect(composite.getXCoordinate(2),
+          11); // first point of second component + translation
       expect(composite.getYCoordinate(2), 7);
     });
   });

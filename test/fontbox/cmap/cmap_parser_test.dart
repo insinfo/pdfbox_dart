@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:pdfbox_dart/src/fontbox/cmap/cmap_parser.dart';
 import 'package:pdfbox_dart/src/fontbox/cmap/cmap_strings.dart';
+import 'package:pdfbox_dart/src/fontbox/cmap/predefined_cmap_repository.dart';
 import 'package:pdfbox_dart/src/io/random_access_read_buffer.dart';
 import 'package:test/test.dart';
 
@@ -54,7 +55,7 @@ end
       expect(cmap.toCID(Uint8List.fromList(<int>[0x45])), 200);
       expect(cmap.toCID(Uint8List.fromList(<int>[0x46, 0x00])), 300);
       expect(cmap.toCID(Uint8List.fromList(<int>[0x46, 0x01])), 301);
-  expect(cmap.toCIDFromInt(0x4600), 300);
+      expect(cmap.toCIDFromInt(0x4600), 300);
     });
 
     test('readCode honours codespace ranges', () {
@@ -71,6 +72,15 @@ end
       expect(third, 0x46);
       stream.close();
     });
+
+    test('parses predefined Identity-H', () {
+      final parser = CMapParser();
+      final cmap = parser.parsePredefined('Identity-H');
+
+      expect(cmap.name, 'Identity-H');
+      expect(cmap.hasCIDMappings(), isTrue);
+      expect(cmap.toCID(Uint8List.fromList(<int>[0x00, 0x41])), 0x0041);
+    });
   });
 
   group('CMapStrings', () {
@@ -84,6 +94,19 @@ end
       expect(doubleByte, 'A');
       expect(index, 0x0041);
       expect(bytes, orderedEquals(<int>[0x41]));
+    });
+  });
+
+  group('PredefinedCMapRepository', () {
+    test('lists bundled CMaps', () {
+      final names = PredefinedCMapRepository.list();
+      expect(names, isNotEmpty);
+      expect(names, contains('Identity-H'));
+    });
+
+    test('contains detects known CMap', () {
+      expect(PredefinedCMapRepository.contains('Identity-V'), isTrue);
+      expect(PredefinedCMapRepository.contains('Unknown-CMap'), isFalse);
     });
   });
 }

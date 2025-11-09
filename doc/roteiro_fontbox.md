@@ -1,47 +1,36 @@
-## Porte FontBox para Dart  Pendências Restantes
+## Porte FontBox para Dart – Status Atual
 
 ### Objetivo
-Garantir paridade com `org.apache.fontbox` (Java) para habilitar o porte do PDFBox sem stubs adicionais.
+Garantir paridade com `org.apache.fontbox` (Java) para permitir o porte do PDFBox sem dependências temporárias.
 
-### Ações críticas
-- Finalizar o pipeline PostScript: parser CFF, Type 1 e PFB já existem em Dart e agora incluem `Type1Parser`, `Type1Font` e contratos (`FontBoxFont`, `EncodedFont`) portados; `CFFFont`/`CFFType1Font`/`CFFCIDFont` já expõem os contratos compartilhados, e a próxima etapa é alinhar caches auxiliares e consumidores Type 0/CID.
-- Portar os modelos de fontes compostas (CIDFont, FontBoxFont, EncodedFont, GlyphList etc.) usados em fontes Type 0/CID.
-- Alinhar `TtfParser`, `OtfParser`, `OpenTypeFont` e `OtlTable` ao Java, cobrindo TTC/OTF com glyf, CFF, CFF2 e JSTF.
-- Completar GSUB/JSTF: suportar lookups 510, FeatureVariations e atualizar o extrator de substituição.
-- Preencher `_scriptToTags` e `model/language.dart` com todos os scripts/tags do Java e criar testes específicos para os novos scripts.
-- Finalizar `org.apache.fontbox.cmap` em Dart e validar `CMapLookup` com consumidores reais.
-- Integrar métricas verticais, GSUB/GPOS e derivados aos pontos de consumo espelhando a API Java.
-- Portar módulos auxiliares requisitados pelo PDFBox (UnicodeMapping, caches de fontes do sistema, metadados adicionais, etc.).
+### Concluído recentemente
+- `TTFSubsetter` foi portado e coberto por testes de regressão em Dart, garantindo closure de glifos, reescrita das tabelas essenciais (`cmap`, `glyf`, `loca`, `hmtx`) e suporte a glyph invisíveis. Os testes agora consomem as fontes da pasta local `resources/ttf`, sem depender da árvore Java.
+- `TtfParser` aplica leitura antecipada da tabela `maxp`, reproduzindo o fluxo do FontBox Java e eliminando divergências ao carregar `loca/glyf` em fontes reais.
+- O pacote de CMaps predefinidos continua embedado e validado via testes (`Identity-H`, `usecmap`), com geração automatizada pelos scripts em `scripts/`.
+- O pipeline Type 1/CFF, Type 0/CID, encodings e glyph lists mantém paridade funcional com o Java, cobrindo charstrings, caches, métricas verticais e mapas Adobe UCS.
+- Infraestrutura PDFBox (mapeamentos CID, encodings, helpers Type 0) permanece estabilizada com suites unitárias equivalentes.
+- Execução completa de GPOS via `GlyphPositioningExecutor`, incluindo pair adjustment, cursive e mark attachment com rastreamento por lookup.
+- Controlador JSTF (`JstfPriorityController`) integrado aos pipelines GSUB/GPOS, habilitando filtros de lookup por modo (shrink/extend) e scripts.
+- Catálogo de scripts/idiomas expandido na camada `model/language.dart`, permitindo resolução cruzada com JSTF.
+- Testes abrangentes para GSUB/GPOS/JSTF (`gpos_table_test.dart`, `glyph_substitution_table_test.dart`, `true_type_font_test.dart`) e harness `scripts/validate_layout.dart` criado para rodar inspeções (`inspect_cmap.dart`, `validate_uvs.dart`).
 
-### Validação e cobertura
-- Exercitar `scripts/inspect_cmap.dart` e `scripts/validate_uvs.dart` em fontes/PDFs reais (Variation Selectors, CFF/CFF2, TTC) e registrar resultados.
-- Adicionar testes de regressão para CFF/Type1, GSUB avançado, kerning state-based e os novos scripts/tags.
-- A suíte Type 1 agora inclui casos de PFB com `lenIV > 0`, fallback explícito para `.notdef` e carregamento de sub-rotinas (`/Subrs`), validando decriptação, cache e suporte a `callsubr`.
-- A suíte CID exercita `CFFCIDFont` com caches compartilhados e fallback para `.notdef`, garantindo que os caminhos e widths reutilizem charstrings conforme a implementação Java.
-- A suíte CFF cobre `CFFType1Font` e `CFFCIDFont` contra o contrato `FontBoxFont`, incluindo validação de bounding box, matrix e cache de charstrings.
-- A suíte CFF cobre `CFFType1Font` contra o contrato `FontBoxFont`, incluindo validação de bounding box, matrix e cache de charstrings `Type2`.
-- Garantir que a suíte Dart reproduza a matriz de fontes usada pelos testes Java (inclusive arquivos de referência).
+### Trabalho em andamento
+- **FeatureVariations condicionais:** aplicar resolução dependente de eixos para GSUB/GPOS, reutilizando o estado do executor e cobrindo cenários de var fonts.
+- **Cobertura JSTF/BASE ampliada:** validar prioridades langSys alternativos, prioridades extend/shrink simultâneas e conexão com BASE para ancoragem.
+- **Validação prática:** rodar `inspect_cmap.dart`, `validate_uvs.dart` e PDFs/fontes reais para cobrir Variation Selectors, TTC, CFF/CFF2 e registrar achados.
+- **CFF2 e variações:** estender parser/workers para fontes variáveis após estabilizar GPOS/JSTF.
+- **Infraestrutura auxiliar PDFBox:** finalizar módulos remanescentes (UnicodeMapping, caches de fontes do sistema, metadados) necessários para consumir as fontes dentro do PDModel.
+
+### Próximas entregas
+- Completar aplicação de FeatureVariations condicionais e expor o estado de eixos para GSUB/GPOS.
+- Ampliar testes JSTF/BASE cobrindo langSys alternativos, shrink/extend simultâneos e interação com mark attachment.
+- Criar suites adicionais que cubram mark attachment, kerning state-based, scripts recém-adicionados e regressões do TTFSubsetter.
+- Rodar a matriz de validação com fontes/PDFs reais e documentar resultados (UVS, CJK, variações, Type 1/CID complexos).
+- Preparar suporte a CFF2 e fontes variáveis após a estabilização das etapas acima.
 
 ### Critério de saída
-Considerar o porte concluído quando todos os itens acima estiverem implementados e cobertos por testes equivalentes aos do Java, permitindo iniciar o porte do PDFBox sem extensões temporárias no FontBox.
-
-- Consolidar o pipeline Type 1 consumindo o `PfbParser` recém-portado, alinhando caches e leitura de subrotinas externas com os consumidores compostos.
-- Expandir `_scriptToTags`/`language.dart` e adicionar testes direcionados para novos scripts.
-- Validar UVS e GSUB atuais em fontes reais e documentar resultados no repositório.
-
-### Panorama atual
-O núcleo CFF/Type 1 está disponível: parser CFF, charsets padrão/expert, charstring path, `Type1CharString`, `Type2CharString`/parser e o reader para `CFFType1Font`/`CFFCIDFont` já foram portados. `Type1Parser`, `Type1Font`, `FontBoxFont` e `EncodedFont` agora também estão implementados com testes equivalentes. O `CffTable` instância fontes PostScript com fallback seguro quando encontra CFF corrompido. Ainda faltam ajustar caches auxiliares e validar fluxos compostos para atingir paridade completa com o Java.
-
-As classes CFF agora implementam diretamente `FontBoxFont`/`EncodedFont`, permitindo compartilhar consumidores Type 1/Type 0 e garantindo paridade com o contrato Java. Novos testes cobrem o uso do cache de charstrings e métricas expostas por `CFFType1Font` e `CFFCIDFont`.
-
-O pipeline de nomes e codificações recebeu o gerador de `glyph_list_data.dart`, além das portas de `WinAnsiEncoding`, `MacExpertEncoding`, `SymbolEncoding`, `ZapfDingbatsEncoding` e da nova `GlyphList`, preparando o suporte às listas Adobe Glyph List/Zapf e aos consumidores Type 1. A camada PDFBox já expõe um wrapper `pdmodel/font/encoding/GlyphList` delegando para essa infraestrutura.
-
-No pacote TTF seguimos com lacunas: `OtlTable` permanece stub, `OpenTypeFont` ainda é parcialmente portado, e `_scriptToTags`/`language.dart` continuam reduzidos. A infraestrutura GSUB/JSTF avançada e validação UVS prática seguem pendentes.
-
-Persistem pendências de validação prática: executar `inspect_cmap.dart`/`validate_uvs.dart` em amostras reais, criar fixtures que exercitem Type 1/CID carregados via `CffTable` e ampliar a suíte com casos GSUB/JSTF complexos e kerning state-based.
-
-### Próximos passos sugeridos
-- Validar imediatamente os novos helpers de UVS com `dart run scripts/inspect_cmap.dart` em fontes reais (Segoe UI Emoji, Noto Color Emoji) e, se possível, em PDFs que exercitem Variation Selectors; documentar os resultados.
-- Validar e integrar o pipeline Type 1 recém-portado com consumidores Type 0/CID e caches compartilhados.
-- Ampliar o suporte GSUB/JSTF e os mapeamentos de scripts em paralelo à conclusão das tabelas TTF pendentes, antes de iniciar o porte das camadas do PDFBox que dependem dessas APIs.
-- Exercitar as novas classes de charstring (`Type2CharString`, `CFFCIDFont`) em fontes reais, documentando métricas e eventuais gaps na integração com consumidores do PDFBox.
+O porte será considerado encerrado quando:
+- GSUB/GPOS/JSTF estiverem funcionais com FeatureVariations condicionais e cobertura por testes dirigidos a scripts/languages.
+- `TTFSubsetter` e pipelines Type 0/Type 1/CFF/CID forem exercitados por suites de regressão equivalentes às do Java, incluindo fixtures reais.
+- Scripts de validação (`inspect_cmap.dart`, `validate_uvs.dart`) rodarem limpos sobre a matriz de fontes adotada no projeto.
+- Os módulos auxiliares requeridos pelo PDFBox estiverem disponíveis e validados, permitindo o porte do PDModel sem stubs.

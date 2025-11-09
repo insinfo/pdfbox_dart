@@ -61,7 +61,8 @@ class CffTable extends TtfTable {
       }
       _fonts = parsedFonts;
     } on IOException catch (error, stackTrace) {
-      _log.warning('Failed to parse CFF table, retaining raw bytes only', error, stackTrace);
+      _log.warning('Failed to parse CFF table, retaining raw bytes only', error,
+          stackTrace);
       _fonts = <CFFFont>[];
     }
     setInitialized(true);

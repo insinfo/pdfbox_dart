@@ -281,7 +281,8 @@ class NamingTable extends TtfTable {
     return String.fromCharCodes(codeUnits);
   }
 
-  static String _normalizeLanguageTag(String value) => value.trim().toLowerCase();
+  static String _normalizeLanguageTag(String value) =>
+      value.trim().toLowerCase();
 }
 
 class _LangTagRecord {

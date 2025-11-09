@@ -153,6 +153,9 @@ class GlyphPath {
   void lineTo(double x, double y) => _commands.add(LineToCommand(x, y));
   void quadTo(double cx, double cy, double x, double y) =>
       _commands.add(QuadToCommand(cx, cy, x, y));
+  void curveTo(
+          double cx1, double cy1, double cx2, double cy2, double x, double y) =>
+      _commands.add(CubicToCommand(cx1, cy1, cx2, cy2, x, y));
   void closePath() => _commands.add(const ClosePathCommand());
 }
 
@@ -180,6 +183,18 @@ class QuadToCommand extends GlyphPathCommand {
   const QuadToCommand(this.cx, this.cy, this.x, this.y);
   final double cx;
   final double cy;
+  final double x;
+  final double y;
+}
+
+/// `curveTo` command adding a cubic Bézier segment.
+class CubicToCommand extends GlyphPathCommand {
+  const CubicToCommand(this.cx1, this.cy1, this.cx2, this.cy2, this.x, this.y);
+
+  final double cx1;
+  final double cy1;
+  final double cx2;
+  final double cy2;
   final double x;
   final double y;
 }

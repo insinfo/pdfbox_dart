@@ -8,6 +8,8 @@ import 'package:pdfbox_dart/src/fontbox/ttf/glyph_table.dart';
 import 'package:pdfbox_dart/src/fontbox/ttf/header_table.dart';
 import 'package:pdfbox_dart/src/fontbox/ttf/model/gsub_data.dart';
 import 'package:pdfbox_dart/src/fontbox/ttf/post_script_table.dart';
+import 'package:pdfbox_dart/src/fontbox/ttf/jstf/jstf_lookup_control.dart';
+import 'package:pdfbox_dart/src/fontbox/ttf/otl_table.dart';
 import 'package:pdfbox_dart/src/fontbox/ttf/true_type_font.dart';
 import 'package:pdfbox_dart/src/fontbox/ttf/wgl4_names.dart';
 import 'package:test/test.dart';
@@ -110,6 +112,30 @@ void main() {
     expect(font.toString(), 'StubPS');
     font.postScriptName = null;
     expect(font.toString(), '(null)');
+  });
+
+  test('resolveJstfLookupControl expõe priorizações de lookup', () {
+    final script = JstfScript(
+      extenderGlyphs: const <int>[],
+      defaultLangSys: JstfLangSys(
+        <JstfPriority>[
+          JstfPriority(
+            gsubShrinkageEnable: JstfModList(<int>[0x15]),
+          ),
+        ],
+      ),
+      langSysRecords: const <String, JstfLangSys>{},
+    );
+
+    final jstf = _StubJstfTable(<String, JstfScript>{'latn': script});
+    final font = _JstfAwareTrueTypeFont(jstf);
+    final control = font.resolveJstfLookupControl(
+      scriptTag: 'latn',
+      mode: JstfAdjustmentMode.shrink,
+    );
+
+    expect(control.enabledGsubLookups, contains(0x15));
+    expect(control.disabledGsubLookups, isEmpty);
   });
 }
 
@@ -324,4 +350,28 @@ class _TestTrueTypeFont extends TrueTypeFont {
 
   @override
   String? getName() => postScriptName;
+}
+
+class _StubJstfTable extends OtlTable {
+  _StubJstfTable(this._scripts);
+
+  final Map<String, JstfScript> _scripts;
+
+  @override
+  Map<String, JstfScript> get scripts => _scripts;
+
+  @override
+  bool get hasScripts => _scripts.isNotEmpty;
+
+  @override
+  JstfScript? getScript(String scriptTag) => _scripts[scriptTag];
+}
+
+class _JstfAwareTrueTypeFont extends TrueTypeFont {
+  _JstfAwareTrueTypeFont(this._jstf) : super(glyphCount: 0);
+
+  final OtlTable _jstf;
+
+  @override
+  OtlTable? getJstfTable() => _jstf;
 }

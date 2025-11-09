@@ -1,5 +1,4 @@
-
-Model
+Foque na parte de criação e edição e assinatura de PDFs a parte de renderização de PDFs vai ficar pro futuro
 Com base na sua lista de arquivos e nas dependências que você já adicionou, você já tem uma fundação sólida para a parte de criptografia, assinaturas digitais e algumas estruturas básicas de I/O e compressão (LZW).
 Aqui está um roteiro detalhado e prático para portar o Apache PDFBox para Dart, dividido em fases lógicas. O segredo é começar pela base e subir progressivamente.
 Fase 1: Fundação (Core IO & Modelo COS)

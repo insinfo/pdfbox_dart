@@ -10,9 +10,11 @@ import 'open_type_script.dart';
 import 'table/common/coverage_table.dart';
 import 'table/common/coverage_table_format1.dart';
 import 'table/common/coverage_table_format2.dart';
+import 'table/common/feature_variation_evaluator.dart';
 import 'table/common/feature_list_table.dart';
 import 'table/common/feature_record.dart';
 import 'table/common/feature_table.dart';
+import 'table/common/feature_variations.dart';
 import 'table/common/lang_sys_table.dart';
 import 'table/common/lookup_list_table.dart';
 import 'table/common/lookup_sub_table.dart';
@@ -29,6 +31,8 @@ import 'table/gsub/lookup_type_single_subst_format1.dart';
 import 'table/gsub/lookup_type_single_subst_format2.dart';
 import 'table/gsub/sequence_table.dart';
 import 'ttf_table.dart';
+import 'variation/variation_coordinate_provider.dart';
+import 'jstf/jstf_lookup_control.dart';
 
 /// Glyph substitution ('GSUB') table implementation used for OpenType layout logic.
 class GlyphSubstitutionTable extends TtfTable {
@@ -47,6 +51,11 @@ class GlyphSubstitutionTable extends TtfTable {
 
   String? _lastUsedSupportedScript;
   GsubData? _gsubData;
+  List<FeatureVariationRecord> _featureVariations =
+      const <FeatureVariationRecord>[];
+
+  List<FeatureVariationRecord> get featureVariations => _featureVariations;
+  bool get hasFeatureVariations => _featureVariations.isNotEmpty;
 
   @override
   void read(dynamic ttf, TtfDataStream data) {
@@ -57,7 +66,15 @@ class GlyphSubstitutionTable extends TtfTable {
     final featureListOffset = data.readUnsignedShort();
     final lookupListOffset = data.readUnsignedShort();
     if (minorVersion == 1) {
-      data.readUnsignedInt(); // featureVariationsOffset, unsupported
+      final featureVariationsOffset = data.readUnsignedInt();
+      if (featureVariationsOffset != 0) {
+        _featureVariations =
+            readFeatureVariations(data, tableStart + featureVariationsOffset);
+      } else {
+        _featureVariations = const <FeatureVariationRecord>[];
+      }
+    } else {
+      _featureVariations = const <FeatureVariationRecord>[];
     }
     _scriptList = scriptListOffset > 0
         ? _readScriptList(data, tableStart + scriptListOffset)
@@ -65,6 +82,17 @@ class GlyphSubstitutionTable extends TtfTable {
     _featureListTable = featureListOffset > 0
         ? _readFeatureList(data, tableStart + featureListOffset)
         : FeatureListTable(0, const <FeatureRecord>[]);
+    if (_featureListTable != null && _featureVariations.isNotEmpty) {
+      final axisCoordinates = ttf is VariationCoordinateProvider
+          ? ttf.normalizedVariationCoordinates
+          : const <double>[];
+      _featureListTable = _applyFeatureVariations(
+        data,
+        _featureListTable!,
+        _featureVariations,
+        axisCoordinates,
+      );
+    }
     _lookupListTable = lookupListOffset > 0
         ? _readLookupList(data, tableStart + lookupListOffset)
         : LookupListTable(0, const <LookupTable>[]);
@@ -185,6 +213,69 @@ class GlyphSubstitutionTable extends TtfTable {
     final lookupIndexCount = data.readUnsignedShort();
     final lookupListIndices = data.readUnsignedShortArray(lookupIndexCount);
     return FeatureTable(featureParams, lookupIndexCount, lookupListIndices);
+  }
+
+  FeatureListTable _applyFeatureVariations(
+    TtfDataStream data,
+    FeatureListTable featureList,
+    List<FeatureVariationRecord> variations,
+    List<double> axisCoordinates,
+  ) {
+    var current = featureList;
+    final evaluator = FeatureVariationEvaluator(axisCoordinates);
+    for (final variation in variations) {
+      if (!evaluator.matches(variation)) {
+        continue;
+      }
+      final substitutionOffset = variation.featureTableSubstitutionOffset;
+      if (substitutionOffset == 0) {
+        continue;
+      }
+      current = _applyFeatureTableSubstitution(
+        data,
+        current,
+        substitutionOffset,
+      );
+    }
+    return current;
+  }
+
+  FeatureListTable _applyFeatureTableSubstitution(
+    TtfDataStream data,
+    FeatureListTable featureList,
+    int substitutionOffset,
+  ) {
+    final saved = data.currentPosition;
+    data.seek(substitutionOffset);
+    final substitutionCount = data.readUnsignedShort();
+    final featureIndices = List<int>.filled(substitutionCount, 0);
+    final alternateOffsets = List<int>.filled(substitutionCount, 0);
+    for (var i = 0; i < substitutionCount; i++) {
+      featureIndices[i] = data.readUnsignedShort();
+      alternateOffsets[i] = data.readUnsignedShort();
+    }
+
+    final updated = List<FeatureRecord>.from(featureList.featureRecords);
+    for (var i = 0; i < substitutionCount; i++) {
+      final featureIndex = featureIndices[i];
+      if (featureIndex >= updated.length) {
+        continue;
+      }
+      final alternateOffset = alternateOffsets[i];
+      if (alternateOffset == 0) {
+        continue;
+      }
+      final alternateFeatureOffset = substitutionOffset + alternateOffset;
+      final alternateTable = _readFeatureTable(data, alternateFeatureOffset);
+      final existing = updated[featureIndex];
+      updated[featureIndex] = FeatureRecord(
+        existing.featureTag,
+        alternateTable,
+      );
+    }
+
+    data.seek(saved);
+    return FeatureListTable(featureList.featureCount, updated);
   }
 
   LookupListTable _readLookupList(TtfDataStream data, int offset) {
@@ -530,7 +621,11 @@ class GlyphSubstitutionTable extends TtfTable {
     records.removeWhere((record) => record.featureTag == featureTag);
   }
 
-  int _applyFeature(FeatureRecord featureRecord, int gid) {
+  int _applyFeature(
+    FeatureRecord featureRecord,
+    int gid,
+    JstfLookupControl? jstfControl,
+  ) {
     final lookupList = _lookupListTable;
     if (lookupList == null) {
       return gid;
@@ -538,6 +633,15 @@ class GlyphSubstitutionTable extends TtfTable {
     var lookupResult = gid;
     final lookups = lookupList.lookups;
     for (final lookupIndex in featureRecord.featureTable.lookupListIndices) {
+      if (jstfControl != null) {
+        if (jstfControl.isGsubLookupDisabled(lookupIndex)) {
+          continue;
+        }
+        if (jstfControl.hasEnabledGsubLookups &&
+            !jstfControl.isGsubLookupEnabled(lookupIndex)) {
+          continue;
+        }
+      }
       if (lookupIndex < 0 || lookupIndex >= lookups.length) {
         _log.warning(
             'Skipping GSUB feature ${featureRecord.featureTag} with invalid lookupListIndex $lookupIndex');
@@ -566,7 +670,11 @@ class GlyphSubstitutionTable extends TtfTable {
 
   /// Apply glyph substitutions for [gid] according to [scriptTags] and [enabledFeatures].
   int getSubstitution(
-      int gid, List<String> scriptTags, List<String> enabledFeatures) {
+    int gid,
+    List<String> scriptTags,
+    List<String> enabledFeatures, {
+    JstfLookupControl? jstfControl,
+  }) {
     if (gid == -1) {
       return -1;
     }
@@ -579,7 +687,11 @@ class GlyphSubstitutionTable extends TtfTable {
     final featureRecords = _getFeatureRecords(langSysTables, enabledFeatures);
     var substituted = gid;
     for (final featureRecord in featureRecords) {
-      substituted = _applyFeature(featureRecord, substituted);
+      substituted = _applyFeature(
+        featureRecord,
+        substituted,
+        jstfControl,
+      );
     }
     _lookupCache[gid] = substituted;
     _reverseLookup[substituted] = gid;

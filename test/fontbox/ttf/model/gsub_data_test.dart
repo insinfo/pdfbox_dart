@@ -5,8 +5,11 @@ void main() {
   test('noDataFound sentinel throws on access', () {
     expect(() => GsubData.noDataFound.language, throwsUnsupportedError);
     expect(() => GsubData.noDataFound.activeScriptName, throwsUnsupportedError);
-    expect(() => GsubData.noDataFound.isFeatureSupported('liga'), throwsUnsupportedError);
-    expect(() => GsubData.noDataFound.getFeature('liga'), throwsUnsupportedError);
-    expect(() => GsubData.noDataFound.getSupportedFeatures(), throwsUnsupportedError);
+    expect(() => GsubData.noDataFound.isFeatureSupported('liga'),
+        throwsUnsupportedError);
+    expect(
+        () => GsubData.noDataFound.getFeature('liga'), throwsUnsupportedError);
+    expect(() => GsubData.noDataFound.getSupportedFeatures(),
+        throwsUnsupportedError);
   });
 }

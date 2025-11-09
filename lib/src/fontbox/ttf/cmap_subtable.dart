@@ -466,10 +466,10 @@ class CmapSubtable implements CMapLookup {
           if (rangeCount > 0) {
             final ranges = <_VariationRange>[];
             final remainingBytes = subtableEnd - data.currentPosition;
-            final availableRanges = remainingBytes > 0 ? remainingBytes ~/ 4 : 0;
-            final rangesToRead = rangeCount < availableRanges
-                ? rangeCount
-                : availableRanges;
+            final availableRanges =
+                remainingBytes > 0 ? remainingBytes ~/ 4 : 0;
+            final rangesToRead =
+                rangeCount < availableRanges ? rangeCount : availableRanges;
             for (var rangeIndex = 0;
                 rangeIndex < rangesToRead &&
                     _canReadBytes(data, 4, subtableEnd);

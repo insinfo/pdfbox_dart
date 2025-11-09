@@ -2,6 +2,7 @@ import 'cmap_lookup.dart';
 import 'cmap_subtable.dart';
 import 'glyph_substitution_table.dart';
 import 'open_type_script.dart';
+import 'jstf/jstf_lookup_control.dart';
 
 /// CMap lookup that performs glyph substitutions using the GSUB table.
 class SubstitutingCmapLookup implements CMapLookup {
@@ -9,11 +10,18 @@ class SubstitutingCmapLookup implements CMapLookup {
     this._cmap,
     this._gsubTable,
     List<String>? enabledFeatures,
-  ) : _enabledFeatures = enabledFeatures ?? const <String>[];
+    {JstfLookupControl? jstfControl}
+  )   : _enabledFeatures = enabledFeatures ?? const <String>[],
+        _jstfControl = jstfControl;
 
   final CmapSubtable _cmap;
   final GlyphSubstitutionTable _gsubTable;
   final List<String> _enabledFeatures;
+  JstfLookupControl? _jstfControl;
+
+  JstfLookupControl? get jstfControl => _jstfControl;
+
+  set jstfControl(JstfLookupControl? value) => _jstfControl = value;
 
   @override
   int getGlyphId(int codePoint, [int? variationSelector]) {
@@ -23,7 +31,11 @@ class SubstitutingCmapLookup implements CMapLookup {
     }
     final scriptTags = OpenTypeScript.getScriptTags(codePoint);
     return _gsubTable.getSubstitution(
-        baseGlyphId, scriptTags, _enabledFeatures);
+      baseGlyphId,
+      scriptTags,
+      _enabledFeatures,
+      jstfControl: _jstfControl,
+    );
   }
 
   @override

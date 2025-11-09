@@ -1,5 +1,9 @@
+import '../../io/exceptions.dart';
+import '../cff/cff_font.dart' show CFFCIDFont, CFFType1Font;
+import '../cff/char_string_path.dart' as cff;
 import '../io/ttf_data_stream.dart';
 import 'cff_table.dart';
+import 'glyph_renderer.dart';
 import 'glyph_substitution_table.dart';
 import 'glyph_table.dart';
 import 'otl_table.dart';
@@ -59,6 +63,64 @@ class OpenTypeFont extends TrueTypeFont {
       throw StateError('CFF table is missing or has not been initialised');
     }
     return table;
+  }
+
+  @override
+  GlyphPath getPath(String name) {
+    if (!isPostScript || !isSupportedOtf) {
+      return super.getPath(name);
+    }
+
+    final gid = nameToGid(name);
+    if (gid <= 0) {
+      return GlyphPath();
+    }
+
+    try {
+      final cffFont = getCffTable().font;
+      if (cffFont is CFFType1Font) {
+        final outline = cffFont.getType2CharString(gid).getPath();
+        return _toGlyphPath(outline);
+      }
+      if (cffFont is CFFCIDFont) {
+        final cid = cffFont.charset.getCIDForGID(gid);
+        if (cid <= 0) {
+          return GlyphPath();
+        }
+        final outline = cffFont.getType2CharString(cid).getPath();
+        return _toGlyphPath(outline);
+      }
+      return GlyphPath();
+    } on IOException {
+      return GlyphPath();
+    } on Exception {
+      return GlyphPath();
+    } on StateError {
+      return GlyphPath();
+    }
+  }
+
+  GlyphPath _toGlyphPath(cff.CharStringPath outline) {
+    final glyphPath = GlyphPath();
+    for (final command in outline.commands) {
+      if (command is cff.MoveToCommand) {
+        glyphPath.moveTo(command.x, command.y);
+      } else if (command is cff.LineToCommand) {
+        glyphPath.lineTo(command.x, command.y);
+      } else if (command is cff.CurveToCommand) {
+        glyphPath.curveTo(
+          command.x1,
+          command.y1,
+          command.x2,
+          command.y2,
+          command.x3,
+          command.y3,
+        );
+      } else if (command is cff.ClosePathCommand) {
+        glyphPath.closePath();
+      }
+    }
+    return glyphPath;
   }
 
   @override
