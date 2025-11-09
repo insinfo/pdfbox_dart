@@ -33,7 +33,7 @@ class FlateFilter extends Filter {
   }
 
   @override
-  Uint8List encode(Uint8List input, COSDictionary parameters) {
+  Uint8List encode(Uint8List input, COSDictionary parameters, int index) {
     try {
       return Uint8List.fromList(ZLibEncoder().encode(input));
     } catch (error) {

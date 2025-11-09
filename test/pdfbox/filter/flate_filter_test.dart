@@ -18,8 +18,8 @@ void main() {
       final result = filter.decode(encoded, parameters, 0);
       expect(result.data, equals(data));
 
-      final reencoded = filter.encode(result.data, parameters);
-      final decodedAgain = filter.decode(reencoded, parameters, 0).data;
+  final reencoded = filter.encode(result.data, parameters, 0);
+  final decodedAgain = filter.decode(reencoded, parameters, 0).data;
       expect(decodedAgain, equals(data));
     });
 

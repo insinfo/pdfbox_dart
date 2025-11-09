@@ -28,6 +28,19 @@ class COSName extends COSBase implements Comparable<COSName> {
   static final COSName colors = COSName('Colors');
   static final COSName bitsPerComponent = COSName('BitsPerComponent');
   static final COSName columns = COSName('Columns');
+  static final COSName earlyChange = COSName('EarlyChange');
+  static final COSName flateDecode = COSName('FlateDecode');
+  static final COSName flateDecodeAbbreviation = COSName('Fl');
+  static final COSName lzwDecode = COSName('LZWDecode');
+  static final COSName lzwDecodeAbbreviation = COSName('LZW');
+  static final COSName asciiHexDecode = COSName('ASCIIHexDecode');
+  static final COSName asciiHexDecodeAbbreviation = COSName('AHx');
+  static final COSName ascii85Decode = COSName('ASCII85Decode');
+  static final COSName ascii85DecodeAbbreviation = COSName('A85');
+  static final COSName runLengthDecode = COSName('RunLengthDecode');
+  static final COSName runLengthDecodeAbbreviation = COSName('RL');
+  static final COSName dctDecode = COSName('DCTDecode');
+  static final COSName dctDecodeAbbreviation = COSName('DCT');
 
   @override
   int compareTo(COSName other) => name.compareTo(other.name);

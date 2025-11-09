@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import '../filter/decode_options.dart';
+import '../filter/decode_result.dart';
+import '../filter/filter_pipeline.dart';
 import 'cos_array.dart';
 import 'cos_dictionary.dart';
 import 'cos_name.dart';
@@ -23,10 +26,48 @@ class COSStream extends COSDictionary {
   }
 
   Stream<List<int>> openStream() {
-    if (_data == null) {
+    final raw = encodedBytes();
+    if (raw == null) {
       return const Stream<List<int>>.empty();
     }
-    return Stream<List<int>>.value(Uint8List.fromList(_data!));
+    return Stream<List<int>>.value(raw);
+  }
+
+  Uint8List? encodedBytes({bool copy = true}) {
+    if (_data == null) {
+      return null;
+    }
+    if (copy) {
+      return Uint8List.fromList(_data!);
+    }
+    return _data!;
+  }
+
+  FilterPipelineResult? decodeWithResult({
+    DecodeOptions options = DecodeOptions.defaultOptions,
+  }) {
+    if (_data == null) {
+      return null;
+    }
+
+    if (filters.isEmpty) {
+      return FilterPipelineResult(
+        Uint8List.fromList(_data!),
+        const <DecodeResult>[],
+      );
+    }
+
+    final pipeline = FilterPipeline(
+      parameters: this,
+      filterNames: filters,
+      options: options,
+    );
+    return pipeline.decode(_data!);
+  }
+
+  Uint8List? decode({DecodeOptions options = DecodeOptions.defaultOptions}) {
+    final result = decodeWithResult(options: options);
+    return result?.data;
   }
 
   List<COSName> get filters {

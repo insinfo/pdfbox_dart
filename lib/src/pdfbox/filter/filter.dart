@@ -17,7 +17,7 @@ abstract class Filter {
     DecodeOptions options = DecodeOptions.defaultOptions,
   });
 
-  Uint8List encode(Uint8List input, COSDictionary parameters);
+  Uint8List encode(Uint8List input, COSDictionary parameters, int index);
 
   COSDictionary getDecodeParams(COSDictionary dictionary, int index) {
     final COSBase? filter =

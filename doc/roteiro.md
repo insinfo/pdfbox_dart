@@ -1,4 +1,5 @@
-Foque na parte de criação e edição e assinatura de PDFs a parte de renderização de PDFs vai ficar pro futuro
+Foque na parte de criação e edição e assinatura de PDFs a parte de renderização de PDFs vai ficar pro futuro pois sera necessario portar o AGG antigrain geometry primeiro para o dart aqui  C:\MyDartProjects\agg
+
 os arquivos originais em java  estão aqui C:\MyDartProjects\pdfbox_dart\pdfbox-java\pdfbox\src para ir portando
 
 vai portando e atualizando este roteiro
@@ -6,7 +7,8 @@ vai portando e atualizando este roteiro
 io ja esta implementado em C:\MyDartProjects\pdfbox_dart\lib\src\io
 fontbox ja esta implementado em C:\MyDartProjects\pdfbox_dart\lib\src\fontbox
 
-Com base na sua lista de arquivos e nas dependências que você já adicionou, você já tem uma fundação sólida para a parte de criptografia, assinaturas digitais e algumas estruturas básicas de I/O e compressão (LZW).
+Com base na sua lista de arquivos e nas dependências que você já adicionou
+em C:\MyDartProjects\pdfbox_dart\lib\src\dependencies, você já tem uma fundação sólida para a parte de criptografia, assinaturas digitais e algumas estruturas básicas de I/O e compressão (LZW).
 Aqui está um roteiro detalhado e prático para portar o Apache PDFBox para Dart, dividido em fases lógicas. O segredo é começar pela base e subir progressivamente.
 
 Fase 1: Fundação (Core IO & Modelo COS)
@@ -38,8 +40,23 @@ Prioridade:
 FlateFilter: Essencial (use package:archive para zlib/deflate).
 ASCIIHexFilter, ASCII85Filter: Fáceis de portar.
 LZWFilter: Você já tem a lib lzw.
-Deixe para depois: DCTDecode (JPEG), JPXDecode (JPEG2000), CCITTFaxDecode.
-Dart status: módulo `lib/src/pdfbox/filter/` iniciado com Filter/DecodeOptions/DecodeResult/Predictor/FlateFilter e testes em `test/pdfbox/filter/`.
+RunLengthDecode: Necessário para streams compactados por RLE.
+DCTDecode (JPEG): Dependente do package:image.
+Deixe para depois: JPXDecode (JPEG2000), CCITTFaxDecode.
+Dart status: módulo `lib/src/pdfbox/filter/` iniciado com Filter/DecodeOptions/DecodeResult/Predictor/FlateFilter e testes em `test/pdfbox/filter/`. ASCIIHexFilter, ASCII85Filter, LZWFilter, RunLengthFilter e DCTFilter portados com cobertura de testes automatizados. FilterFactory/FilterPipeline implementados, `COSStream` expõe `decodeWithResult` e `encodedBytes` para o parser utilizar a cadeia de filtros quando necessário.
+
+Planejamento imediato dos filtros restantes:
+- **JPXDecode (JPEG 2000):** avaliar wrappers nativos (OpenJPEG via FFI) versus implementação pura em Dart; definir estratégia de fallback para flag `/JPXDecode` com dados ainda não suportados.
+- **CCITTFaxDecode:** portar o algoritmo do PDFBox (G3/G4) aproveitando a infraestrutura de bits já existente no pacote `archive`; mapear casos de testes com PDFs que usam fax.
+- **DCTDecode:** metadados de cor agora retornam `JpegColorInfo`; próxima etapa é preservar canais CMYK/YCCK sem conversão quando `DecodeOptions.preserveRawDct` estiver ativo e validar a conversão para RGBA com um conjunto de PDFs reais.
+
+Infra do parser:
+- Novo módulo `lib/src/pdfbox/pdfparser/` introduzido com `BaseParser.resolveStream` e `COSParser.readStream`, garantindo que a leitura de streams use `encodedBytes(copy: false)` quando só o bruto for necessário ou `decodeWithResult()` quando o parser precisar dos dados decodificados (com `DecodeOptions`).
+- `BaseParser` agora cobre `skipSpaces`, `skipWhiteSpaces`, `skipLinebreak`, `readToken`, `readString`, `readLiteralString`, `readInt`/`readLong` e `readExpectedString/Char`, com testes em `test/pdfbox/pdfparser/` exercitando escapes de strings literais, CRLF pós-stream e limites numéricos.
+- `COSParser.parseObject()` já decodifica nomes (com escapes `#xx`), strings literais/hex, números, booleanos, `null`, arrays (`[]`), dicionários (`<< >>`) e agora referencias indiretas (`1 0 R`), com validações em `cos_parser_objects_test.dart` cobrindo coleções vazias, estruturas aninhadas, mistura de tipos dentro de arrays e comparação entre inteiros consecutivos vs. referências.
+- `COSParser` reconhece dicionários seguidos de `stream`/`endstream`, materializa `COSStream` copiando os itens do dicionário, lê o corpo usando `/Length` quando disponível e recorre a busca pelo marcador caso contrário, garantindo que o comprimento armazenado reflita os bytes reais (testes em `cos_parser_stream_test.dart`).
+- `COSParser.parseIndirectObject()` cobre cabeçalhos `obj`/`endobj`, reutilizando a lógica de streams para hidratar `COSStream` diretamente em objetos indiretos, incluindo integração opcional com `COSDocument` (validações em `cos_parser_indirect_test.dart`).
+- Implementado `COSParser.parseXrefTrailer()` para ler tabelas `xref`, trailer e `startxref`, permitindo montar o mapa inicial de offsets de objetos; testes em `cos_parser_xref_test.dart` confirmam seções múltiplas e metadados básicos de trailer.
 
 Fase 3: Modelo de Alto Nível (PDModel)
 
