@@ -17,6 +17,9 @@ abstract class Encoding {
   /// Returns the glyph name associated with [code], defaulting to ".notdef".
   String getName(int code) => _codeToName[code] ?? '.notdef';
 
+  /// Returns `true` when the encoding assigns a code to [name].
+  bool contains(String name) => _nameToCode.containsKey(name);
+
   /// Exposes an immutable view of the code-to-name assignments.
   Map<int, String> get codeToNameMap => UnmodifiableMapView(_codeToName);
 }

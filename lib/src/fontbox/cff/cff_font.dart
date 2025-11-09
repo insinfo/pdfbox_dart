@@ -1,17 +1,20 @@
 import 'dart:typed_data';
 
+import '../../io/exceptions.dart';
+import '../encoded_font.dart';
+import '../font_box_font.dart';
 import '../type1/type1_char_string_reader.dart';
 import '../util/bounding_box.dart';
 import 'cff_charset.dart';
 import 'cff_encoding.dart';
-import 'type1_char_string.dart';
 import 'char_string_path.dart';
+import 'cid_keyed_type2_char_string.dart';
+import 'type1_char_string.dart';
 import 'type2_char_string.dart';
 import 'type2_char_string_parser.dart';
-import 'cid_keyed_type2_char_string.dart';
 
 /// Lightweight port of PDFBox's CFF font abstractions.
-abstract class CFFFont {
+abstract class CFFFont implements FontBoxFont {
   final Map<String, Object?> topDict = <String, Object?>{};
 
   String? _fontName;
@@ -20,6 +23,9 @@ abstract class CFFFont {
 
   List<Uint8List> charStrings = <Uint8List>[];
   List<Uint8List> globalSubrIndex = <Uint8List>[];
+
+  @override
+  String getName() => _fontName ?? '';
 
   String get name => _fontName ?? '';
 
@@ -45,18 +51,23 @@ abstract class CFFFont {
     return source.getBytes();
   }
 
+  @override
   BoundingBox getFontBBox() {
     final list = topDict['FontBBox'];
-    if (list is List && list.length >= 4) {
-      return BoundingBox.fromNumbers(list.cast<num>());
+    if (list is List) {
+      final numbers = List<num>.from(list.cast<num>());
+      if (numbers.length >= 4) {
+        return BoundingBox.fromNumbers(numbers);
+      }
     }
-    throw StateError('FontBBox missing');
+    throw IOException('FontBBox must have 4 numbers, but is $list');
   }
 
+  @override
   List<num> getFontMatrix() {
     final list = topDict['FontMatrix'];
     if (list is List) {
-      return list.cast<num>();
+      return List<num>.from(list.cast<num>());
     }
     return const <num>[0.001, 0.0, 0.0, 0.001, 0.0, 0.0];
   }
@@ -64,8 +75,11 @@ abstract class CFFFont {
   int get numCharStrings => charStrings.length;
 }
 
-abstract class EncodedCFFFont extends CFFFont {
+abstract class EncodedCFFFont extends CFFFont implements EncodedFont {
   CFFEncoding? _encoding;
+
+  @override
+  CFFEncoding? getEncoding() => _encoding;
 
   CFFEncoding get encoding {
     final value = _encoding;
@@ -128,7 +142,8 @@ class CFFType1Font extends EncodedCFFFont implements Type1CharStringReader {
         ? charStrings[normalizedGid]
         : (charStrings.isNotEmpty ? charStrings.first : Uint8List(0));
 
-    final sequence = _getParser().parse(bytes, globalSubrIndex, _getLocalSubrIndex());
+    final sequence =
+        _getParser().parse(bytes, globalSubrIndex, _getLocalSubrIndex());
     final type2 = Type2CharString(
       this,
       this.name,
@@ -232,8 +247,8 @@ class CFFCIDFont extends CFFFont {
         ? charStrings[normalizedGid]
         : (charStrings.isNotEmpty ? charStrings.first : Uint8List(0));
 
-    final sequence =
-        _getParser().parse(bytes, globalSubrIndex, _getLocalSubrIndex(normalizedGid));
+    final sequence = _getParser()
+        .parse(bytes, globalSubrIndex, _getLocalSubrIndex(normalizedGid));
     final type2 = CIDKeyedType2CharString(
       _reader,
       name,
