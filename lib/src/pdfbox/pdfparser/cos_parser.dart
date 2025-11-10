@@ -1,4 +1,5 @@
 import 'dart:collection';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import '../../io/exceptions.dart';
@@ -13,18 +14,18 @@ import '../cos/cos_integer.dart';
 import '../cos/cos_name.dart';
 import '../cos/cos_null.dart';
 import '../cos/cos_object.dart';
+import '../cos/cos_object_key.dart';
 import '../cos/cos_stream.dart';
 import '../cos/cos_string.dart';
 import '../filter/decode_options.dart';
 import 'base_parser.dart';
 import 'parsed_stream.dart';
 
-/// Lightweight placeholder for the full COSParser port.
+/// Incremental Dart port of PDFBox's COSParser focused on object/xref handling.
 ///
-/// The class currently focuses on wiring stream handling so that
-/// downstream work can rely on encoded and decoded representations without
-/// duplicating buffering logic. The broader object/xref parsing logic will
-/// be ported in subsequent iterations.
+/// Supports direct object parsing (scalars, arrays, dictionaries, streams),
+/// indirect object hydration, stream decoding, classical xref tables with
+/// trailer merging, and document loading into a [COSDocument].
 class COSParser extends BaseParser {
   COSParser(RandomAccessRead source) : super(source);
 
@@ -147,6 +148,63 @@ class COSParser extends BaseParser {
   COSObject? parseIndirectObjectAt(int offset, {COSDocument? document}) {
     source.seek(offset);
     return parseIndirectObject(document: document);
+  }
+
+  /// Parses an entire PDF file into a [COSDocument] using xref tables.
+  COSDocument parseDocument() {
+    final document = COSDocument();
+    final startXref = _findStartXref();
+    if (startXref == null) {
+      throw IOException('Unable to locate startxref in source');
+    }
+
+    final Map<COSObjectKey, XrefEntry> objectEntries = <COSObjectKey, XrefEntry>{};
+    final visitedXrefOffsets = <int>{};
+
+    var currentOffset = startXref;
+    while (currentOffset >= 0 && visitedXrefOffsets.add(currentOffset)) {
+      source.seek(currentOffset);
+      final info = parseXrefTrailer();
+
+      if (document.trailer.isEmpty) {
+        document.trailer.addAll(info.trailer);
+      }
+
+      for (final entry in info.entries.entries) {
+        final objectNumber = entry.key;
+        final xref = entry.value;
+
+        if (!xref.inUse || xref.offset <= 0 || objectNumber == 0) {
+          continue;
+        }
+        final key = COSObjectKey(objectNumber, xref.generation);
+        objectEntries.putIfAbsent(key, () => xref);
+      }
+
+      final prevOffset = info.trailer.getInt(COSName.get('Prev'));
+      if (prevOffset == null) {
+        break;
+      }
+      currentOffset = prevOffset;
+    }
+
+    final sortedKeys = objectEntries.keys.toList()
+      ..sort((a, b) {
+        final cmp = a.objectNumber.compareTo(b.objectNumber);
+        return cmp != 0
+            ? cmp
+            : a.generationNumber.compareTo(b.generationNumber);
+      });
+
+    for (final key in sortedKeys) {
+      final entry = objectEntries[key]!;
+      if (document.getObject(key) != null) {
+        continue;
+      }
+      parseIndirectObjectAt(entry.offset, document: document);
+    }
+
+    return document;
   }
 
   COSArray _parseArray() {
@@ -336,6 +394,41 @@ class COSParser extends BaseParser {
       index++;
     }
     return true;
+  }
+
+  int? _findStartXref({int searchLength = 2048}) {
+    final fileLength = source.length;
+    if (fileLength <= 0) {
+      return null;
+    }
+
+    final originalPosition = source.position;
+    final scanLength = math.min(searchLength, fileLength);
+    final buffer = Uint8List(scanLength);
+
+    source.seek(fileLength - scanLength);
+    final read = source.readInto(buffer);
+    final content = String.fromCharCodes(buffer.sublist(0, read));
+
+    const marker = 'startxref';
+    final markerIndex = content.lastIndexOf(marker);
+    if (markerIndex < 0) {
+      source.seek(originalPosition);
+      return null;
+    }
+
+    final markerPosition = fileLength - scanLength + markerIndex;
+    source.seek(markerPosition + marker.length);
+    skipSpaces();
+    final offsetToken = readToken();
+    final offset = int.tryParse(offsetToken);
+
+    source.seek(originalPosition);
+
+    if (offset == null) {
+      throw IOException('Invalid startxref value: $offsetToken');
+    }
+    return offset;
   }
 
   /// Parses a classic XRef table followed by trailer and startxref markers.

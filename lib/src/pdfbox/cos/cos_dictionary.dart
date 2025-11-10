@@ -3,11 +3,14 @@ import 'dart:collection';
 import 'cos_array.dart';
 import 'cos_base.dart';
 import 'cos_boolean.dart';
+import 'cos_float.dart';
 import 'cos_integer.dart';
 import 'cos_name.dart';
 import 'cos_null.dart';
 import 'cos_number.dart';
 import 'cos_object.dart';
+import 'cos_string.dart';
+import '../util/pdf_date.dart';
 
 class COSDictionary extends COSBase {
   final Map<COSName, COSBase> _items = LinkedHashMap<COSName, COSBase>();
@@ -40,6 +43,14 @@ class COSDictionary extends COSBase {
       return;
     }
     _items[key] = COSInteger(value);
+  }
+
+  void setFloat(COSName key, double? value) {
+    if (value == null) {
+      _items.remove(key);
+      return;
+    }
+    _items[key] = COSFloat(value);
   }
 
   void setName(COSName key, String? name) {
@@ -102,6 +113,14 @@ class COSDictionary extends COSBase {
     return null;
   }
 
+  double? getFloat(COSName key, [double? defaultValue]) {
+    final value = getDictionaryObject(key);
+    if (value is COSNumber) {
+      return value.doubleValue;
+    }
+    return defaultValue;
+  }
+
   bool? getBoolean(COSName key, [bool? defaultValue]) {
     final value = getDictionaryObject(key);
     if (value is COSBoolean) {
@@ -134,6 +153,28 @@ class COSDictionary extends COSBase {
     _items.clear();
   }
 
+  bool getFlag(COSName key, int flag) {
+    final current = getInt(key) ?? 0;
+    return (current & flag) == flag && flag != 0;
+  }
+
+  void setFlag(COSName key, int flag, bool value) {
+    if (flag == 0) {
+      return;
+    }
+    var current = getInt(key) ?? 0;
+    if (value) {
+      current |= flag;
+    } else {
+      current &= ~flag;
+    }
+    if (current == 0) {
+      _items.remove(key);
+    } else {
+      _items[key] = COSInteger(current);
+    }
+  }
+
   COSDictionary clone() {
     final copy = COSDictionary();
     for (final entry in _items.entries) {
@@ -161,5 +202,45 @@ class COSDictionary extends COSBase {
 
   void setNull(COSName key) {
     _items[key] = COSNull.instance;
+  }
+
+  void setString(COSName key, String? value) {
+    if (value == null) {
+      _items.remove(key);
+      return;
+    }
+    _items[key] = COSString(value);
+  }
+
+  String? getString(COSName key, [String? defaultValue]) {
+    final value = getDictionaryObject(key);
+    if (value is COSString) {
+      return value.string;
+    }
+    if (value is COSName) {
+      return value.name;
+    }
+    return defaultValue;
+  }
+
+  void setDate(COSName key, DateTime? value) {
+    if (value == null) {
+      _items.remove(key);
+      return;
+    }
+    final formatted = PdfDate.format(value);
+    if (formatted == null) {
+      _items.remove(key);
+      return;
+    }
+    _items[key] = COSString(formatted);
+  }
+
+  DateTime? getDate(COSName key) {
+    final value = getDictionaryObject(key);
+    if (value is COSString) {
+      return PdfDate.parse(value.string);
+    }
+    return null;
   }
 }

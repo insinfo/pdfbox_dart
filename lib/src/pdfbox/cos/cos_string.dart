@@ -4,15 +4,16 @@ import 'dart:typed_data';
 import 'cos_base.dart';
 
 class COSString extends COSBase {
-  COSString(String value) : this.fromBytes(Uint8List.fromList(utf8.encode(value)));
+  COSString(String value)
+      : this.fromBytes(Uint8List.fromList(utf8.encode(value)), isHex: false);
 
   COSString.fromHex(String hexString)
       : _bytes = _decodeHex(hexString),
         isHex = true;
 
-  COSString.fromBytes(Uint8List bytes)
+  COSString.fromBytes(Uint8List bytes, {bool isHex = false})
       : _bytes = Uint8List.fromList(bytes),
-        isHex = false;
+        isHex = isHex;
 
   static COSString get empty => COSString('');
 
@@ -25,7 +26,7 @@ class COSString extends COSBase {
 
   int get length => _bytes.length;
 
-  COSString copy() => COSString.fromBytes(_bytes);
+  COSString copy() => COSString.fromBytes(_bytes, isHex: isHex);
 
   @override
   bool operator ==(Object other) {

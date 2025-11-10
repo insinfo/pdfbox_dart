@@ -1,12 +1,33 @@
 import 'dart:collection';
+import 'dart:typed_data';
 
 import 'cos_base.dart';
+import 'cos_name.dart';
+import 'cos_string.dart';
 
 class COSArray extends COSBase with IterableMixin<COSBase> {
+  COSArray([Iterable<COSBase>? initial]) {
+    if (initial != null) {
+      _items.addAll(initial);
+    }
+  }
+
   final List<COSBase> _items = <COSBase>[];
 
   void add(COSObjectable value) {
     _items.add(value.cosObject);
+  }
+
+  void addName(String name) {
+    _items.add(COSName(name));
+  }
+
+  void addString(String value) {
+    _items.add(COSString(value));
+  }
+
+  void addBytes(Uint8List value) {
+    _items.add(COSString.fromBytes(value));
   }
 
   void addObject(COSBase value) {
@@ -29,6 +50,8 @@ class COSArray extends COSBase with IterableMixin<COSBase> {
     _items.removeAt(index);
   }
 
+  bool remove(COSBase value) => _items.remove(value);
+
   void clear() {
     _items.clear();
   }
@@ -41,6 +64,44 @@ class COSArray extends COSBase with IterableMixin<COSBase> {
 
   List<COSBase> toList({bool growable = true}) =>
       List<COSBase>.from(_items, growable: growable);
+
+  List<String> toCOSNameStringList() {
+    final result = <String>[];
+    for (final item in _items) {
+      if (item is COSName) {
+        result.add(item.name);
+      } else if (item is COSString) {
+        result.add(item.string);
+      }
+    }
+    return result;
+  }
+
+  List<Uint8List> toUint8List() {
+    final result = <Uint8List>[];
+    for (final item in _items) {
+      if (item is COSString) {
+        result.add(item.bytes);
+      }
+    }
+    return result;
+  }
+
+  static COSArray ofCOSNames(Iterable<String> names) {
+    final array = COSArray();
+    for (final name in names) {
+      array.addName(name);
+    }
+    return array;
+  }
+
+  static COSArray ofCOSStrings(Iterable<String> strings) {
+    final array = COSArray();
+    for (final value in strings) {
+      array.addString(value);
+    }
+    return array;
+  }
 
   @override
   Iterator<COSBase> get iterator => _items.iterator;

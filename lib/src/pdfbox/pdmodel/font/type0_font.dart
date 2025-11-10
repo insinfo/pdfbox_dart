@@ -2,10 +2,13 @@ import 'dart:typed_data';
 
 import '../../../fontbox/cff/cff_font.dart';
 import '../../../fontbox/cff/cid_glyph_mapper.dart';
+import '../../../fontbox/cff/char_string_path.dart';
 import '../../../fontbox/cmap/cmap.dart';
 import '../../../fontbox/cmap/predefined_cmap_repository.dart';
+import '../../../io/random_access_read.dart';
 import 'cmap_manager.dart';
 import 'cid_system_info.dart';
+import '../../../fontbox/util/bounding_box.dart';
 
 /// Lightweight Type 0 font helper built on top of the FontBox port.
 class Type0Font {
@@ -37,11 +40,50 @@ class Type0Font {
   /// Returns the underlying CID font.
   CFFCIDFont get cidFont => _cidFont;
 
+  /// Returns the descendant font bounding box.
+  BoundingBox get fontBoundingBox => _cidFont.getFontBBox();
+
+  /// Returns the descendant font matrix.
+  List<num> get fontMatrix => _cidFont.getFontMatrix();
+
   /// Returns the encoding CMap used for CID lookups.
   CMap get encoding => _encoding;
 
   /// Returns the optional ToUnicode CMap.
   CMap? get toUnicodeCMap => _toUnicode;
+
+  /// Returns the fallback UCS-2 CMap when available.
+  CMap? get ucs2CMap => _ucs2;
+
+  /// Indicates whether the encoding CMap is predefined.
+  bool get isCMapPredefined => _isCMapPredefined;
+
+  /// Indicates whether the descendant font uses Adobe CJK collections.
+  bool get isDescendantCjk => _isDescendantCjk;
+
+  /// Reads the next character code from [input] using the encoding CMap.
+  int readCode(RandomAccessRead input) => _encoding.readCode(input);
+
+  /// Maps a single character code to its CID.
+  int codeToCid(int code) => _resolveCidForCode(code);
+
+  /// Maps a single character code to its glyph id.
+  int codeToGid(int code) => _glyphMapper.toGidFromCid(codeToCid(code));
+
+  /// Returns the advance width associated with [code] when available.
+  double widthForCode(int code) => _cidFont.getWidthForCID(codeToCid(code));
+
+  /// Returns true if the supplied character code resolves to a glyph.
+  bool hasGlyphForCode(int code) => codeToGid(code) != 0;
+
+  /// Resolves the outline associated with [code].
+  CharStringPath getPathForCode(int code) => _cidFont.getPathForCID(codeToCid(code));
+
+  /// Resolves a normalized outline associated with [code].
+  CharStringPath getNormalizedPathForCode(int code) => getPathForCode(code);
+
+  /// Returns the CID system information derived from the descendant font.
+  CidSystemInfo? get cidSystemInfo => _cidSystemInfo;
 
   /// Decodes [encoded] bytes into glyph mappings.
   List<Type0Glyph> decodeGlyphs(Uint8List encoded) {
@@ -173,6 +215,47 @@ class Type0Font {
   }
 
   int _codeValue(Uint8List codeUnits) => CMap.toInt(codeUnits);
+
+  int _resolveCidForCode(int code) {
+    for (final length in candidateCodeLengths(code)) {
+      final cid = _glyphMapper.toCidFromInt(code, length: length);
+      if (cid != 0) {
+        return cid;
+      }
+    }
+    final cid = _glyphMapper.toCidFromInt(code);
+    return cid != 0 ? cid : 0;
+  }
+
+  static Uint8List encodeCodeWithLength(int code, int length) {
+    final buffer = Uint8List(length);
+    for (var index = 0; index < length; index++) {
+      final shift = (length - 1 - index) * 8;
+      buffer[index] = (code >> shift) & 0xff;
+    }
+    return buffer;
+  }
+
+  static Iterable<int> candidateCodeLengths(int code) {
+    final lengths = <int>{};
+    var requiredLength = 1;
+    var value = code;
+    while (requiredLength < 4 && (value >> 8) > 0) {
+      requiredLength++;
+      value >>= 8;
+    }
+    for (var length = requiredLength; length <= 4; length++) {
+      lengths.add(length);
+    }
+    if (code == 0) {
+      for (var length = 1; length <= 4; length++) {
+        lengths.add(length);
+      }
+    }
+    final ordered = lengths.toList()
+      ..sort();
+    return ordered;
+  }
 }
 
 /// Represents a decoded glyph produced by [Type0Font].

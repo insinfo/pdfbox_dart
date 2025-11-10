@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:pdfbox_dart/src/fontbox/io/random_access_read_data_stream.dart';
@@ -48,6 +49,54 @@ void main() {
     final stub = font as _StubFont;
     expect(stub.closed, isFalse);
     stub.close();
+
+    collection.close();
+  });
+
+  test('fromBytes creates collection with provided parser factory', () {
+    final bytes = _buildMinimalTtc();
+    final collection = TrueTypeCollection.fromBytes(
+      bytes,
+      parserFactory: (_) => _FixedNameStubParser('FromBytes'),
+    );
+
+    final font = collection.getFontByName('FromBytes');
+    expect(font, isA<_StubFont>());
+
+    collection.close();
+  });
+
+  test('fromFile reads collection from disk', () {
+    final tempDir = Directory.systemTemp.createTempSync('ttc_collection_test');
+    final file = File('${tempDir.path}/single.ttc')
+      ..writeAsBytesSync(_buildMinimalTtc());
+
+    try {
+      final collection = TrueTypeCollection.fromFile(
+        file.path,
+        parserFactory: (_) => _FixedNameStubParser('FromFile'),
+      );
+
+      expect(collection.getFontByName('FromFile'), isA<_StubFont>());
+      collection.close();
+    } finally {
+      tempDir.deleteSync(recursive: true);
+    }
+  });
+
+  test('fromStream assembles collection asynchronously', () async {
+    final bytes = _buildMinimalTtc();
+    final chunks = [
+      bytes.sublist(0, 8),
+      bytes.sublist(8),
+    ];
+
+    final collection = await TrueTypeCollection.fromStream(
+      Stream<List<int>>.fromIterable(chunks),
+      parserFactory: (_) => _FixedNameStubParser('FromStream'),
+    );
+
+    expect(collection.getFontByName('FromStream'), isA<_StubFont>());
 
     collection.close();
   });

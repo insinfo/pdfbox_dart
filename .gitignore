@@ -16,7 +16,8 @@ codigo_pdfbox_dart.dart.txt
 downloads/
 
 pdfbox-java/
-
+demoiselle_signer/
+digital_signature_service/
 documento_assinado.pdf
 root_ca.crt
 user.crt

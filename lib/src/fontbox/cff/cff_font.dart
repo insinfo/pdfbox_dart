@@ -337,6 +337,10 @@ class _CidType1CharStringReader implements Type1CharStringReader {
 
   @override
   Type1CharString getType1CharString(String name) {
+    if (name.startsWith(r'\')) {
+      final cid = _font._selectorToCID(name);
+      return _font.getType2CharString(cid);
+    }
     return _font.getType2CharString(0);
   }
 }

@@ -31,6 +31,17 @@ void main() {
       expect(glyph.gid, equals(1));
       expect(glyph.width, closeTo(600, 1e-6));
       expect(glyph.unicode, equals('a'));
+  final bbox = type0.fontBoundingBox;
+  expect(bbox.lowerLeftX, closeTo(-50, 1e-6));
+  expect(bbox.upperRightY, closeTo(950, 1e-6));
+  expect(type0.fontMatrix, orderedEquals(<num>[0.001, 0, 0, 0.001, 0, 0]));
+      expect(type0.codeToCid(0x0001), equals(1));
+      expect(type0.hasGlyphForCode(0x0001), isTrue);
+      expect(type0.getPathForCode(0x0001).commands, isNotEmpty);
+      expect(
+        type0.getNormalizedPathForCode(0x0001).commands.length,
+        equals(type0.getPathForCode(0x0001).commands.length),
+      );
       expect(type0.decodeToUnicode(encoded), equals('a'));
       expect(type0.decodeCids(encoded), orderedEquals(<int>[1]));
       expect(type0.decodeGids(encoded), orderedEquals(<int>[1]));

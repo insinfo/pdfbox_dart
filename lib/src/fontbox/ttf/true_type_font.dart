@@ -179,6 +179,25 @@ class TrueTypeFont
     }
   }
 
+  /// Returns a copy of the original font data stream.
+  Uint8List copyFontData() {
+    final data = _data;
+    if (data == null) {
+      throw StateError('Backing TTF data stream is not available');
+    }
+    final size = data.originalDataSize;
+    if (size <= 0) {
+      throw StateError('Original font data size is not available');
+    }
+    final saved = data.currentPosition;
+    try {
+      data.seek(0);
+      return data.readBytes(size);
+    } finally {
+      data.seek(saved);
+    }
+  }
+
   void _updateDerivedState(TtfTable table) {
     if (table is MaximumProfileTable) {
       numberOfGlyphs = table.numGlyphs;

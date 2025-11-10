@@ -1,7 +1,11 @@
+import 'dart:typed_data';
+
 import '../../io/closeable.dart';
 import '../../io/exceptions.dart';
 import '../../io/io_utils.dart';
 import '../../io/random_access_read.dart';
+import '../../io/random_access_read_buffer.dart';
+import '../../io/random_access_read_buffered_file.dart';
 import '../io/random_access_read_data_stream.dart';
 import '../io/ttc_data_stream.dart';
 import '../io/ttf_data_stream.dart';
@@ -30,6 +34,45 @@ class TrueTypeCollection implements Closeable {
       IOUtils.closeQuietly(read);
     }
     return TrueTypeCollection(dataStream, parserFactory: parserFactory);
+  }
+
+  factory TrueTypeCollection.fromBytes(List<int> bytes, {TtfParserFactory? parserFactory}) {
+    final buffer = bytes is Uint8List ? bytes : Uint8List.fromList(bytes);
+    return TrueTypeCollection(
+      RandomAccessReadDataStream.fromData(buffer),
+      parserFactory: parserFactory,
+    );
+  }
+
+  factory TrueTypeCollection.fromFile(String path, {TtfParserFactory? parserFactory}) {
+    final file = RandomAccessReadBufferedFile(path);
+    RandomAccessRead? openHandle = file;
+    try {
+      final collection = TrueTypeCollection.fromRandomAccessRead(
+        file,
+        parserFactory: parserFactory,
+      );
+      openHandle = null;
+      return collection;
+    } finally {
+      openHandle?.close();
+    }
+  }
+
+  static Future<TrueTypeCollection> fromStream(
+    Stream<List<int>> stream, {
+    int chunkSize = RandomAccessReadBuffer.defaultChunkSize4KB,
+    TtfParserFactory? parserFactory,
+  }) async {
+    final buffer = await RandomAccessReadBuffer.createBufferFromStream(
+      stream,
+      chunkSize: chunkSize,
+    );
+    return TrueTypeCollection.fromRandomAccessRead(
+      buffer,
+      closeAfterReading: true,
+      parserFactory: parserFactory,
+    );
   }
 
   late final double _version;
@@ -75,6 +118,14 @@ class TrueTypeCollection implements Closeable {
       font.close();
     }
     return null;
+  }
+
+  /// Returns the font located at [index] without closing the collection.
+  TrueTypeFont getFontAtIndex(int index) {
+    if (index < 0 || index >= _numFonts) {
+      throw RangeError.range(index, 0, _numFonts - 1, 'index');
+    }
+    return _getFontAtIndex(index);
   }
 
   /// Iterates over all fonts and emits only their header information.

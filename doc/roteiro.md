@@ -3,10 +3,12 @@ Foque na parte de criação e edição e assinatura de PDFs a parte de renderiza
 os arquivos originais em java  estão aqui C:\MyDartProjects\pdfbox_dart\pdfbox-java\pdfbox\src para ir portando
 
 vai portando e atualizando este roteiro
-
+sempre coloque um comentario TODO para coisas portadas imcompletas ou minimamente portado 
 io ja esta implementado em C:\MyDartProjects\pdfbox_dart\lib\src\io
 fontbox ja esta implementado em C:\MyDartProjects\pdfbox_dart\lib\src\fontbox
 
+foque em usar recursos do diretorio C:\MyDartProjects\pdfbox_dart\resources
+pois o diretorio C:\MyDartProjects\pdfbox_dart\pdfbox-java sera removido no fututo 
 Com base na sua lista de arquivos e nas dependências que você já adicionou
 em C:\MyDartProjects\pdfbox_dart\lib\src\dependencies, você já tem uma fundação sólida para a parte de criptografia, assinaturas digitais e algumas estruturas básicas de I/O e compressão (LZW).
 Aqui está um roteiro detalhado e prático para portar o Apache PDFBox para Dart, dividido em fases lógicas. O segredo é começar pela base e subir progressivamente.
@@ -30,7 +32,7 @@ Dica: O COSStream vai depender das classes de io implementadas acima.
 Fase 2: Parser e Filtros Básicos
 
 Agora você começa a ler arquivos reais.
-Portar org.apache.pdfbox.pdfparser (Parcial):
+Portar org.apache.pdfbox.pdfparser:
 Objetivo: Conseguir abrir um arquivo PDF, ler o cabeçalho, a tabela de referências cruzadas (xref) e o trailer.
 Classes-chave: COSParser, PDFParser, BaseParser, XrefTrailerResolver.
 Meta: Conseguir carregar um PDF em um objeto COSDocument em memória (mesmo que sem conseguir decodificar o conteúdo das páginas ainda).
@@ -46,7 +48,7 @@ Deixe para depois: JPXDecode (JPEG2000), CCITTFaxDecode.
 Dart status: módulo `lib/src/pdfbox/filter/` iniciado com Filter/DecodeOptions/DecodeResult/Predictor/FlateFilter e testes em `test/pdfbox/filter/`. ASCIIHexFilter, ASCII85Filter, LZWFilter, RunLengthFilter e DCTFilter portados com cobertura de testes automatizados. FilterFactory/FilterPipeline implementados, `COSStream` expõe `decodeWithResult` e `encodedBytes` para o parser utilizar a cadeia de filtros quando necessário.
 
 Planejamento imediato dos filtros restantes:
-- **JPXDecode (JPEG 2000):** avaliar wrappers nativos (OpenJPEG via FFI) versus implementação pura em Dart; definir estratégia de fallback para flag `/JPXDecode` com dados ainda não suportados.
+- **JPXDecode (JPEG 2000):** foco em implementação pura em Dart portar o https://github.com/Unidata/jj2000; definir estratégia de fallback para flag `/JPXDecode` com dados ainda não suportados.
 - **CCITTFaxDecode:** portar o algoritmo do PDFBox (G3/G4) aproveitando a infraestrutura de bits já existente no pacote `archive`; mapear casos de testes com PDFs que usam fax.
 - **DCTDecode:** metadados de cor agora retornam `JpegColorInfo`; próxima etapa é preservar canais CMYK/YCCK sem conversão quando `DecodeOptions.preserveRawDct` estiver ativo e validar a conversão para RGBA com um conjunto de PDFs reais.
 
@@ -57,6 +59,7 @@ Infra do parser:
 - `COSParser` reconhece dicionários seguidos de `stream`/`endstream`, materializa `COSStream` copiando os itens do dicionário, lê o corpo usando `/Length` quando disponível e recorre a busca pelo marcador caso contrário, garantindo que o comprimento armazenado reflita os bytes reais (testes em `cos_parser_stream_test.dart`).
 - `COSParser.parseIndirectObject()` cobre cabeçalhos `obj`/`endobj`, reutilizando a lógica de streams para hidratar `COSStream` diretamente em objetos indiretos, incluindo integração opcional com `COSDocument` (validações em `cos_parser_indirect_test.dart`).
 - Implementado `COSParser.parseXrefTrailer()` para ler tabelas `xref`, trailer e `startxref`, permitindo montar o mapa inicial de offsets de objetos; testes em `cos_parser_xref_test.dart` confirmam seções múltiplas e metadados básicos de trailer.
+- `COSParser.parseDocument()` combina descoberta do `startxref`, encadeia tabelas via `/Prev`, popula um `COSDocument` e mantém o trailer mais recente; `cos_parser_document_test.dart` cobre cenário simples e atualização incremental.
 
 Fase 3: Modelo de Alto Nível (PDModel)
 
@@ -68,11 +71,19 @@ PDDocument (o objeto principal).
 PDPageTree, PDPage (estrutura de páginas).
 PDResources (gerenciamento de recursos da página).
 PDRectangle (dimensões).
+Status Dart: módulo `lib/src/pdfbox/pdmodel/` agora inclui `pd_document.dart`, `pd_document_catalog.dart`, `pd_page_tree.dart`, `pd_page.dart`, `pd_resources.dart`, `pd_stream.dart`, `pd_page_content_stream.dart` e `common/pd_rectangle.dart`. O `PDDocument` expõe `insertPage`, `removePageAt`, `removePage`, `indexOfPage`, `saveToBytes` e `save(RandomAccessWrite,...)`, apoiados pelo serializer inicial `pdfwriter/simple_pdf_writer.dart`. `PDPage` passa a trabalhar com `PDStream` para gerenciar conteúdos, `PDResources` registra fontes Type1 básicas (`registerStandard14Font`) e `PDPageContentStream` gera comandos de texto/gráficos (BT/ET, Tf, Td, re, S, f, setRgb) com modos overwrite/append/prepend e suporte a comentários e escrita bruta. Testes em `test/pdfbox/pdmodel/pd_document_test.dart`, `test/pdfbox/pdmodel/pd_resources_test.dart` e `test/pdfbox/pdmodel/pd_page_content_stream_test.dart` cobrem herança de MediaBox, gerenciamento de fontes e escrita de conteúdo para criação de PDFs. A hierarquia inicial de fontes (`PDFont`, `PDSimpleFont`, `PDType1Font`) já está disponível com métricas AFM das standard 14 (validadas com Helvetica, Symbol) e testes adicionais em `test/pdfbox/pdmodel/font/pd_type1_font_test.dart` exercitando widths, Unicode e aliases (Arial*/TimesNewRoman*). Todos os arquivos AFM das standard 14 foram copiados para `resources/afm`, eliminando qualquer dependência em tempo de execução do diretório `pdfbox-java`. `PDTrueTypeFont` agora preenche `/FirstChar`, `/LastChar` e `/Widths` a partir do cmap Unicode, constrói o `FontDescriptor` com métricas (BBox, ascent/descent, stretch, stem) e integra o `TrueTypeEmbedder` para subsetting determinístico (atualizando o nome base automaticamente e anexando o stream `FontFile2`). Testes em `test/pdfbox/pdmodel/font/pd_true_type_font_test.dart` cobrem widths, descriptor e incorporação do subset. A lógica de métricas compartilhadas foi extraída para `lib/src/pdfbox/pdmodel/font/true_type_font_descriptor_builder.dart`, reaproveitada no novo `PDCIDFontType2Embedder` (`lib/src/pdfbox/pdmodel/font/pd_cid_font_type2_embedder.dart`), que monta o dicionário CIDFont Type 2, escreve `/W`, `/CIDSet`, `/CIDToGIDMap` e gera o `ToUnicode` CMap via `to_unicode_writer.dart`. O fluxo está coberto em `test/pdfbox/pdmodel/font/pd_cid_font_type2_embedder_test.dart`. A camada composta começou com `PDType0Font`, que monta o dicionário Type 0 reutilizando `Type0Font`, replica `CIDSystemInfo` e compartilha os helpers de decodificação existentes; o comportamento está validado em `test/pdfbox/pdmodel/font/pd_type0_font_test.dart`.
+
+Próximos passos focados em criação de PDF:
+- `PDType0Font.embedTrueTypeFont` já está integrado ao `PDCIDFontType2Embedder`, incluindo geração de `ToUnicode`, `CIDSet`, `CIDToGIDMap` e suporte a métricas verticais (`Identity-V`, `WMode`, `DW2`/`W2`) quando disponíveis, além de incorporar tanto subsets determinísticos quanto a fonte completa (`embedSubset = false`) com `CIDToGIDMap` Identity.
+- `PDType0Font.fromTrueTypeFile` e `PDType0Font.fromTrueTypeData` encapsulam o parser `TtfParser` para arquivos, bytes em memória e coleções (`collectionIndex`/`collectionFontName`), preservando o fechamento dos recursos; TODO: suportar fontes TrueType com atualizações incrementais.
+- Implementar `PDPageContentStream` avançado: operações de layout de texto (leading automático, parágrafos, `showTextWithPositioning`), curvas Bézier (c, v, y), imagens (`Do`) e transformação de matriz (`cm`).
+- Expandir `PDResources` para abranger XObjects, color spaces e padrões assim que os respectivos módulos forem portados.
+- Adicionar utilitários de alto nível igual a versão java (helpers de página) para criar rapidamente documentos com cabeçalhos, rodapés, múltiplas colunas e suporte a templates.
 
 Fase 4: Fontes (O Desafio FontBox) (ja feito)
-
-Esta é provavelmente a fase mais difícil. O PDFBox depende de uma sub-biblioteca chamada Apache FontBox.
-Portar Apache FontBox (org.apache.fontbox):
+ja feito em C:\MyDartProjects\pdfbox_dart\lib\src\fontbox
+Esta é provavelmente a fase mais difícil. O PDFBox depende de uma sub-biblioteca chamada Apache FontBox. ja foi concluido
+Portar Apache FontBox (org.apache.fontbox): ja foi concluido 
 Objetivo: Ler e entender arquivos de fontes (TTF, OTF, Type1, CFF) embutidos no PDF.
 Ação: Você terá que criar um sub-pacote fontbox_dart ou incluir no projeto principal.
 Prioridade:
@@ -107,6 +118,7 @@ Você já tem muitas peças para isso (pointycastle, pkcs7, asn1lib, x509_plus).
 Portar org.apache.pdfbox.pdmodel.encryption e interactive.digitalsignature:
 Objetivo: Integrar suas dependências criptográficas com o modelo de segurança do PDF.
 Classes-chave: StandardSecurityHandler, PublicKeySecurityHandler, PDSignature, SignatureOptions.
+Status Dart: módulo `lib/src/pdfbox/pdmodel/interactive/digitalsignature/pd_signature.dart` portado com suporte a filtros/subfiltros, ByteRange, armazenamento de `/Contents` em hexadecimal e data de assinatura (`PdfDate` em `lib/src/pdfbox/util/pdf_date.dart`). `SignatureOptions` agora está disponível em `lib/src/pdfbox/pdmodel/interactive/digitalsignature/signature_options.dart`, lendo aparências de assinatura a partir de bytes, streams ou arquivos. O dicionário de build (`PDPropBuild`/`PDPropBuildDataDict`) foi mapeado em `lib/src/pdfbox/pdmodel/interactive/digitalsignature/pd_prop_build.dart` e `pd_prop_build_data_dict.dart`, permitindo registrar metadados de software/os. Seed values agora contam com `PDSeedValue`, `PDSeedValueCertificate`, `PDSeedValueMDP` e `PDSeedValueTimeStamp`, possibilitando impor restrições de assinatura equivalentes às do Java. Testes em `test/pdfbox/pdmodel/interactive/pd_signature_test.dart`, `test/pdfbox/pdmodel/interactive/signature_options_test.dart`, `test/pdfbox/pdmodel/interactive/pd_prop_build_test.dart` e `test/pdfbox/pdmodel/interactive/pd_seed_value_test.dart` cobrem as operações principais.
 Dicas para o seu Roteiro Atual
 Mantenha a estrutura de pacotes: Tente replicar a estrutura de diretórios do Java (src/main/java/org/apache/pdfbox/...) dentro de lib/src/... no Dart. Isso facilita muito encontrar onde uma classe está e comparar o código durante o port.
 Testes Unitários: Portar os testes unitários do Java para Dart (test package) é crucial. Para cada classe importante portada, porte seu teste correspondente.
@@ -634,7 +646,7 @@ class PDDocumentCatalog {
   
   PDPageTree get pages {
     var dict = _dictionary.getDictionaryObject(COSName('Pages')) as COSDictionary;
-    return PDPageTree(dict);
+  return PDPageTree(_document, dict);
   }
 }
 
