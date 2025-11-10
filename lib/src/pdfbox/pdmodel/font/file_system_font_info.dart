@@ -7,6 +7,7 @@ import '../../../fontbox/ttf/open_type_font.dart';
 import '../../../fontbox/ttf/os2_windows_metrics_table.dart';
 import '../../../fontbox/ttf/true_type_font.dart';
 import '../../../fontbox/ttf/ttf_parser.dart';
+import '../../../fontbox/type1/type1_font.dart';
 import '../../../io/random_access_read_buffered_file.dart';
 import 'cid_system_info.dart';
 import 'font_cache.dart';
@@ -55,7 +56,7 @@ class FileSystemFontInfo extends FontInfo {
         _readTrueTypeMetadata();
         break;
       case FontFormat.pfb:
-        // TODO: add Type 1 metadata extraction when Type 1 support lands.
+        _readType1Metadata();
         break;
     }
   }
@@ -87,15 +88,71 @@ class FileSystemFontInfo extends FontInfo {
           try {
             _panose = PDPanose(os2.panose).panose;
           } on AssertionError catch (error, stackTrace) {
-            _logger.fine('Invalid Panose data for $_postScriptName', error, stackTrace);
+            _logger.fine(
+                'Invalid Panose data for $_postScriptName', error, stackTrace);
           }
         }
       }
     } catch (error, stackTrace) {
-      _logger.warning('Failed to read metadata for font at $path', error, stackTrace);
+      _logger.warning(
+          'Failed to read metadata for font at $path', error, stackTrace);
     } finally {
       randomAccess?.close();
     }
+  }
+
+  void _readType1Metadata() {
+    try {
+      final bytes = File(path).readAsBytesSync();
+      final type1 = Type1Font.createWithPfb(bytes);
+      if (type1.getFontName().isNotEmpty) {
+        _postScriptName = type1.getFontName();
+      }
+      _weightClass = _estimateWeightClass(type1);
+      _macStyle = _deriveMacStyle(type1);
+      _familyClass = -1;
+      _codePageRange1 = 0;
+      _codePageRange2 = 0;
+      _panose = null;
+      _cidSystemInfo = null;
+    } catch (error, stackTrace) {
+      _logger.warning('Failed to read Type 1 metadata for font at $path', error,
+          stackTrace);
+    }
+  }
+
+  int _estimateWeightClass(Type1Font font) {
+    final weightName = font.getWeight().toLowerCase();
+    if (weightName.contains('bold') ||
+        weightName.contains('black') ||
+        weightName.contains('heavy') ||
+        weightName.contains('demi')) {
+      return 700;
+    }
+    if (weightName.contains('light') || weightName.contains('thin')) {
+      return 300;
+    }
+    return 400;
+  }
+
+  int _deriveMacStyle(Type1Font font) {
+    var style = 0;
+    final weightName = font.getWeight().toLowerCase();
+    final fullName = font.getFullName().toLowerCase();
+    if (weightName.contains('bold') ||
+        weightName.contains('black') ||
+        fullName.contains('bold') ||
+        fullName.contains('black')) {
+      style |= 1; // Bold bit
+    }
+    if (font.getItalicAngle() != 0 ||
+        weightName.contains('italic') ||
+        weightName.contains('oblique') ||
+        fullName.contains('italic') ||
+        fullName.contains('oblique')) {
+      style |= 2; // Italic bit
+    }
+    return style;
   }
 
   /// Lazily loads the underlying TrueType font program.
@@ -103,6 +160,12 @@ class FileSystemFontInfo extends FontInfo {
     final parser = TtfParser();
     final randomAccess = RandomAccessReadBufferedFile(path);
     return parser.parse(randomAccess);
+  }
+
+  /// Lazily loads the underlying Type 1 font program.
+  Type1Font loadType1Font() {
+    final bytes = File(path).readAsBytesSync();
+    return Type1Font.createWithPfb(bytes);
   }
 
   /// Loads the font and casts to [OpenTypeFont] when applicable.
@@ -126,10 +189,18 @@ class FileSystemFontInfo extends FontInfo {
     if (cached != null) {
       return cached;
     }
-    final trueType = loadTrueTypeFont();
-    final adapter = TrueTypeFontBoxAdapter(trueType);
-    _cache.addFont(this, adapter);
-    return adapter;
+    switch (_format) {
+      case FontFormat.ttf:
+      case FontFormat.otf:
+        final trueType = loadTrueTypeFont();
+        final adapter = TrueTypeFontBoxAdapter(trueType);
+        _cache.addFont(this, adapter);
+        return adapter;
+      case FontFormat.pfb:
+        final type1 = loadType1Font();
+        _cache.addFont(this, type1);
+        return type1;
+    }
   }
 
   @override
