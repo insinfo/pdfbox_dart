@@ -13,6 +13,9 @@ import '../../cos/cos_dictionary.dart';
 import '../../cos/cos_name.dart';
 import '../../cos/cos_stream.dart';
 import '../pd_document.dart';
+import 'pd_cid_font.dart';
+import 'pd_cid_font_parent.dart';
+import 'pd_cid_font_type2.dart';
 import 'pd_cid_font_type2_embedder.dart';
 import 'pdfont.dart';
 import 'pd_vector_font.dart';
@@ -24,21 +27,37 @@ import 'pd_font_descriptor.dart';
 import '../../../fontbox/util/bounding_box.dart';
 
 /// Lightweight wrapper around [Type0Font] that prepares a Type 0 font dictionary.
-class PDType0Font extends PDFont implements PDVectorFont {
+class PDType0Font extends PDFont implements PDVectorFont, PDCIDFontParent {
   PDType0Font._internal(
     COSDictionary dictionary, {
     Type0Font? type0Font,
     PDCIDFontType2EmbedderResult? embedderResult,
   })  : _type0Font = type0Font,
         _cidEmbedderResult = embedderResult,
-        super(dictionary);
+        super(dictionary) {
+    if (embedderResult != null) {
+      _cidFont = PDCIDFontType2(embedderResult.cidFontDictionary, this);
+    } else {
+      _cidFont = null;
+    }
+  }
 
   final Type0Font? _type0Font;
   final PDCIDFontType2EmbedderResult? _cidEmbedderResult;
+  late final PDCIDFont? _cidFont;
   CMap? _cachedToUnicode;
   bool _triedToUnicodeLoad = false;
   CMap? _cachedEncodingCMap;
   bool _triedEncodingLoad = false;
+
+  /// Returns the descendant CID font when available.
+  PDCIDFont? get cidFont => _cidFont;
+
+  /// Indicates whether a Type0Font helper is available.
+  bool get hasType0FontHelper => _type0Font != null;
+
+  /// Returns the embedder result when the font was embedded in this instance.
+  PDCIDFontType2EmbedderResult? get cidEmbedderResult => _cidEmbedderResult;
 
   /// Underlying Type 0 font helper exposing CMap and CID glyph mapping.
   Type0Font get type0Font {
@@ -49,20 +68,49 @@ class PDType0Font extends PDFont implements PDVectorFont {
     return helper;
   }
 
-  /// Returns true when a [Type0Font] helper is attached.
-  bool get hasType0FontHelper => _type0Font != null;
-
-  /// Returns the embedder result when this font was produced from a CID subset.
-  PDCIDFontType2EmbedderResult? get cidEmbedderResult => _cidEmbedderResult;
-
   /// Returns the font descriptor when available.
-  PDFontDescriptor? get fontDescriptor => _cidEmbedderResult?.fontDescriptor;
+  PDFontDescriptor? get fontDescriptor {
+    final descendant = _cidFont;
+    if (descendant != null) {
+      return descendant.getFontDescriptor();
+    }
+    return _cidEmbedderResult?.fontDescriptor;
+  }
 
   /// Returns the descendant font bounding box when available.
-  BoundingBox? get fontBoundingBox => _type0Font?.fontBoundingBox;
+  BoundingBox? get fontBoundingBox {
+    final descendant = _cidFont;
+    if (descendant != null) {
+      return descendant.getBoundingBox();
+    }
+    return _type0Font?.fontBoundingBox;
+  }
 
   /// Returns the descendant font matrix when available.
-  List<num>? get fontMatrix => _type0Font?.fontMatrix;
+  List<num>? get fontMatrix {
+    final descendant = _cidFont;
+    if (descendant != null) {
+      final matrix = descendant.getFontMatrix();
+      return <num>[
+        matrix.getValue(0, 0),
+        matrix.getValue(0, 1),
+        matrix.getValue(1, 0),
+        matrix.getValue(1, 1),
+        matrix.getValue(2, 0),
+        matrix.getValue(2, 1),
+      ];
+    }
+    return _type0Font?.fontMatrix;
+  }
+
+  /// Indicates whether the font dictionary references an embedded descendant font.
+  bool get isEmbedded {
+    final descendant = _cidFont;
+    if (descendant != null) {
+      return descendant.isEmbedded();
+    }
+    return _cidEmbedderResult != null;
+  }
 
   /// Returns the encoding CMap if available.
   CMap? get cMap {
@@ -91,9 +139,6 @@ class PDType0Font extends PDFont implements PDVectorFont {
 
   /// Indicates whether the descendant font belongs to the Adobe CJK collections.
   bool get isDescendantCjk => _type0Font?.isDescendantCjk ?? false;
-
-  /// Indicates whether the font dictionary references an embedded descendant font.
-  bool get isEmbedded => _cidEmbedderResult != null;
 
   /// Returns true when the font operates in vertical writing mode.
   bool get isVertical {
@@ -164,13 +209,14 @@ class PDType0Font extends PDFont implements PDVectorFont {
     bool vertical = false,
     int? collectionIndex,
     String? collectionFontName,
+    TtfParser? parser,
   }) {
-    final parser = TtfParser();
+    final effectiveParser = parser ?? TtfParser();
     final randomAccess = RandomAccessReadBufferedFile(path);
     try {
       return _embedFromRandomAccessRead(
         randomAccess,
-        parser: parser,
+        parser: effectiveParser,
         codePoints: codePoints,
         embedSubset: embedSubset,
         vertical: vertical,
@@ -556,10 +602,14 @@ class PDType0Font extends PDFont implements PDVectorFont {
   @override
   double getWidthFromFont(int code) {
     final helper = _type0Font;
-    if (helper == null) {
-      return 0;
+    if (helper != null) {
+      return helper.widthForCode(code);
     }
-    return helper.widthForCode(code);
+    final descendant = _cidFont;
+    if (descendant != null) {
+      return descendant.getWidthFromFont(code);
+    }
+    return 0;
   }
 
   /// Maps a character [code] to its CID using the available mappings.
@@ -590,6 +640,10 @@ class PDType0Font extends PDFont implements PDVectorFont {
     if (helper != null) {
       return helper.codeToGid(code);
     }
+    final descendant = _cidFont;
+    if (descendant != null) {
+      return descendant.codeToGID(code);
+    }
     final result = _cidEmbedderResult;
     if (result != null && result.cidToGidMap.isNotEmpty) {
       return result.cidToGidMap[code] ?? 0;
@@ -603,6 +657,10 @@ class PDType0Font extends PDFont implements PDVectorFont {
     final helper = _type0Font;
     if (helper != null) {
       return helper.hasGlyphForCode(code);
+    }
+    final descendant = _cidFont;
+    if (descendant != null) {
+      return descendant.hasGlyph(code);
     }
     if (codeToGid(code) != 0) {
       return true;
@@ -629,6 +687,10 @@ class PDType0Font extends PDFont implements PDVectorFont {
     if (helper != null) {
       return helper.getPathForCode(code);
     }
+    final descendant = _cidFont;
+    if (descendant != null) {
+      return descendant.getPath(code);
+    }
     return CharStringPath();
   }
 
@@ -637,6 +699,10 @@ class PDType0Font extends PDFont implements PDVectorFont {
     final helper = _type0Font;
     if (helper != null) {
       return helper.getNormalizedPathForCode(code);
+    }
+    final descendant = _cidFont;
+    if (descendant != null) {
+      return descendant.getNormalizedPath(code);
     }
     return CharStringPath();
   }

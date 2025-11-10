@@ -19,9 +19,11 @@ class PDFontDescriptor {
 
   final COSDictionary _dictionary;
 
+  String? get fontName => _dictionary.getNameAsString(COSName.fontName);
+
   COSDictionary get cosObject => _dictionary;
 
-  set fontName(String value) => _dictionary.setName(COSName.fontName, value);
+  set fontName(String? value) => _dictionary.setName(COSName.fontName, value);
 
   set fontFamily(String? value) => _dictionary.setString(COSName.fontFamily, value);
 

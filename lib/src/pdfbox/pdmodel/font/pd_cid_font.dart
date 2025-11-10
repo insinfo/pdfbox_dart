@@ -12,7 +12,7 @@ import '../../util/matrix.dart';
 import '../../util/vector.dart';
 import 'cid_system_info.dart';
 import 'pd_font_descriptor.dart';
-import 'pd_type0_font.dart';
+import 'pd_cid_font_parent.dart';
 import 'pdfont_like.dart';
 import 'pd_vector_font.dart';
 
@@ -27,7 +27,7 @@ abstract class PDCIDFont implements PDFontLike, PDVectorFont {
   final COSDictionary dict;
 
   /// Owning Type 0 font dictionary.
-  final PDType0Font parent;
+  final PDCIDFontParent parent;
 
   final Map<int, double> _widths = HashMap<int, double>();
   double _defaultWidth = 0;
@@ -62,7 +62,7 @@ abstract class PDCIDFont implements PDFontLike, PDVectorFont {
   }
 
   /// Returns the enclosing Type 0 font.
-  PDType0Font getParent() => parent;
+  PDCIDFontParent getParent() => parent;
 
   double _getDefaultWidth() {
     if (_defaultWidth == 0) {
