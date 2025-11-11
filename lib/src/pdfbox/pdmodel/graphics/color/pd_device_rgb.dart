@@ -1,5 +1,9 @@
+import 'package:image/image.dart' as img;
+
 import 'pd_color.dart';
+import 'pd_color_math.dart';
 import 'pd_color_space.dart';
+import 'pd_raster.dart';
 
 /// DeviceRGB colour space used by most PDF content streams.
 class PDDeviceRGB extends PDDeviceColorSpace {
@@ -25,19 +29,25 @@ class PDDeviceRGB extends PDDeviceColorSpace {
   List<double> toRGB(List<double> value) {
     final normalized = normalizeComponents(value);
     return <double>[
-      _clamp(normalized[0]),
-      _clamp(normalized[1]),
-      _clamp(normalized[2]),
+      PDColorMath.clampUnit(normalized[0]),
+      PDColorMath.clampUnit(normalized[1]),
+      PDColorMath.clampUnit(normalized[2]),
     ];
   }
 
-  double _clamp(double component) {
-    if (component <= 0.0) {
-      return 0.0;
+  @override
+  img.Image? toRawImage(PDRaster raster) {
+    if (raster.componentsPerPixel != numberOfComponents) {
+      return null;
     }
-    if (component >= 1.0) {
-      return 1.0;
+    final image = img.Image(width: raster.width, height: raster.height);
+    final components = List<int>.filled(numberOfComponents, 0);
+    for (var y = 0; y < raster.height; ++y) {
+      for (var x = 0; x < raster.width; ++x) {
+        raster.getPixelBytes(x, y, components);
+        image.setPixelRgba(x, y, components[0], components[1], components[2], 255);
+      }
     }
-    return component;
+    return image;
   }
 }

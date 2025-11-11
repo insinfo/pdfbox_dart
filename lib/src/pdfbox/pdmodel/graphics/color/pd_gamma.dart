@@ -5,12 +5,12 @@ import '../../../cos/cos_number.dart';
 
 /// Represents a gamma array used for color calibration.
 class PDGamma implements COSObjectable {
-  /// Constructs a gamma triple with all components set to zero.
+  /// Constructs a gamma triple with all components initialised to 1.0.
   PDGamma()
       : _values = COSArray()
-          ..add(COSFloat(0))
-          ..add(COSFloat(0))
-          ..add(COSFloat(0));
+          ..add(COSFloat(1))
+          ..add(COSFloat(1))
+          ..add(COSFloat(1));
 
   /// Wraps an existing COS array.
   PDGamma.fromCOSArray(COSArray array) : _values = array;

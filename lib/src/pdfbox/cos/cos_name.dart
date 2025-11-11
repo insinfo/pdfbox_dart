@@ -13,12 +13,19 @@ class COSName extends COSBase implements Comparable<COSName> {
   static COSName get(String name) => COSName(name);
 
   static final COSName type = COSName('Type');
+  static final COSName function = COSName('Function');
+  static final COSName functionType = COSName('FunctionType');
+  static final COSName domain = COSName('Domain');
+  static final COSName range = COSName('Range');
+  static final COSName c0 = COSName('C0');
+  static final COSName c1 = COSName('C1');
   static final COSName pages = COSName('Pages');
   static final COSName page = COSName('Page');
   static final COSName root = COSName('Root');
   static final COSName parent = COSName('Parent');
   static final COSName kids = COSName('Kids');
   static final COSName count = COSName('Count');
+  static final COSName bounds = COSName('Bounds');
   static final COSName subtype = COSName('Subtype');
   static final COSName mediaBox = COSName('MediaBox');
   static final COSName cropBox = COSName('CropBox');
@@ -27,6 +34,8 @@ class COSName extends COSBase implements Comparable<COSName> {
   static final COSName font = COSName('Font');
   static final COSName baseFont = COSName('BaseFont');
   static final COSName encoding = COSName('Encoding');
+  static final COSName encode = COSName('Encode');
+  static final COSName decode = COSName('Decode');
   static final COSName fontDescriptor = COSName('FontDescriptor');
   static final COSName fontFile = COSName('FontFile');
   static final COSName fontFile2 = COSName('FontFile2');
@@ -74,11 +83,28 @@ class COSName extends COSBase implements Comparable<COSName> {
   static final COSName pattern = COSName('Pattern');
   static final COSName xObject = COSName('XObject');
   static final COSName colorSpace = COSName('ColorSpace');
+  static final COSName colorants = COSName('Colorants');
+  static final COSName process = COSName('Process');
+  static final COSName components = COSName('Components');
+  static final COSName deviceGray = COSName('DeviceGray');
+  static final COSName deviceRGB = COSName('DeviceRGB');
+  static final COSName deviceCMYK = COSName('DeviceCMYK');
+  static final COSName defaultGray = COSName('DefaultGray');
+  static final COSName defaultRGB = COSName('DefaultRGB');
+  static final COSName defaultCMYK = COSName('DefaultCMYK');
+  static final COSName calGray = COSName('CalGray');
+  static final COSName calRGB = COSName('CalRGB');
+  static final COSName lab = COSName('Lab');
+  static final COSName iccBased = COSName('ICCBased');
+  static final COSName indexed = COSName('Indexed');
+  static final COSName separation = COSName('Separation');
+  static final COSName deviceN = COSName('DeviceN');
   static final COSName length = COSName('Length');
   static final COSName length1 = COSName('Length1');
   static final COSName info = COSName('Info');
   static final COSName rotate = COSName('Rotate');
   static final COSName size = COSName('Size');
+  static final COSName functions = COSName('Functions');
   static final COSName prev = COSName('Prev');
   static final COSName id = COSName('ID');
   static final COSName filter = COSName('Filter');
@@ -86,9 +112,11 @@ class COSName extends COSBase implements Comparable<COSName> {
   static final COSName f = COSName('F');
   static final COSName dp = COSName('DP');
   static final COSName n = COSName('N');
+  static final COSName order = COSName('Order');
   static final COSName predictor = COSName('Predictor');
   static final COSName colors = COSName('Colors');
   static final COSName bitsPerComponent = COSName('BitsPerComponent');
+  static final COSName bitsPerSample = COSName('BitsPerSample');
   static final COSName columns = COSName('Columns');
   static final COSName earlyChange = COSName('EarlyChange');
   static final COSName flateDecode = COSName('FlateDecode');
@@ -153,6 +181,12 @@ class COSName extends COSBase implements Comparable<COSName> {
   static final COSName subjectDn = COSName('SubjectDN');
   static final COSName keyUsage = COSName('KeyUsage');
   static final COSName urlType = COSName('URLType');
+  static final COSName whitePoint = COSName('WhitePoint');
+  static final COSName blackPoint = COSName('BlackPoint');
+  static final COSName gamma = COSName('Gamma');
+  static final COSName matrix = COSName('Matrix');
+  static final COSName alternate = COSName('Alternate');
+  static final COSName metadata = COSName('Metadata');
 
   @override
   int compareTo(COSName other) => name.compareTo(other.name);

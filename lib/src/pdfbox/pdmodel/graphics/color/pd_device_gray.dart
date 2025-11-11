@@ -1,5 +1,9 @@
+import 'package:image/image.dart' as img;
+
 import 'pd_color.dart';
+import 'pd_color_math.dart';
 import 'pd_color_space.dart';
+import 'pd_raster.dart';
 
 /// DeviceGray colour space (single component intensity).
 class PDDeviceGray extends PDDeviceColorSpace {
@@ -23,17 +27,24 @@ class PDDeviceGray extends PDDeviceColorSpace {
 
   @override
   List<double> toRGB(List<double> value) {
-    final gray = _clamp(value.isEmpty ? 0.0 : value[0]);
+    final gray = PDColorMath.clampUnit(value.isEmpty ? 0.0 : value[0]);
     return <double>[gray, gray, gray];
   }
 
-  double _clamp(double component) {
-    if (component <= 0.0) {
-      return 0.0;
+  @override
+  img.Image? toRawImage(PDRaster raster) {
+    if (raster.componentsPerPixel != numberOfComponents) {
+      return null;
     }
-    if (component >= 1.0) {
-      return 1.0;
+    final image = img.Image(width: raster.width, height: raster.height);
+    final component = List<int>.filled(1, 0);
+    for (var y = 0; y < raster.height; ++y) {
+      for (var x = 0; x < raster.width; ++x) {
+        raster.getPixelBytes(x, y, component);
+        final gray = component[0];
+        image.setPixelRgba(x, y, gray, gray, gray, 255);
+      }
     }
-    return component;
+    return image;
   }
 }

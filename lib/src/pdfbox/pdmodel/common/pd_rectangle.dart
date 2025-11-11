@@ -5,11 +5,13 @@ import '../../cos/cos_number.dart';
 
 /// Represents a rectangle in PDF coordinates.
 class PDRectangle {
-  const PDRectangle(this.lowerLeftX, this.lowerLeftY, this.upperRightX, this.upperRightY);
+  const PDRectangle(
+      this.lowerLeftX, this.lowerLeftY, this.upperRightX, this.upperRightY);
 
   factory PDRectangle.fromCOSArray(COSArray array) {
     if (array.length < 4) {
-      throw ArgumentError('COSArray must have at least four elements to form a rectangle');
+      throw ArgumentError(
+          'COSArray must have at least four elements to form a rectangle');
     }
     return PDRectangle(
       _toDouble(array[0]),
@@ -49,11 +51,13 @@ class PDRectangle {
     if (base is COSNumber) {
       return base.doubleValue;
     }
-    throw ArgumentError('Rectangle elements must be numbers, got ${base.runtimeType}');
+    throw ArgumentError(
+        'Rectangle elements must be numbers, got ${base.runtimeType}');
   }
 
   @override
-  String toString() => 'PDRectangle($lowerLeftX, $lowerLeftY, $upperRightX, $upperRightY)';
+  String toString() =>
+      'PDRectangle($lowerLeftX, $lowerLeftY, $upperRightX, $upperRightY)';
 
   @override
   bool operator ==(Object other) {
@@ -65,5 +69,6 @@ class PDRectangle {
   }
 
   @override
-  int get hashCode => Object.hash(lowerLeftX, lowerLeftY, upperRightX, upperRightY);
+  int get hashCode =>
+      Object.hash(lowerLeftX, lowerLeftY, upperRightX, upperRightY);
 }

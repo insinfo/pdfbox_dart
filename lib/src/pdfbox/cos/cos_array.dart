@@ -3,6 +3,8 @@ import 'dart:typed_data';
 
 import 'cos_base.dart';
 import 'cos_name.dart';
+import 'cos_number.dart';
+import 'cos_object.dart';
 import 'cos_string.dart';
 
 class COSArray extends COSBase with IterableMixin<COSBase> {
@@ -44,6 +46,35 @@ class COSArray extends COSBase with IterableMixin<COSBase> {
 
   void operator []=(int index, COSObjectable value) {
     _items[index] = value.cosObject;
+  }
+
+  List<double> toDoubleList() {
+    final result = <double>[];
+    for (final element in _items) {
+      final resolved = _resolve(element);
+      if (resolved is COSNumber) {
+        result.add(resolved.doubleValue);
+      }
+    }
+    return result;
+  }
+
+  double? getDouble(int index) {
+    if (index < 0 || index >= _items.length) {
+      return null;
+    }
+    final value = _resolve(_items[index]);
+    if (value is COSNumber) {
+      return value.doubleValue;
+    }
+    return null;
+  }
+
+  COSBase _resolve(COSBase value) {
+    if (value is COSObject) {
+      return value.object;
+    }
+    return value;
   }
 
   void removeAt(int index) {

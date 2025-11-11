@@ -1,7 +1,9 @@
+import '../cos/cos_base.dart';
 import '../cos/cos_dictionary.dart';
 import '../cos/cos_name.dart';
 import 'font/pd_type1_font.dart';
 import 'font/standard14_fonts.dart';
+import 'graphics/color/pd_color_space.dart';
 
 /// Wraps a page/resources dictionary, mirroring PDFBox's PDResources.
 class PDResources {
@@ -14,6 +16,9 @@ class PDResources {
 
   bool get hasFontResources =>
       _dictionary.getCOSDictionary(COSName.font) != null;
+
+  bool get hasColorSpaceResources =>
+      _dictionary.getCOSDictionary(COSName.colorSpace) != null;
 
   Iterable<COSName> get fontNames {
     final fonts = _dictionary.getCOSDictionary(COSName.font);
@@ -74,6 +79,40 @@ class PDResources {
     return dict;
   }
 
+  bool hasColorSpace(COSName name) {
+    final colorSpaces = _dictionary.getCOSDictionary(COSName.colorSpace);
+    return colorSpaces?.containsKey(name) ?? false;
+  }
+
+  COSBase? getColorSpaceObject(COSName name) {
+    final colorSpaces = _dictionary.getCOSDictionary(COSName.colorSpace);
+    return colorSpaces?.getDictionaryObject(name);
+  }
+
+  COSBase? getDefaultColorSpaceObject(COSName name) =>
+      _dictionary.getDictionaryObject(name);
+
+  PDColorSpace? getColorSpace(COSName name) {
+    final value = getColorSpaceObject(name);
+    if (value == null) {
+      return null;
+    }
+    return PDColorSpace.create(value, resources: this);
+  }
+
+  void setColorSpace(COSName name, COSBase colorSpace) {
+    final colorSpaces = _ensureColorSpaceDictionary();
+    colorSpaces[name] = colorSpace;
+  }
+
+  void removeColorSpace(COSName name) {
+    final colorSpaces = _dictionary.getCOSDictionary(COSName.colorSpace);
+    colorSpaces?.removeItem(name);
+    if (colorSpaces != null && colorSpaces.isEmpty) {
+      _dictionary.removeItem(COSName.colorSpace);
+    }
+  }
+
   COSDictionary _ensureFontDictionary() {
     final existing = _dictionary.getCOSDictionary(COSName.font);
     if (existing != null) {
@@ -82,5 +121,15 @@ class PDResources {
     final fonts = COSDictionary();
     _dictionary[COSName.font] = fonts;
     return fonts;
+  }
+
+  COSDictionary _ensureColorSpaceDictionary() {
+    final existing = _dictionary.getCOSDictionary(COSName.colorSpace);
+    if (existing != null) {
+      return existing;
+    }
+    final spaces = COSDictionary();
+    _dictionary[COSName.colorSpace] = spaces;
+    return spaces;
   }
 }
