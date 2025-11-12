@@ -69,6 +69,8 @@ class COSDictionary extends COSBase {
 
   COSBase? getItem(COSName key) => _items[key];
 
+  Iterable<COSName> get keys => _items.keys;
+
   COSBase? getDictionaryObject(COSName key, [COSName? alternate]) {
     final value = _items[key] ?? (alternate != null ? _items[alternate] : null);
     if (value is COSObject) {

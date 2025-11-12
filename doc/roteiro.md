@@ -7,6 +7,27 @@ sempre coloque um comentario TODO para coisas portadas imcompletas ou minimament
 io ja esta implementado em C:\MyDartProjects\pdfbox_dart\lib\src\io
 fontbox ja esta implementado em C:\MyDartProjects\pdfbox_dart\lib\src\fontbox
 
+## Pendencias atuais (2025-11-11)
+
+### pdfparser
+- Status: Dart possui `base_parser.dart`, `cos_parser.dart` e `parsed_stream.dart` em `lib/src/pdfbox/pdfparser/`, com testes em `test/pdfbox/pdfparser/` cobrindo objetos, streams e xref.
+- TODO portar `BruteForceParser.java` -> `brute_force_parser.dart` (processamento leniente de caracteres fora do especificacao).
+- TODO portar `EndstreamFilterStream.java` (stream intermediaria usada pelo parser para conteudos filtrados).
+- TODO portar `FDFParser.java` (suporte a formularios FDF).
+- TODO portar `PDFObjectStreamParser.java` e `PDFStreamParser.java` (leitura de object streams, tokens e operadores de conteudo).
+- TODO portar `PDFParser.java` (orquestrador de `load` completo com integracao a `PDDocument`).
+- TODO portar `PDFXRefStream.java`, `PDFXrefStreamParser.java`, `XrefParser.java`, `XrefTrailerResolver.java` (reconstrucao de xref tradicional + stream) e toda a pasta `pdfparser/xref/` (`AbstractXReference`, `FreeXReference`, `NormalXReference`, `ObjectStreamXReference`, `XReferenceEntry`, `XReferenceType`).
+- TODO revisar `COSParser` restante (falta suporte a atualizacao incremental, xref stream, permissao de corrupcao leniente como no Java).
+- Faltam 12 arquivos na raiz e 5 arquivos na subpasta `xref/` para alinhar com o Java (`pdfbox-java/.../pdfparser`).
+
+### pdmodel
+- Status: Dart cobre `common/`, parte de `graphics/optionalcontent`, `font/`, `interactive/digitalsignature`, `interactive/viewerpreferences`, alem de `pd_document.dart`, `pd_document_catalog.dart`, `pd_document_information.dart`, `pd_page.dart`, `pd_page_tree.dart`, `pd_page_content_stream.dart`, `pd_resources.dart`, `pd_stream.dart`, `page_layout.dart`, `page_mode.dart`.
+- TODO portar pacotes ausentes em Dart: `encryption/`, `fdf/`, `fixup/`, `documentinterchange/*` (logicalstructure, tagged PDF, mark info), `interactive/action`, `interactive/annotation`, `interactive/form`, `interactive/measurement`, `interactive/optionalcontent` (restante), `interactive/pagenavigation`, `interactive/documentnavigation/*`, `interactive/printing`, `interactive/viewerpreferences` (complementar com preferencias faltantes), `interactive/transition`, alem dos caches (`DefaultResourceCache`, `ResourceCache`, `ResourceCacheFactory`, `ResourceCacheCreateFunction`).
+- TODO portar classes de alto nivel ainda inexistentes: `PDAbstractContentStream`, `PDAppearanceContentStream`, `PDFormContentStream`, `PDPatternContentStream`, `PDDocumentNameDictionary`, `PDDestinationNameTreeNode`, `PDEmbeddedFilesNameTreeNode`, `PDJavascriptNameTreeNode`, `PDStructureElementNameTreeNode`, `PDDocumentNameDestinationDictionary`, `PDOutputIntent`, `PDMarkInfo`, `PDStructureTreeRoot`.
+- TODO revisar `common/` para incluir wrappers faltantes (`COSArrayList`, `PDNumberTreeNode` ja ok; falta `PDPageLabels` provider especiais, `PDPageTreeNode`, `COSStreamArray` etc.).
+- TODO alinhar `pd_resources.dart` com `ResourceCache` (falta gestao de caches, color spaces, XObject e pattern dictionaries).
+- TODO documentar no roteiro os testes correspondentes que ainda nao existem para esses modulos `pdmodel`.
+
 foque em usar recursos do diretorio C:\MyDartProjects\pdfbox_dart\resources
 pois o diretorio C:\MyDartProjects\pdfbox_dart\pdfbox-java sera removido no fututo 
 Com base na sua lista de arquivos e nas dependências que você já adicionou

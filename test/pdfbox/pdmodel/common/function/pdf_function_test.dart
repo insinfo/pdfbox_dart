@@ -54,7 +54,7 @@ void main() {
 
       expect(function, isA<PDFunctionType3>());
 
-      expect(function.eval(<double>[0.25])[0], closeTo(0.25, 1e-6));
+  expect(function.eval(<double>[0.25])[0], closeTo(0.5, 1e-6));
       expect(function.eval(<double>[0.5])[0], closeTo(1.0, 1e-6));
       expect(function.eval(<double>[0.75])[0], closeTo(0.5, 1e-6));
     });

@@ -15,6 +15,14 @@ class PDTextState {
   double rise = 0;
   bool knockout = true;
 
+  /// Indicates whether text knockout is enabled (true by default).
+  bool get knockoutFlag => knockout;
+
+  /// Updates the knockout flag.
+  void setKnockoutFlag(bool value) {
+    knockout = value;
+  }
+
   /// Produces a shallow copy of this text state.
   PDTextState clone() {
     final copy = PDTextState();

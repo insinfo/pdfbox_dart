@@ -72,6 +72,9 @@ class Matrix {
 
   final List<double> _values;
 
+  /// Creates a deep copy of this matrix.
+  Matrix clone() => Matrix._fromValues(_values);
+
   /// Returns the component at [row], [column].
   double getValue(int row, int column) => _values[row * 3 + column];
 

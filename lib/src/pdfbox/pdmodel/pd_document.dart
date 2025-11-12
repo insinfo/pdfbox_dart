@@ -7,6 +7,7 @@ import '../cos/cos_name.dart';
 import '../../io/random_access_write.dart';
 import '../pdfwriter/pdf_save_options.dart';
 import '../pdfwriter/simple_pdf_writer.dart';
+import 'pd_document_information.dart';
 import 'pd_document_catalog.dart';
 import 'pd_page.dart';
 import 'pd_resources.dart';
@@ -42,6 +43,7 @@ class PDDocument {
   final COSDocument _document;
   final PDDocumentCatalog _catalog;
   bool _closed = false;
+  PDDocumentInformation? _documentInformation;
 
   COSDocument get cosDocument => _document;
 
@@ -96,6 +98,26 @@ class PDDocument {
   }
 
   bool get isClosed => _closed;
+
+  PDDocumentInformation get documentInformation {
+    if (_documentInformation != null) {
+      return _documentInformation!;
+    }
+    final infoDict = _document.trailer.getCOSDictionary(COSName.info);
+    if (infoDict != null) {
+      _documentInformation = PDDocumentInformation(dictionary: infoDict);
+    } else {
+      final info = PDDocumentInformation();
+      _document.trailer[COSName.info] = info.cosObject;
+      _documentInformation = info;
+    }
+    return _documentInformation!;
+  }
+
+  set documentInformation(PDDocumentInformation information) {
+    _documentInformation = information;
+    _document.trailer[COSName.info] = information.cosObject;
+  }
 
   void _ensureOpen() {
     if (_closed) {
