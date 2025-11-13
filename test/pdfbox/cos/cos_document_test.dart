@@ -11,7 +11,7 @@ void main() {
       final entry = COSObject(1, 0, COSString('Hello'));
       document.addObject(entry);
 
-      final lookup = document.getObject(entry.key);
+  final lookup = document.getObject(entry.key!);
       expect(lookup, same(entry));
     });
 

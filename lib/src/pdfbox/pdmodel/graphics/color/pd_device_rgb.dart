@@ -45,7 +45,8 @@ class PDDeviceRGB extends PDDeviceColorSpace {
     for (var y = 0; y < raster.height; ++y) {
       for (var x = 0; x < raster.width; ++x) {
         raster.getPixelBytes(x, y, components);
-        image.setPixelRgba(x, y, components[0], components[1], components[2], 255);
+        image.setPixelRgba(
+            x, y, components[0], components[1], components[2], 255);
       }
     }
     return image;

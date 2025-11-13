@@ -1,21 +1,27 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import '../cos/cos_array.dart';
 import '../cos/cos_dictionary.dart';
 import '../cos/cos_document.dart';
 import '../cos/cos_name.dart';
+import '../../io/random_access_read.dart';
+import '../../io/random_access_read_buffer.dart';
+import '../../io/random_access_read_buffered_file.dart';
 import '../../io/random_access_write.dart';
+import '../pdfwriter/cos_writer.dart';
 import '../pdfwriter/pdf_save_options.dart';
-import '../pdfwriter/simple_pdf_writer.dart';
+import '../pdfparser/pdf_parser.dart';
 import 'pd_document_information.dart';
 import 'pd_document_catalog.dart';
 import 'pd_page.dart';
 import 'pd_resources.dart';
+import 'resource_cache.dart';
 import 'pd_stream.dart';
 
 /// High level representation of a PDF document.
 class PDDocument {
-  PDDocument._(this._document, this._catalog);
+  PDDocument._(this._document, this._catalog, this._resourceCache);
 
   factory PDDocument() {
     final cosDocument = COSDocument();
@@ -32,22 +38,61 @@ class PDDocument {
     final catalogObject = cosDocument.createObject(catalogDict);
     cosDocument.trailer[COSName.root] = catalogObject;
 
-    return PDDocument._(cosDocument, PDDocumentCatalog(cosDocument, catalogDict));
+    final resourceCache = ResourceCache();
+    final catalog = PDDocumentCatalog(cosDocument, resourceCache, catalogDict);
+    return PDDocument._(cosDocument, catalog, resourceCache);
   }
 
   factory PDDocument.fromCOSDocument(COSDocument document) {
     final catalogDictionary = _requireCatalogDictionary(document);
-    return PDDocument._(document, PDDocumentCatalog(document, catalogDictionary));
+    final resourceCache = ResourceCache();
+    final catalog =
+        PDDocumentCatalog(document, resourceCache, catalogDictionary);
+    return PDDocument._(document, catalog, resourceCache);
+  }
+
+  /// Loads a PDF document from a [RandomAccessRead] source using [PDFParser].
+  ///
+  /// The [source] is always closed after parsing, regardless of success.
+  static PDDocument loadRandomAccess(RandomAccessRead source,
+      {bool lenient = true}) {
+    try {
+      final parser = PDFParser(source);
+      return parser.parse(lenient: lenient);
+    } finally {
+      source.close();
+    }
+  }
+
+  /// Loads a PDF document from raw [bytes].
+  static PDDocument loadFromBytes(Uint8List bytes, {bool lenient = true}) {
+    final buffer = RandomAccessReadBuffer.fromBytes(bytes);
+    return loadRandomAccess(buffer, lenient: lenient);
+  }
+
+  /// Loads a PDF document from a file at [path].
+  static PDDocument loadFile(String path, {bool lenient = true}) {
+    final reader = RandomAccessReadBufferedFile(path);
+    return loadRandomAccess(reader, lenient: lenient);
+  }
+
+  /// Loads a PDF document from an open [file].
+  static PDDocument loadFromFile(File file, {bool lenient = true}) {
+    final reader = RandomAccessReadBufferedFile.fromFile(file);
+    return loadRandomAccess(reader, lenient: lenient);
   }
 
   final COSDocument _document;
   final PDDocumentCatalog _catalog;
+  final ResourceCache _resourceCache;
   bool _closed = false;
   PDDocumentInformation? _documentInformation;
 
   COSDocument get cosDocument => _document;
 
   PDDocumentCatalog get documentCatalog => _catalog;
+
+  ResourceCache get resourceCache => _resourceCache;
 
   int get numberOfPages => documentCatalog.pages.count;
 
@@ -79,14 +124,24 @@ class PDDocument {
 
   Uint8List saveToBytes({PDFSaveOptions options = const PDFSaveOptions()}) {
     _ensureOpen();
-    final writer = SimplePdfWriter(this, options);
-    return writer.write();
+    final buffer = RandomAccessReadWriteBuffer();
+    final writer = COSWriter(buffer, options);
+    writer.writeDocument(this);
+    final length = buffer.length;
+    buffer.seek(0);
+    final data = Uint8List(length);
+    if (length > 0) {
+      buffer.readFully(data);
+    }
+    buffer.close();
+    return data;
   }
 
-  void save(RandomAccessWrite target, {PDFSaveOptions options = const PDFSaveOptions()}) {
+  void save(RandomAccessWrite target,
+      {PDFSaveOptions options = const PDFSaveOptions()}) {
     _ensureOpen();
-    target.clear();
-    target.writeBytes(saveToBytes(options: options));
+    final writer = COSWriter(target, options);
+    writer.writeDocument(this);
   }
 
   void close() {
@@ -128,8 +183,10 @@ class PDDocument {
   void _preparePage(PDPage page) {
     final dict = page.cosObject;
 
+    page.resourceCache ??= _resourceCache;
+
     if (dict.getDictionaryObject(COSName.resources) == null) {
-      page.resources = PDResources();
+      page.resources = PDResources(null, _resourceCache);
     }
 
     final streams = page.contentStreams.toList();

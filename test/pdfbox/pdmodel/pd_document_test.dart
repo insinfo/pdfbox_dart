@@ -10,6 +10,7 @@ import 'package:pdfbox_dart/src/pdfbox/pdmodel/common/pd_rectangle.dart';
 import 'package:pdfbox_dart/src/pdfbox/pdmodel/pd_document.dart';
 import 'package:pdfbox_dart/src/pdfbox/pdmodel/pd_page.dart';
 import 'package:pdfbox_dart/src/pdfbox/pdmodel/pd_stream.dart';
+import 'package:pdfbox_dart/src/pdfbox/pdfwriter/compress/compress_parameters.dart';
 import 'package:pdfbox_dart/src/pdfbox/pdfwriter/pdf_save_options.dart';
 import 'package:pdfbox_dart/src/pdfbox/pdfparser/cos_parser.dart';
 import 'package:test/test.dart';
@@ -166,5 +167,37 @@ void main() {
 
       document.close();
     });
+
+    test('saveToBytes supports object stream compression', () {
+      final document = PDDocument();
+      final page = PDPage();
+      document.addPage(page);
+
+      final content = Uint8List.fromList(
+        List<int>.generate(1024, (index) => index % 256),
+      );
+      page.setContentStream(PDStream.fromBytes(content));
+
+      final uncompressed = document.saveToBytes();
+      final compressed = document.saveToBytes(
+        options: PDFSaveOptions(
+          compressStreams: true,
+          objectStreamCompression: const CompressParameters(),
+        ),
+      );
+
+      final compressedText = latin1.decode(compressed, allowInvalid: true);
+      expect(compressedText.contains('/Type /ObjStm'), isTrue);
+
+      final reloaded = PDDocument.loadFromBytes(compressed);
+      expect(reloaded.cosDocument.isXRefStream, isTrue);
+      reloaded.close();
+
+      // Ensure compression does not inflate file size compared to baseline.
+      expect(compressed.length <= uncompressed.length + 64, isTrue);
+
+      document.close();
+    });
+
   });
 }

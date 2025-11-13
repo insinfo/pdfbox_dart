@@ -272,7 +272,8 @@ class PDDeviceN extends PDSpecialColorSpace {
         return names;
       }
     }
-    throw StateError('DeviceN colour space requires an array of colourant names');
+    throw StateError(
+        'DeviceN colour space requires an array of colourant names');
   }
 
   static _DeviceNConversionCache? _buildConversionCache(
@@ -295,8 +296,8 @@ class PDDeviceN extends PDSpecialColorSpace {
         attributes.getProcess(resources: resources);
     final PDColorSpace? processColorSpace =
         process?.getColorSpace(resources: resources);
-    final List<String> processComponents = process?.getComponents() ??
-        const <String>[];
+    final List<String> processComponents =
+        process?.getComponents() ?? const <String>[];
 
     final colorantToComponent = List<int>.filled(
       colorantNames.length,

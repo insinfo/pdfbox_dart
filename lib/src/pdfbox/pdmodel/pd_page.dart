@@ -1,3 +1,12 @@
+import 'dart:typed_data';
+
+import 'package:logging/logging.dart';
+
+import '../../io/exceptions.dart';
+import '../../io/random_access_read.dart';
+import '../../io/random_access_read_buffer.dart';
+import '../../io/sequence_random_access_read.dart';
+import '../contentstream/pd_content_stream.dart';
 import '../cos/cos_array.dart';
 import '../cos/cos_base.dart';
 import '../cos/cos_dictionary.dart';
@@ -9,13 +18,20 @@ import '../cos/cos_stream.dart';
 import 'common/pd_rectangle.dart';
 import 'pd_resources.dart';
 import 'pd_stream.dart';
+import 'resource_cache.dart';
+import '../pdfparser/pdf_stream_parser.dart';
 
 /// High level representation of a page dictionary.
-class PDPage {
-  PDPage([COSDictionary? dictionary])
-      : _dictionary = dictionary ?? _createDefaultDictionary();
+class PDPage implements PDContentStream {
+  PDPage([COSDictionary? dictionary, ResourceCache? resourceCache])
+      : _dictionary = dictionary ?? _createDefaultDictionary(),
+        _resourceCache = resourceCache;
+
+  static final Logger _logger = Logger('pdfbox.PDPage');
+  static final Uint8List _delimiter = Uint8List.fromList(<int>[0x0a]);
 
   final COSDictionary _dictionary;
+  ResourceCache? _resourceCache;
 
   COSDictionary get cosObject => _dictionary;
 
@@ -70,9 +86,9 @@ class PDPage {
   PDResources get resources {
     final value = _getInheritableValue(COSName.resources);
     if (value is COSDictionary) {
-      return PDResources(value);
+      return PDResources(value, _resourceCache);
     }
-    return PDResources();
+    return PDResources(null, _resourceCache);
   }
 
   set resources(PDResources resources) {
@@ -141,6 +157,58 @@ class PDPage {
     setContentStreams(current);
   }
 
+  @override
+  RandomAccessRead getContentsForStreamParsing() {
+    final streams = contentStreams.toList();
+    if (streams.isEmpty) {
+      return RandomAccessReadBuffer();
+    }
+
+    if (streams.length == 1) {
+      try {
+        return streams.first.getContentsForStreamParsing();
+      } on IOException catch (exception) {
+        _logger.warning(
+          () => 'skipped malformed content stream',
+          exception,
+        );
+        return RandomAccessReadBuffer.fromBytes(_delimiter);
+      }
+    }
+
+    final readers = <RandomAccessRead>[];
+    for (final stream in streams) {
+      try {
+        final reader = stream.getContentsForStreamParsing();
+        if (reader.length > 0) {
+          readers.add(reader);
+          readers.add(RandomAccessReadBuffer.fromBytes(_delimiter));
+        } else {
+          reader.close();
+        }
+      } on IOException catch (exception) {
+        _logger.warning(
+          () => 'malformed substream of content stream skipped',
+          exception,
+        );
+      }
+    }
+
+    if (readers.isEmpty) {
+      return RandomAccessReadBuffer();
+    }
+    if (readers.length == 1) {
+      return readers.first;
+    }
+    return SequenceRandomAccessRead(readers);
+  }
+
+  /// Parses the aggregated page content streams into PDF tokens.
+  List<Object?> parseContentStreamTokens() {
+    final parser = PDFStreamParser(this);
+    return parser.parse();
+  }
+
   COSDictionary? get parent => _dictionary.getCOSDictionary(COSName.parent);
 
   set parent(COSDictionary? value) {
@@ -149,6 +217,12 @@ class PDPage {
       return;
     }
     _dictionary[COSName.parent] = value;
+  }
+
+  ResourceCache? get resourceCache => _resourceCache;
+
+  set resourceCache(ResourceCache? cache) {
+    _resourceCache = cache;
   }
 
   static COSDictionary _createDefaultDictionary() {

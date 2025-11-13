@@ -1,0 +1,159 @@
+import 'dart:math' as math;
+import 'dart:typed_data';
+
+import 'package:logging/logging.dart';
+
+import '../../io/exceptions.dart';
+import '../../io/random_access_read.dart';
+import '../cos/cos_array.dart';
+import '../cos/cos_dictionary.dart';
+import '../cos/cos_name.dart';
+import '../cos/cos_document.dart';
+import '../cos/cos_object.dart';
+import '../pdmodel/pd_document.dart';
+import 'cos_parser.dart';
+
+class PDFParser extends COSParser {
+  PDFParser(RandomAccessRead source)
+      : _logger = Logger('pdfbox.PDFParser'),
+        super(source);
+
+  final Logger _logger;
+  String? _documentVersion;
+
+  String? get documentVersion => _documentVersion;
+
+  PDDocument parse({bool lenient = true}) {
+    setLenient(lenient);
+    final headerOk = _parsePDFHeader() || _parseFDFHeader();
+    if (!headerOk) {
+      const message = "Error: Header doesn't contain versioninfo";
+      if (isLenient) {
+        _logger.warning(message);
+      } else {
+        throw IOException(message);
+      }
+    }
+
+    source.seek(0);
+    final cosDocument = parseDocument();
+
+    final catalogDict = _resolveRootDictionary(cosDocument);
+    if (catalogDict == null) {
+      throw IOException('Missing root object specification in trailer.');
+    }
+    if (isLenient && !catalogDict.containsKey(COSName.type)) {
+      catalogDict[COSName.type] = COSName.get('Catalog');
+    }
+
+    _checkPages(catalogDict);
+
+    final document = createDocument(cosDocument);
+    initialParseDone = true;
+    return document;
+  }
+
+  PDDocument createDocument(COSDocument cosDocument) {
+    return PDDocument.fromCOSDocument(cosDocument);
+  }
+
+  bool _parsePDFHeader() => _parseHeader('%PDF-', defaultVersion: '1.4');
+
+  bool _parseFDFHeader() => _parseHeader('%FDF-', defaultVersion: '1.0');
+
+  bool _parseHeader(String marker, {required String defaultVersion}) {
+    _documentVersion = defaultVersion;
+    final originalPosition = source.position;
+    try {
+      source.seek(0);
+      final scanLimit = math.min(source.length, 1024);
+      if (scanLimit <= 0) {
+        return false;
+      }
+      final buffer = Uint8List(scanLimit);
+      final read = source.readInto(buffer);
+      if (read <= 0) {
+        return false;
+      }
+      final content = String.fromCharCodes(buffer.sublist(0, read));
+      final index = content.indexOf(marker);
+      if (index < 0) {
+        return false;
+      }
+      final afterMarker = content.substring(index + marker.length);
+      final match = RegExp(r'([0-9]+(?:\.[0-9]+)?)').firstMatch(afterMarker);
+      if (match != null) {
+        _documentVersion = match.group(1);
+      }
+      return true;
+    } finally {
+      source.seek(originalPosition);
+    }
+  }
+
+  void _checkPages(COSDictionary rootDictionary) {
+    final pages = rootDictionary.getCOSDictionary(COSName.pages);
+    if (pages == null) {
+      if (isLenient) {
+        final placeholder = COSDictionary()
+          ..setName(COSName.type, 'Pages')
+          ..setInt(COSName.count, 0)
+          ..setItem(COSName.kids, COSArray());
+        rootDictionary[COSName.pages] = placeholder;
+        return;
+      }
+      throw IOException('Missing /Pages dictionary in catalog.');
+    }
+
+    if (!pages.containsKey(COSName.type)) {
+      if (isLenient) {
+        pages.setName(COSName.type, 'Pages');
+      } else {
+        throw IOException('Pages dictionary missing /Type entry.');
+      }
+    }
+
+    if (pages.getCOSArray(COSName.kids) == null) {
+      if (isLenient) {
+        pages[COSName.kids] = COSArray();
+      } else {
+        throw IOException('Page tree root must define /Kids array.');
+      }
+    }
+
+    if (pages.getInt(COSName.count) == null) {
+      if (isLenient) {
+        pages.setInt(COSName.count, 0);
+      } else {
+        throw IOException('Page tree root missing /Count entry.');
+      }
+    }
+  }
+
+  COSDictionary? _resolveRootDictionary(COSDocument cosDocument) {
+    final direct = cosDocument.trailer.getCOSDictionary(COSName.root);
+    if (direct != null) {
+      return direct;
+    }
+    final rootEntry = cosDocument.trailer[COSName.root];
+    if (rootEntry is COSObject) {
+      final key = rootEntry.key;
+      if (key != null) {
+        final resolved = cosDocument.getObject(key)?.object;
+        if (resolved is COSDictionary) {
+          return resolved;
+        }
+      }
+    }
+    for (final object in cosDocument.objects) {
+      final value = object.object;
+      if (value is COSDictionary) {
+        final type = value.getNameAsString(COSName.type);
+        if (type == 'Catalog') {
+          return value;
+        }
+      }
+    }
+    return null;
+  }
+}

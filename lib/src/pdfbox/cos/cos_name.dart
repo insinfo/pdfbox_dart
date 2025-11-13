@@ -8,7 +8,7 @@ class COSName extends COSBase implements Comparable<COSName> {
   final String name;
 
   factory COSName(String name) =>
-    _cache.putIfAbsent(name, () => COSName._(name));
+      _cache.putIfAbsent(name, () => COSName._(name));
 
   static COSName getPDFName(String name) => COSName(name);
 
@@ -47,6 +47,9 @@ class COSName extends COSBase implements Comparable<COSName> {
   static final COSName fontStretch = COSName('FontStretch');
   static final COSName fontWeight = COSName('FontWeight');
   static final COSName fontBBox = COSName('FontBBox');
+  static final COSName form = COSName('Form');
+  static final COSName image = COSName('Image');
+  static final COSName bBox = COSName('BBox');
   static final COSName flags = COSName('Flags');
   static final COSName italicAngle = COSName('ItalicAngle');
   static final COSName ascent = COSName('Ascent');
@@ -61,7 +64,9 @@ class COSName extends COSBase implements Comparable<COSName> {
   static final COSName missingWidth = COSName('MissingWidth');
   static final COSName firstChar = COSName('FirstChar');
   static final COSName lastChar = COSName('LastChar');
+  static final COSName width = COSName('Width');
   static final COSName widths = COSName('Widths');
+  static final COSName height = COSName('Height');
   static final COSName type1 = COSName('Type1');
   static final COSName type0 = COSName('Type0');
   static final COSName trueType = COSName('TrueType');
@@ -83,6 +88,8 @@ class COSName extends COSBase implements Comparable<COSName> {
   static final COSName w2 = COSName('W2');
   static final COSName procSet = COSName('ProcSet');
   static final COSName pattern = COSName('Pattern');
+  static final COSName patternType = COSName('PatternType');
+  static final COSName shading = COSName('Shading');
   static final COSName xObject = COSName('XObject');
   static final COSName colorSpace = COSName('ColorSpace');
   static final COSName colorants = COSName('Colorants');
@@ -104,6 +111,7 @@ class COSName extends COSBase implements Comparable<COSName> {
   static final COSName length = COSName('Length');
   static final COSName length1 = COSName('Length1');
   static final COSName lw = COSName('LW');
+  static final COSName index = COSName('Index');
   static final COSName limits = COSName('Limits');
   static final COSName nums = COSName('Nums');
   static final COSName names = COSName('Names');
@@ -130,6 +138,7 @@ class COSName extends COSBase implements Comparable<COSName> {
   static final COSName ocmd = COSName('OCMD');
   static final COSName oc = COSName('OC');
   static final COSName ocProperties = COSName('OCProperties');
+  static final COSName properties = COSName('Properties');
   static final COSName usage = COSName('Usage');
   static final COSName objStm = COSName('ObjStm');
   static final COSName extendsName = COSName('Extends');
@@ -149,6 +158,7 @@ class COSName extends COSBase implements Comparable<COSName> {
   static final COSName ais = COSName('AIS');
   static final COSName tk = COSName('TK');
   static final COSName sMask = COSName('SMask');
+  static final COSName shadingType = COSName('ShadingType');
   static final COSName bm = COSName('BM');
   static final COSName tr = COSName('TR');
   static final COSName tr2 = COSName('TR2');
@@ -185,6 +195,9 @@ class COSName extends COSBase implements Comparable<COSName> {
   static final COSName bitsPerSample = COSName('BitsPerSample');
   static final COSName columns = COSName('Columns');
   static final COSName earlyChange = COSName('EarlyChange');
+  static final COSName imageMask = COSName('ImageMask');
+  static final COSName interpolate = COSName('Interpolate');
+  static final COSName mask = COSName('Mask');
   static final COSName flateDecode = COSName('FlateDecode');
   static final COSName flateDecodeAbbreviation = COSName('Fl');
   static final COSName lzwDecode = COSName('LZWDecode');
@@ -266,6 +279,7 @@ class COSName extends COSBase implements Comparable<COSName> {
   static final COSName printScaling = COSName('PrintScaling');
   static final COSName outlines = COSName('Outlines');
   static final COSName lang = COSName('Lang');
+  static final COSName ps = COSName('PS');
 
   @override
   int compareTo(COSName other) => name.compareTo(other.name);

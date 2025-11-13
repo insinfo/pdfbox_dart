@@ -1,12 +1,15 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import '../../io/random_access_read.dart';
+import '../contentstream/pd_content_stream.dart';
 import '../cos/cos_stream.dart';
 import '../filter/decode_options.dart';
 import '../filter/filter_pipeline.dart';
+import '../pdfparser/pdf_stream_parser.dart';
 
 /// High level wrapper over a COS stream used by the PD layer.
-class PDStream {
+class PDStream implements PDContentStream {
   PDStream(this._stream);
 
   /// Creates a new PDStream with [data] as its encoded contents.
@@ -38,4 +41,15 @@ class PDStream {
     DecodeOptions options = DecodeOptions.defaultOptions,
   }) =>
       _stream.decodeWithResult(options: options);
+
+  @override
+  RandomAccessRead getContentsForStreamParsing() {
+    return _stream.createView();
+  }
+
+  /// Parses this content stream into PDF tokens using [PDFStreamParser].
+  List<Object?> parseTokens() {
+    final parser = PDFStreamParser(this);
+    return parser.parse();
+  }
 }

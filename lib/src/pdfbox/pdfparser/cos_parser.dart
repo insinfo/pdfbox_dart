@@ -20,6 +20,9 @@ import '../cos/cos_string.dart';
 import '../filter/decode_options.dart';
 import 'base_parser.dart';
 import 'parsed_stream.dart';
+import 'brute_force_parser.dart';
+import 'pdf_object_stream_parser.dart';
+import 'xref_parser.dart';
 
 /// Incremental Dart port of PDFBox's COSParser focused on object/xref handling.
 ///
@@ -27,7 +30,25 @@ import 'parsed_stream.dart';
 /// indirect object hydration, stream decoding, classical xref tables with
 /// trailer merging, and document loading into a [COSDocument].
 class COSParser extends BaseParser {
-  COSParser(RandomAccessRead source) : super(source);
+  COSParser(RandomAccessRead source, {COSDocument? document})
+      : _document = document,
+        super(source);
+
+  bool _lenient = true;
+  bool _initialParseDone = false;
+
+  bool get isLenient => _lenient;
+
+  void setLenient(bool lenient) {
+    if (_initialParseDone && lenient != _lenient) {
+      throw ArgumentError('Cannot change leniency after parsing');
+    }
+    _lenient = lenient;
+  }
+
+  bool get initialParseDone => _initialParseDone;
+
+  set initialParseDone(bool value) => _initialParseDone = value;
 
   static const int _slash = 0x2f;
   static const int _leftBracket = 0x5b;
@@ -38,6 +59,33 @@ class COSParser extends BaseParser {
   static const int _hash = 0x23;
 
   static final List<int> _endstreamPattern = 'endstream'.codeUnits;
+
+  BruteForceParser? _bruteForceParser;
+
+  BruteForceParser get bruteForceParser {
+    final cached = _bruteForceParser;
+    if (cached != null) {
+      return cached;
+    }
+    final currentDocument = _document;
+    if (currentDocument == null) {
+      throw StateError('BruteForceParser requested without an active document');
+    }
+    final parser = BruteForceParser(currentDocument, this);
+    _bruteForceParser = parser;
+    return parser;
+  }
+
+  COSDocument? _document;
+
+  COSDocument? get document => _document;
+
+  set document(COSDocument? value) {
+    _document = value;
+    if (value == null) {
+      _bruteForceParser = null;
+    }
+  }
 
   /// Parses the next direct object from the source, returning `null` when EOF is reached.
   COSBase? parseObject() {
@@ -122,12 +170,14 @@ class COSParser extends BaseParser {
     skipSpaces();
     final generationNumber = readInt();
     if (generationNumber == -1) {
-      throw IOException('Malformed indirect object header: missing generation number');
+      throw IOException(
+          'Malformed indirect object header: missing generation number');
     }
 
     final marker = readToken();
     if (marker != 'obj') {
-      throw IOException("Expected 'obj' marker after object header but found '$marker'");
+      throw IOException(
+          "Expected 'obj' marker after object header but found '$marker'");
     }
 
     final value = parseObject() ?? COSNull.instance;
@@ -139,8 +189,15 @@ class COSParser extends BaseParser {
       throw IOException("Expected 'endobj' but found '$endMarker'");
     }
 
-    final cosObject = COSObject(objectNumber, generationNumber, value);
-    document?.addObject(cosObject);
+    COSObject cosObject;
+    if (document != null) {
+      final key = COSObjectKey(objectNumber, generationNumber);
+      cosObject = document.getObjectFromPool(key);
+      cosObject.object = value;
+      document.addObject(cosObject);
+    } else {
+      cosObject = COSObject(objectNumber, generationNumber, value);
+    }
     return cosObject;
   }
 
@@ -150,61 +207,65 @@ class COSParser extends BaseParser {
     return parseIndirectObject(document: document);
   }
 
+  COSArray parseCOSArray() {
+    skipSpaces();
+    final marker = source.read();
+    if (marker != _leftBracket) {
+      final display = marker == -1 ? 'EOF' : String.fromCharCode(marker);
+      throw IOException("Expected '[' to start array but found '$display'");
+    }
+    return _parseArray();
+  }
+
+  COSString parseCOSHexString() => _parseHexString();
+
+  COSName parseCOSName() => COSName.get(_readName());
+
+  String readName() => _readName();
+
   /// Parses an entire PDF file into a [COSDocument] using xref tables.
   COSDocument parseDocument() {
-    final document = COSDocument();
-    final startXref = _findStartXref();
-    if (startXref == null) {
-      throw IOException('Unable to locate startxref in source');
-    }
-
-    final Map<COSObjectKey, XrefEntry> objectEntries = <COSObjectKey, XrefEntry>{};
-    final visitedXrefOffsets = <int>{};
-
-    var currentOffset = startXref;
-    while (currentOffset >= 0 && visitedXrefOffsets.add(currentOffset)) {
-      source.seek(currentOffset);
-      final info = parseXrefTrailer();
-
-      if (document.trailer.isEmpty) {
-        document.trailer.addAll(info.trailer);
+    final cosDocument = COSDocument();
+    document = cosDocument;
+    try {
+      final startXref = _findStartXref();
+      if (startXref == null) {
+        throw IOException('Unable to locate startxref in source');
       }
 
-      for (final entry in info.entries.entries) {
-        final objectNumber = entry.key;
-        final xref = entry.value;
+      final xrefParser = XrefParser(this);
+      final trailer = xrefParser.parseXref(cosDocument, startXref);
+      if (cosDocument.trailer.isEmpty) {
+        cosDocument.trailer.addAll(trailer);
+      }
 
-        if (!xref.inUse || xref.offset <= 0 || objectNumber == 0) {
+      final entries = cosDocument.xrefTable.entries
+          .where((entry) => entry.value > 0 && entry.key.objectNumber != 0)
+          .toList()
+        ..sort((a, b) {
+          final first = a.key;
+          final second = b.key;
+          final cmp = first.objectNumber.compareTo(second.objectNumber);
+          if (cmp != 0) {
+            return cmp;
+          }
+          return first.generationNumber.compareTo(second.generationNumber);
+        });
+
+      for (final entry in entries) {
+        final key = entry.key;
+        final existing = cosDocument.getObject(key);
+        if (existing != null && !existing.isNull) {
           continue;
         }
-        final key = COSObjectKey(objectNumber, xref.generation);
-        objectEntries.putIfAbsent(key, () => xref);
+        parseIndirectObjectAt(entry.value, document: cosDocument);
       }
 
-      final prevOffset = info.trailer.getInt(COSName.get('Prev'));
-      if (prevOffset == null) {
-        break;
-      }
-      currentOffset = prevOffset;
+      _parseCompressedObjects(cosDocument);
+      return cosDocument;
+    } finally {
+      document = null;
     }
-
-    final sortedKeys = objectEntries.keys.toList()
-      ..sort((a, b) {
-        final cmp = a.objectNumber.compareTo(b.objectNumber);
-        return cmp != 0
-            ? cmp
-            : a.generationNumber.compareTo(b.generationNumber);
-      });
-
-    for (final key in sortedKeys) {
-      final entry = objectEntries[key]!;
-      if (document.getObject(key) != null) {
-        continue;
-      }
-      parseIndirectObjectAt(entry.offset, document: document);
-    }
-
-    return document;
   }
 
   COSArray _parseArray() {
@@ -292,7 +353,9 @@ class COSParser extends BaseParser {
     skipWhiteSpaces();
 
     final length = _resolveStreamLength(dict.getItem(COSName.length));
-    final data = length != null ? _readStreamWithKnownLength(length) : _readStreamUntilEndstream();
+    final data = length != null
+        ? _readStreamWithKnownLength(length)
+        : _readStreamUntilEndstream();
     stream.data = data;
 
     final endMarker = readString();
@@ -356,10 +419,12 @@ class COSParser extends BaseParser {
       if (queue.length == _endstreamPattern.length) {
         if (_matchesPattern(queue, _endstreamPattern)) {
           final nextByte = source.peek();
-          final precededByWhitespace =
-              lastByte == -1 || BaseParser.isWhitespace(lastByte) || BaseParser.isEndOfName(lastByte);
-          final followedByDelimiter =
-              nextByte == -1 || BaseParser.isEndOfName(nextByte) || BaseParser.isWhitespace(nextByte);
+          final precededByWhitespace = lastByte == -1 ||
+              BaseParser.isWhitespace(lastByte) ||
+              BaseParser.isEndOfName(lastByte);
+          final followedByDelimiter = nextByte == -1 ||
+              BaseParser.isEndOfName(nextByte) ||
+              BaseParser.isWhitespace(nextByte);
           if (precededByWhitespace && followedByDelimiter) {
             source.rewind(_endstreamPattern.length);
             break;
@@ -394,6 +459,173 @@ class COSParser extends BaseParser {
       index++;
     }
     return true;
+  }
+
+  bool isDigit() {
+    final next = source.peek();
+    return next != -1 && BaseParser.isDigit(next);
+  }
+
+  bool isWhitespace() {
+    final next = source.peek();
+    return next != -1 && BaseParser.isWhitespace(next);
+  }
+
+  bool isString(List<int> pattern) {
+    if (pattern.isEmpty) {
+      return true;
+    }
+    final buffer = <int>[];
+    for (final expected in pattern) {
+      final value = source.read();
+      if (value == -1) {
+        if (buffer.isNotEmpty) {
+          source.rewind(buffer.length);
+        }
+        return false;
+      }
+      buffer.add(value);
+      if (value != expected) {
+        source.rewind(buffer.length);
+        return false;
+      }
+    }
+    source.rewind(buffer.length);
+    return true;
+  }
+
+  int readObjectNumber() {
+    final value = readLong();
+    if (value < 0) {
+      throw IOException(
+          'Expected positive object number at offset ${source.position}');
+    }
+    return value;
+  }
+
+  int readGenerationNumber() {
+    final value = readInt();
+    if (value < 0) {
+      throw IOException(
+          'Expected generation number at offset ${source.position}');
+    }
+    return value;
+  }
+
+  void readObjectMarker() {
+    final marker = readToken();
+    if (marker != 'obj') {
+      throw IOException("Expected 'obj' marker but found '$marker'");
+    }
+  }
+
+  COSDictionary parseCOSDictionary(bool isDirect) {
+    skipSpaces();
+    final first = source.read();
+    final second = source.read();
+    if (first != _lessThan || second != _lessThan) {
+      final firstDesc = first == -1 ? 'EOF' : String.fromCharCode(first);
+      final secondDesc = second == -1 ? 'EOF' : String.fromCharCode(second);
+      throw IOException(
+        "Expected '<<' to start dictionary but found '$firstDesc$secondDesc'",
+      );
+    }
+    final dictionary = _parseDictionary();
+    dictionary.isDirect = isDirect;
+    return dictionary;
+  }
+
+  COSStream parseCOSStream(COSDictionary dictionary) {
+    final base = _maybeParseStream(dictionary);
+    if (base is COSStream) {
+      return base;
+    }
+    throw IOException(
+        'Expected stream following dictionary at offset ${source.position}');
+  }
+
+  void _parseCompressedObjects(COSDocument targetDocument) {
+    final compressedEntries = targetDocument.xrefTable.entries
+        .where((entry) => entry.value < 0)
+        .toList();
+    if (compressedEntries.isEmpty) {
+      return;
+    }
+
+    final objectsByStream = <int, List<COSObjectKey>>{};
+    for (final entry in compressedEntries) {
+      final streamNumber = -entry.value;
+      objectsByStream
+          .putIfAbsent(streamNumber, () => <COSObjectKey>[])
+          .add(entry.key);
+    }
+
+    for (final streamEntry in objectsByStream.entries) {
+      final expectedKeys = List<COSObjectKey>.from(streamEntry.value);
+      final streamObject = _findObjectStream(targetDocument, streamEntry.key);
+      if (streamObject == null) {
+        continue;
+      }
+      final stream = streamObject.object;
+      if (stream is! COSStream) {
+        continue;
+      }
+
+      final parser = PDFObjectStreamParser(stream, targetDocument);
+      late final List<ObjectStreamObject> parsedObjects;
+      try {
+        parsedObjects = parser.parseAllObjects();
+      } on IOException {
+        continue;
+      }
+
+      for (final parsed in parsedObjects) {
+        final matchedKey = _matchCompressedKey(parsed.key, expectedKeys);
+        if (matchedKey == null) {
+          continue;
+        }
+        expectedKeys.remove(matchedKey);
+
+        final cosObject = targetDocument.getObject(parsed.key);
+        if (cosObject != null) {
+          cosObject.object = parsed.object;
+        } else {
+          targetDocument.addObject(
+            COSObject(parsed.key.objectNumber, parsed.key.generationNumber,
+                parsed.object),
+          );
+        }
+      }
+    }
+  }
+
+  COSObject? _findObjectStream(COSDocument targetDocument, int objectNumber) {
+    final direct = targetDocument.getObjectByNumber(objectNumber);
+    if (direct != null) {
+      return direct;
+    }
+    for (final obj in targetDocument.objects) {
+      if (obj.objectNumber == objectNumber) {
+        return obj;
+      }
+    }
+    return null;
+  }
+
+  COSObjectKey? _matchCompressedKey(
+    COSObjectKey parsedKey,
+    List<COSObjectKey> expectedKeys,
+  ) {
+    for (final key in expectedKeys) {
+      if (key.objectNumber != parsedKey.objectNumber) {
+        continue;
+      }
+      if (key.streamIndex != -1 && key.streamIndex != parsedKey.streamIndex) {
+        continue;
+      }
+      return key;
+    }
+    return null;
   }
 
   int? _findStartXref({int searchLength = 2048}) {
@@ -448,7 +680,8 @@ class COSParser extends BaseParser {
       if (String.fromCharCode(peek) == 't') {
         final trailerKeyword = readToken();
         if (trailerKeyword != 'trailer') {
-          throw IOException("Expected 'trailer' keyword but found '$trailerKeyword'");
+          throw IOException(
+              "Expected 'trailer' keyword but found '$trailerKeyword'");
         }
         break;
       }
@@ -477,7 +710,8 @@ class COSParser extends BaseParser {
         final generation = int.tryParse(parts[1]);
         final flag = parts[2];
         if (offset == null || generation == null) {
-          throw IOException('Invalid offset or generation number in xref entry: "$line"');
+          throw IOException(
+              'Invalid offset or generation number in xref entry: "$line"');
         }
         entries[startObjectNumber + i] = XrefEntry(
           offset: offset,
@@ -495,7 +729,8 @@ class COSParser extends BaseParser {
     skipSpaces();
     final startXrefKeyword = readToken();
     if (startXrefKeyword != 'startxref') {
-      throw IOException("Expected 'startxref' marker but found '$startXrefKeyword'");
+      throw IOException(
+          "Expected 'startxref' marker but found '$startXrefKeyword'");
     }
     skipSpaces();
     final offsetToken = readToken();
@@ -560,6 +795,11 @@ class COSParser extends BaseParser {
       return null;
     }
     source.read();
+    final key = COSObjectKey(objectNumber, generationNumber);
+    final currentDocument = _document;
+    if (currentDocument != null) {
+      return currentDocument.getObjectFromPool(key);
+    }
     return COSObject(objectNumber, generationNumber);
   }
 
@@ -627,7 +867,8 @@ class COSParser extends BaseParser {
 }
 
 class XrefEntry {
-  const XrefEntry({required this.offset, required this.generation, required this.inUse});
+  const XrefEntry(
+      {required this.offset, required this.generation, required this.inUse});
 
   final int offset;
   final int generation;

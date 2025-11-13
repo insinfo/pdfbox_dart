@@ -52,7 +52,8 @@ COSStream _buildTintTransform() {
   final stream = COSStream()
     ..setInt(COSName.functionType, 0)
     ..setItem(COSName.domain, _floatArray(<double>[0.0, 1.0]))
-    ..setItem(COSName.range, _floatArray(<double>[0.0, 1.0, 0.0, 1.0, 0.0, 1.0]))
+    ..setItem(
+        COSName.range, _floatArray(<double>[0.0, 1.0, 0.0, 1.0, 0.0, 1.0]))
     ..setItem(COSName.size, COSArray()..add(COSInteger(2)))
     ..setInt(COSName.bitsPerSample, 8)
     ..data = Uint8List.fromList(<int>[0, 0, 0, 255, 0, 0]);

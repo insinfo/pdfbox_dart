@@ -49,7 +49,8 @@ class PDGraphicsState {
   PDGraphicsState clone() {
     final copy = PDGraphicsState();
     copy.currentTransformationMatrix = currentTransformationMatrix.clone();
-    copy.strokingColor = PDColor(strokingColor.components, strokingColor.colorSpace);
+    copy.strokingColor =
+        PDColor(strokingColor.components, strokingColor.colorSpace);
     copy.nonStrokingColor =
         PDColor(nonStrokingColor.components, nonStrokingColor.colorSpace);
     copy.strokingColorSpace = strokingColorSpace;
@@ -59,8 +60,8 @@ class PDGraphicsState {
     copy.lineCap = lineCap;
     copy.lineJoin = lineJoin;
     copy.miterLimit = miterLimit;
-    copy.lineDashPattern =
-        PDLineDashPattern.fromValues(lineDashPattern.dashArray, lineDashPattern.phase);
+    copy.lineDashPattern = PDLineDashPattern.fromValues(
+        lineDashPattern.dashArray, lineDashPattern.phase);
     copy.renderingIntent = renderingIntent;
     copy.strokeAdjustment = strokeAdjustment;
     copy.blendMode = blendMode;

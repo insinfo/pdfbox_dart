@@ -1,6 +1,8 @@
 /// Configuration options for the low-level PDF serializer.
 import 'dart:typed_data';
 
+import 'compress/compress_parameters.dart';
+
 /// Configuration options for the low-level PDF serializer.
 class PDFSaveOptions {
   const PDFSaveOptions({
@@ -11,6 +13,7 @@ class PDFSaveOptions {
     this.generateDocumentId = false,
     this.documentIdSeed,
     this.previousStartXref,
+    this.objectStreamCompression,
   });
 
   /// When true an additional binary comment is written after the header,
@@ -40,4 +43,8 @@ class PDFSaveOptions {
   /// Explicitly sets the `/Prev` value in the trailer when provided. Useful for
   /// incremental update workflows.
   final int? previousStartXref;
+
+  /// Enables object stream compression when provided. When null object streams
+  /// are not used and the writer emits a classic cross-reference table.
+  final CompressParameters? objectStreamCompression;
 }

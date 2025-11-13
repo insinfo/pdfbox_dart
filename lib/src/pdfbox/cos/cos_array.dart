@@ -70,6 +70,17 @@ class COSArray extends COSBase with IterableMixin<COSBase> {
     return null;
   }
 
+  int? getInt(int index, [int? defaultValue]) {
+    if (index < 0 || index >= _items.length) {
+      return defaultValue;
+    }
+    final value = _resolve(_items[index]);
+    if (value is COSNumber) {
+      return value.intValue;
+    }
+    return defaultValue;
+  }
+
   COSBase _resolve(COSBase value) {
     if (value is COSObject) {
       return value.object;

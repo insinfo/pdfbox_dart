@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import '../../io/random_access_read.dart';
+import '../../io/random_access_read_buffer.dart';
 import '../filter/decode_options.dart';
 import '../filter/decode_result.dart';
 import '../filter/filter_pipeline.dart';
@@ -41,6 +43,18 @@ class COSStream extends COSDictionary {
       return Uint8List.fromList(_data!);
     }
     return _data!;
+  }
+
+  RandomAccessRead createView({DecodeOptions options = DecodeOptions.defaultOptions}) {
+    final decoded = decode(options: options);
+    if (decoded != null) {
+      return RandomAccessReadBuffer.fromBytes(decoded);
+    }
+    final encoded = encodedBytes(copy: true);
+    if (encoded != null) {
+      return RandomAccessReadBuffer.fromBytes(encoded);
+    }
+    return RandomAccessReadBuffer();
   }
 
   FilterPipelineResult? decodeWithResult({

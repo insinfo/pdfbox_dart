@@ -25,7 +25,8 @@ void main() {
 
       expect(deviceN.numberOfComponents, 2);
       expect(deviceN.alternateColorSpace, same(PDDeviceRGB.instance));
-      expect(deviceN.colorantNames, orderedEquals(const <String>['Cyan', 'Magenta']));
+      expect(deviceN.colorantNames,
+          orderedEquals(const <String>['Cyan', 'Magenta']));
 
       expect(
         deviceN.toRGB(const <double>[0.0, 0.0]),
@@ -96,7 +97,8 @@ void main() {
         ..add(tintTransform);
 
       final deviceNWithAttributes = PDDeviceN.fromCOSArray(withAttributes);
-      final deviceNWithoutAttributes = PDDeviceN.fromCOSArray(withoutAttributes);
+      final deviceNWithoutAttributes =
+          PDDeviceN.fromCOSArray(withoutAttributes);
 
       final expected = deviceNWithoutAttributes.toRGB(const <double>[0.5]);
       final actual = deviceNWithAttributes.toRGB(const <double>[0.5]);
@@ -128,15 +130,17 @@ void main() {
       expect(image.width, 2);
       expect(image.height, 1);
 
-      final expectedFirst = _rgbBytes(deviceN.toRGB(<double>[64 / 255, 128 / 255]));
-      final expectedSecond = _rgbBytes(deviceN.toRGB(<double>[191 / 255, 64 / 255]));
+      final expectedFirst =
+          _rgbBytes(deviceN.toRGB(<double>[64 / 255, 128 / 255]));
+      final expectedSecond =
+          _rgbBytes(deviceN.toRGB(<double>[191 / 255, 64 / 255]));
 
-  final firstPixel = image.getPixel(0, 0);
+      final firstPixel = image.getPixel(0, 0);
       expect(firstPixel.r, equals(expectedFirst[0]));
       expect(firstPixel.g, equals(expectedFirst[1]));
       expect(firstPixel.b, equals(expectedFirst[2]));
 
-  final secondPixel = image.getPixel(1, 0);
+      final secondPixel = image.getPixel(1, 0);
       expect(secondPixel.r, equals(expectedSecond[0]));
       expect(secondPixel.g, equals(expectedSecond[1]));
       expect(secondPixel.b, equals(expectedSecond[2]));
@@ -156,7 +160,8 @@ COSStream _buildTintFunction() {
   final stream = COSStream()
     ..setInt(COSName.functionType, 0)
     ..setItem(COSName.domain, _floatArray(<double>[0.0, 1.0, 0.0, 1.0]))
-    ..setItem(COSName.range, _floatArray(<double>[0.0, 1.0, 0.0, 1.0, 0.0, 1.0]))
+    ..setItem(
+        COSName.range, _floatArray(<double>[0.0, 1.0, 0.0, 1.0, 0.0, 1.0]))
     ..setItem(
       COSName.size,
       COSArray()

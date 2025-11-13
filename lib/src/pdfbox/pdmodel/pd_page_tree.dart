@@ -8,13 +8,15 @@ import '../cos/cos_name.dart';
 import '../cos/cos_null.dart';
 import '../cos/cos_object.dart';
 import 'pd_page.dart';
+import 'resource_cache.dart';
 
 /// Represents the page tree rooted at a /Pages dictionary.
 class PDPageTree extends IterableBase<PDPage> {
-  PDPageTree(this._document, this._root);
+  PDPageTree(this._document, this._root, [this._resourceCache]);
 
   final COSDocument _document;
   final COSDictionary _root;
+  final ResourceCache? _resourceCache;
   List<PDPage>? _cachedPages;
 
   COSDictionary get cosObject => _root;
@@ -43,6 +45,7 @@ class PDPageTree extends IterableBase<PDPage> {
     final parent = pages.isEmpty ? _root : (pages.last.parent ?? _root);
     final kids = _ensureKidsArray(parent);
     kids.add(_ensureIndirect(page.cosObject));
+    page.resourceCache ??= _resourceCache;
     page.parent = parent;
     _invalidateCache();
     _updateCounts(parent);
@@ -65,6 +68,7 @@ class PDPageTree extends IterableBase<PDPage> {
     final referenceIndex = _indexOfChild(kids, referencePage.cosObject);
     final insertionIndex = referenceIndex < 0 ? kids.length : referenceIndex;
     kids.insert(insertionIndex, _ensureIndirect(page.cosObject));
+    page.resourceCache ??= _resourceCache;
     page.parent = parent;
     _invalidateCache();
     _updateCounts(parent);
@@ -114,7 +118,7 @@ class PDPageTree extends IterableBase<PDPage> {
     final List<PDPage> pages = <PDPage>[];
     final type = node.getNameAsString(COSName.type);
     if (type == 'Page') {
-      final page = PDPage(node);
+      final page = PDPage(node, _resourceCache);
       if (page.parent == null) {
         page.parent = node.getCOSDictionary(COSName.parent);
       }
@@ -138,7 +142,7 @@ class PDPageTree extends IterableBase<PDPage> {
       }
       final childType = dict.getNameAsString(COSName.type);
       if (childType == 'Page') {
-        final page = PDPage(dict);
+        final page = PDPage(dict, _resourceCache);
         if (page.parent == null) {
           page.parent = node;
         }

@@ -139,8 +139,7 @@ class PDExtendedGraphicsState implements COSObjectable {
 
   double? getStrokingAlphaConstant() => _dictionary.getFloat(COSName.ca);
 
-  double? getNonStrokingAlphaConstant() =>
-      _dictionary.getFloat(COSName.caNs);
+  double? getNonStrokingAlphaConstant() => _dictionary.getFloat(COSName.caNs);
 
   bool getAlphaSourceFlag() => _dictionary.getBoolean(COSName.ais) ?? false;
 
@@ -173,5 +172,4 @@ class PDExtendedGraphicsState implements COSObjectable {
   COSBase? getTransfer() => _dictionary.getDictionaryObject(COSName.tr);
 
   COSBase? getTransfer2() => _dictionary.getDictionaryObject(COSName.tr2);
-
 }

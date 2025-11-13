@@ -45,8 +45,7 @@ class PDOptionalContentMembershipDictionary extends PDPropertyList {
   }
 
   /// Returns the visibility policy (/P) for this membership dictionary.
-  COSName get visibilityPolicy =>
-      dict.getCOSName(COSName.p) ?? COSName.anyOn;
+  COSName get visibilityPolicy => dict.getCOSName(COSName.p) ?? COSName.anyOn;
 
   set visibilityPolicy(COSName value) {
     dict[COSName.p] = value;

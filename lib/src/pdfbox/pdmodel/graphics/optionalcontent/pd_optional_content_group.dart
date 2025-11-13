@@ -22,7 +22,7 @@ class PDOptionalContentGroup extends PDPropertyList {
 
   /// Assigns a human-readable name to this optional content group.
   void setName(String name) {
-  dict.setString(COSName.nameKey, name);
+    dict.setString(COSName.nameKey, name);
   }
 
   /// Resolves the usage-dependent state for [destination] if present.
@@ -42,7 +42,7 @@ class PDOptionalContentGroup extends PDPropertyList {
         state = export?.getCOSName(COSName.exportState);
       }
     }
-  return RenderState.fromCOSName(state);
+    return RenderState.fromCOSName(state);
   }
 
   @override

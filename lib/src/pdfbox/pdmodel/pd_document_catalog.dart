@@ -2,6 +2,7 @@ import '../cos/cos_dictionary.dart';
 import '../cos/cos_document.dart';
 import '../cos/cos_name.dart';
 import '../cos/cos_stream.dart';
+import 'resource_cache.dart';
 import 'common/pd_metadata.dart';
 import 'common/pd_page_labels.dart';
 import 'graphics/optionalcontent/pd_optional_content_properties.dart';
@@ -12,11 +13,13 @@ import 'pd_page_tree.dart';
 
 /// Represents the document catalog (/Root) dictionary.
 class PDDocumentCatalog {
-  PDDocumentCatalog(this._document, [COSDictionary? dictionary])
+  PDDocumentCatalog(this._document, this._resourceCache,
+      [COSDictionary? dictionary])
       : _dictionary = dictionary ?? _createDefaultCatalog();
 
   final COSDocument _document;
   final COSDictionary _dictionary;
+  final ResourceCache _resourceCache;
   PDPageTree? _pageTree;
   PDOptionalContentProperties? _optionalContentProperties;
   PDPageLabels? _pageLabels;
@@ -175,7 +178,7 @@ class PDDocumentCatalog {
     if (pagesDict == null) {
       throw StateError('Document catalog is missing /Pages dictionary');
     }
-    return PDPageTree(_document, pagesDict);
+    return PDPageTree(_document, pagesDict, _resourceCache);
   }
 
   static COSDictionary _createDefaultCatalog() {
