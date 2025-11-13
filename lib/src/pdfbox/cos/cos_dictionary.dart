@@ -23,46 +23,84 @@ class COSDictionary extends COSBase {
 
   void setItem(COSName key, COSObjectable? value) {
     if (value == null) {
-      _items.remove(key);
+      if (_items.remove(key) != null) {
+        markDirty();
+      }
       return;
     }
-    _items[key] = value.cosObject;
+    final newValue = value.cosObject;
+    final current = _items[key];
+    if (!identical(current, newValue)) {
+      _items[key] = newValue;
+      markDirty();
+    }
   }
 
   void setBoolean(COSName key, bool? value) {
     if (value == null) {
-      _items.remove(key);
+      if (_items.remove(key) != null) {
+        markDirty();
+      }
       return;
     }
-    _items[key] = COSBoolean.valueOf(value);
+    final newValue = COSBoolean.valueOf(value);
+    final current = _items[key];
+    if (!identical(current, newValue)) {
+      _items[key] = newValue;
+      markDirty();
+    }
   }
 
   void setInt(COSName key, int? value) {
     if (value == null) {
-      _items.remove(key);
+      if (_items.remove(key) != null) {
+        markDirty();
+      }
       return;
     }
-    _items[key] = COSInteger(value);
+    final newValue = COSInteger(value);
+    final current = _items[key];
+    if (!identical(current, newValue)) {
+      _items[key] = newValue;
+      markDirty();
+    }
   }
 
   void setFloat(COSName key, double? value) {
     if (value == null) {
-      _items.remove(key);
+      if (_items.remove(key) != null) {
+        markDirty();
+      }
       return;
     }
-    _items[key] = COSFloat(value);
+    final newValue = COSFloat(value);
+    final current = _items[key];
+    if (current is COSFloat && current.value == newValue.value) {
+      return;
+    }
+    _items[key] = newValue;
+    markDirty();
   }
 
   void setName(COSName key, String? name) {
     if (name == null) {
-      _items.remove(key);
+      if (_items.remove(key) != null) {
+        markDirty();
+      }
       return;
     }
-    _items[key] = COSName(name);
+    final newValue = COSName(name);
+    final current = _items[key];
+    if (!identical(current, newValue)) {
+      _items[key] = newValue;
+      markDirty();
+    }
   }
 
   void removeItem(COSName key) {
-    _items.remove(key);
+    if (_items.remove(key) != null) {
+      markDirty();
+    }
   }
 
   bool containsKey(COSName key) => _items.containsKey(key);
@@ -154,7 +192,11 @@ class COSDictionary extends COSBase {
   bool get isNotEmpty => _items.isNotEmpty;
 
   void clear() {
+    if (_items.isEmpty) {
+      return;
+    }
     _items.clear();
+    markDirty();
   }
 
   bool getFlag(COSName key, int flag) {
@@ -173,9 +215,16 @@ class COSDictionary extends COSBase {
       current &= ~flag;
     }
     if (current == 0) {
-      _items.remove(key);
+      if (_items.remove(key) != null) {
+        markDirty();
+      }
     } else {
-      _items[key] = COSInteger(current);
+      final newValue = COSInteger(current);
+      final existing = _items[key];
+      if (!identical(existing, newValue)) {
+        _items[key] = newValue;
+        markDirty();
+      }
     }
   }
 
@@ -195,25 +244,46 @@ class COSDictionary extends COSBase {
         copy._items[entry.key] = value;
       }
     }
+    copy.markCleanDeep();
     return copy;
   }
 
   void addAll(COSDictionary other) {
-    for (final entry in other._items.entries) {
-      _items[entry.key] = entry.value;
+      var mutated = false;
+      for (final entry in other._items.entries) {
+        final existing = _items[entry.key];
+        if (!identical(existing, entry.value)) {
+          _items[entry.key] = entry.value;
+          mutated = true;
+        }
+      }
+      if (mutated) {
+        markDirty();
     }
   }
 
   void setNull(COSName key) {
-    _items[key] = COSNull.instance;
+      final current = _items[key];
+      if (!identical(current, COSNull.instance)) {
+        _items[key] = COSNull.instance;
+        markDirty();
+      }
   }
 
   void setString(COSName key, String? value) {
     if (value == null) {
-      _items.remove(key);
+        if (_items.remove(key) != null) {
+          markDirty();
+        }
       return;
     }
-    _items[key] = COSString(value);
+    final newValue = COSString(value);
+    final current = _items[key];
+    if (current is COSString && current == newValue) {
+      return;
+    }
+    _items[key] = newValue;
+    markDirty();
   }
 
   String? getString(COSName key, [String? defaultValue]) {
@@ -229,15 +299,25 @@ class COSDictionary extends COSBase {
 
   void setDate(COSName key, DateTime? value) {
     if (value == null) {
-      _items.remove(key);
+      if (_items.remove(key) != null) {
+        markDirty();
+      }
       return;
     }
     final formatted = PdfDate.format(value);
     if (formatted == null) {
-      _items.remove(key);
+      if (_items.remove(key) != null) {
+        markDirty();
+      }
       return;
     }
-    _items[key] = COSString(formatted);
+    final newValue = COSString(formatted);
+    final current = _items[key];
+    if (current is COSString && current == newValue) {
+      return;
+    }
+    _items[key] = newValue;
+    markDirty();
   }
 
   DateTime? getDate(COSName key) {
@@ -246,5 +326,24 @@ class COSDictionary extends COSBase {
       return PdfDate.parse(value.string);
     }
     return null;
+  }
+
+  @override
+  void cleanDescendants(Set<COSBase> visited) {
+    for (final value in _items.values) {
+      final COSBase? resolved = value is COSObject ? value.object : value;
+      resolved?.markCleanDeep(visited);
+    }
+  }
+
+  @override
+  bool hasDirtyDescendant(Set<COSBase> visited) {
+    for (final value in _items.values) {
+      final COSBase? resolved = value is COSObject ? value.object : value;
+      if (resolved != null && resolved.needsUpdateDeep(visited)) {
+        return true;
+      }
+    }
+    return false;
   }
 }

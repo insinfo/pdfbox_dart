@@ -23,6 +23,11 @@ class COSStandardOutputStream {
 
   set isOnNewLine(bool value) => _onNewLine = value;
 
+  void reset({required int position, bool onNewLine = false}) {
+    _position = position;
+    _onNewLine = onNewLine;
+  }
+
   void writeBytes(Uint8List data, [int offset = 0, int? length]) {
     final int safeLength = length ?? (data.length - offset);
     if (safeLength <= 0) {

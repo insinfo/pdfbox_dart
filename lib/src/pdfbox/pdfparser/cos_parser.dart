@@ -262,6 +262,7 @@ class COSParser extends BaseParser {
       }
 
       _parseCompressedObjects(cosDocument);
+      cosDocument.markAllClean();
       return cosDocument;
     } finally {
       document = null;

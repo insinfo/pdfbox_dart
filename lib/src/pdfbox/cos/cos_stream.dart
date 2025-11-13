@@ -25,6 +25,7 @@ class COSStream extends COSDictionary {
     } else {
       removeItem(COSName.length);
     }
+    markDirty();
   }
 
   Stream<List<int>> openStream() {

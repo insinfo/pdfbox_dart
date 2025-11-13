@@ -4,11 +4,14 @@ import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 
+import '../../io/random_access_read.dart';
+import '../../io/random_access_read_buffer.dart';
 import '../../io/random_access_write.dart';
 import '../cos/cos_array.dart';
 import '../cos/cos_base.dart';
 import '../cos/cos_boolean.dart';
 import '../cos/cos_dictionary.dart';
+import '../cos/cos_document.dart';
 import '../cos/cos_integer.dart';
 import '../cos/cos_name.dart';
 import '../cos/cos_null.dart';
@@ -26,6 +29,7 @@ import '../pdfparser/xref/x_reference_entry.dart';
 import '../pdfwriter/compress/compress_parameters.dart';
 import '../pdfwriter/compress/cos_writer_compression_pool.dart';
 import 'cos_standard_output_stream.dart';
+import 'incremental_signing_context.dart';
 import 'pdf_save_options.dart';
 
 /// Serialises a [PDDocument] into PDF bytes, supporting optional object stream
@@ -48,73 +52,231 @@ class COSWriter {
       <ObjectStreamXReference>[];
 
   int _highestObjectNumber = 0;
+  COSDocument? _activeCOSDocument;
+  _SignatureTracking? _signatureTracking;
 
   void writeDocument(PDDocument document) {
     _target.clear();
     _normalReferences.clear();
     _objectStreamReferences.clear();
+    _highestObjectNumber = 0;
 
     final cosDocument = document.cosDocument;
     final trailer = cosDocument.trailer;
+    _activeCOSDocument = cosDocument;
+    cosDocument.xrefTable.clear();
 
-    final Map<COSObjectKey, COSBase> documentObjects = <COSObjectKey, COSBase>{};
-    for (final cosObject in cosDocument.objects) {
-      final key = cosObject.key;
-      if (key == null) {
-        continue;
+    try {
+      final Map<COSObjectKey, COSBase> documentObjects =
+          <COSObjectKey, COSBase>{};
+      for (final cosObject in cosDocument.objects) {
+        final key = cosObject.key;
+        if (key == null) {
+          continue;
+        }
+        documentObjects[key] = cosObject.object;
+        if (key.objectNumber > _highestObjectNumber) {
+          _highestObjectNumber = key.objectNumber;
+        }
       }
-      documentObjects[key] = cosObject.object;
-      if (key.objectNumber > _highestObjectNumber) {
-        _highestObjectNumber = key.objectNumber;
+
+      final bool useObjectStreams =
+          _options.objectStreamCompression?.isCompress ?? false;
+
+      final Map<COSObjectKey, COSBase> indirectObjects =
+          <COSObjectKey, COSBase>{};
+      final Set<COSObjectKey> compressedKeys = <COSObjectKey>{};
+      final List<_ObjectStreamInfo> objectStreams = <_ObjectStreamInfo>[];
+
+      if (useObjectStreams) {
+        _initialiseCompression(
+          document,
+          documentObjects,
+          indirectObjects,
+          objectStreams,
+          compressedKeys,
+        );
+      } else {
+        indirectObjects.addAll(documentObjects);
       }
-    }
 
-    final bool useObjectStreams =
-        _options.objectStreamCompression?.isCompress ?? false;
-
-    final Map<COSObjectKey, COSBase> indirectObjects =
-        <COSObjectKey, COSBase>{};
-    final Set<COSObjectKey> compressedKeys = <COSObjectKey>{};
-    final List<_ObjectStreamInfo> objectStreams = <_ObjectStreamInfo>[];
-
-    if (useObjectStreams) {
-      _initialiseCompression(
-        document,
-        documentObjects,
-        indirectObjects,
-        objectStreams,
-        compressedKeys,
-      );
-    } else {
-      indirectObjects.addAll(documentObjects);
-    }
-
-    if (compressedKeys.isNotEmpty) {
-      for (final key in compressedKeys) {
-        indirectObjects.remove(key);
+      if (compressedKeys.isNotEmpty) {
+        for (final key in compressedKeys) {
+          indirectObjects.remove(key);
+        }
       }
+
+      _writeHeader();
+
+      final objects = indirectObjects.entries
+          .map((entry) => _IndirectObject(entry.key, entry.value))
+          .toList()
+        ..sort((a, b) => _compareKeys(a.key, b.key));
+
+      for (final object in objects) {
+        _writeIndirectObject(object);
+      }
+
+      final bool wroteObjectStreams = objectStreams.isNotEmpty;
+
+      if (useObjectStreams && wroteObjectStreams) {
+        cosDocument.isXRefStream = true;
+        _writeCompressedXrefSection(trailer);
+      } else {
+        cosDocument.isXRefStream = false;
+        _writeClassicXrefSection(document, trailer);
+      }
+      _clearUpdateStates(cosDocument);
+    } finally {
+      _activeCOSDocument = null;
     }
+  }
 
-    _writeHeader();
+  void writeIncremental(PDDocument document, RandomAccessRead original) {
+    _normalReferences.clear();
+    _objectStreamReferences.clear();
+    _signatureTracking = null;
 
-    final objects = indirectObjects.entries
-        .map((entry) => _IndirectObject(entry.key, entry.value))
-        .toList()
-      ..sort((a, b) => _compareKeys(a.key, b.key));
+    final cosDocument = document.cosDocument;
+    final trailer = cosDocument.trailer;
+    _highestObjectNumber = cosDocument.highestXRefObjectNumber;
+    _activeCOSDocument = cosDocument;
 
-    for (final object in objects) {
-      _writeIndirectObject(object);
-    }
+    try {
+      _promoteDirtyTrailerEntries(cosDocument);
+      // Identify indirect objects whose contents changed since the last save.
+      final updatedObjects = _collectIncrementalObjects(document);
+      final trailerDirty = trailer.needsUpdateDeep();
 
-    final bool wroteObjectStreams = objectStreams.isNotEmpty;
+      _target.clear();
+      // Preserve the original bytes before appending the incremental section.
+      final copyResult = _copyOriginal(original);
+      final copiedBytes = copyResult.length;
+      _output.reset(position: copiedBytes, onNewLine: copyResult.endsWithEol);
 
-    if (useObjectStreams && wroteObjectStreams) {
-      cosDocument.isXRefStream = true;
-      _writeCompressedXrefSection(trailer);
-    } else {
+      if (updatedObjects.isEmpty && !trailerDirty) {
+        _clearUpdateStates(cosDocument);
+        return;
+      }
+
+      if (!copyResult.endsWithEol) {
+        _output.writeEOL();
+      }
+
+      for (final object in updatedObjects) {
+        _writeIndirectObject(object);
+      }
+
+      final previousStartXref =
+          _options.previousStartXref ?? cosDocument.startXref;
       cosDocument.isXRefStream = false;
-      _writeClassicXrefSection(document, trailer);
+      final startXref = _writeIncrementalXrefSection(
+        document,
+        trailer,
+        previousStartXref,
+      );
+      cosDocument.startXref = startXref;
+      _clearUpdateStates(cosDocument);
+    } finally {
+      _activeCOSDocument = null;
     }
+  }
+
+  IncrementalSigningContext prepareIncrementalSigning(
+    PDDocument document,
+    RandomAccessRead original,
+    RandomAccessWrite target,
+  ) {
+    if (_target is! RandomAccessReadWriteBuffer) {
+      throw StateError('prepareIncrementalSigning requires a RandomAccessReadWriteBuffer target');
+    }
+    final buffer = _target as RandomAccessReadWriteBuffer;
+    buffer.clear();
+
+    _normalReferences.clear();
+    _objectStreamReferences.clear();
+
+    final cosDocument = document.cosDocument;
+    final trailer = cosDocument.trailer;
+    _highestObjectNumber = cosDocument.highestXRefObjectNumber;
+    _activeCOSDocument = cosDocument;
+    final originalLength = original.length;
+    final tracking = _SignatureTracking(originalLength);
+    _signatureTracking = tracking;
+
+    try {
+      _promoteDirtyTrailerEntries(cosDocument);
+      final updatedObjects = _collectIncrementalObjects(document);
+      final trailerDirty = trailer.needsUpdateDeep();
+
+      if (updatedObjects.isEmpty && !trailerDirty) {
+        throw StateError('No changes detected for incremental signing');
+      }
+
+      final endsWithEol = _originalEndsWithEol(original);
+      _output.reset(position: originalLength, onNewLine: endsWithEol);
+
+      if (!endsWithEol) {
+        _output.writeEOL();
+      }
+
+      for (final object in updatedObjects) {
+        _writeIndirectObject(object);
+      }
+
+      final previousStartXref =
+          _options.previousStartXref ?? cosDocument.startXref;
+      cosDocument.isXRefStream = false;
+      final startXref = _writeIncrementalXrefSection(
+        document,
+        trailer,
+        previousStartXref,
+      );
+      cosDocument.startXref = startXref;
+      _clearUpdateStates(cosDocument);
+    } finally {
+      _activeCOSDocument = null;
+      _signatureTracking = null;
+    }
+
+    final incrementalBytes = _collectIncrementBytes(buffer);
+    final signatureOffset = tracking.signatureOffset;
+    final signatureLength = tracking.signatureLength;
+    final byteRangeOffset = tracking.byteRangeOffset;
+    final byteRangeLength = tracking.byteRangeLength;
+
+    if (signatureOffset == 0 || signatureLength == 0) {
+      throw StateError('Signature dictionary without /Contents detected');
+    }
+    if (byteRangeOffset == 0 || byteRangeLength == 0 || tracking.byteRangeArray == null) {
+      throw StateError('Signature dictionary without /ByteRange placeholder');
+    }
+
+    final totalLength = originalLength + incrementalBytes.length;
+    final beforeLength = signatureOffset;
+    final afterOffset = signatureOffset + signatureLength;
+    final afterLength = totalLength - afterOffset;
+    final byteRangeValues = <int>[0, beforeLength, afterOffset, afterLength];
+
+    _patchByteRange(incrementalBytes, tracking, byteRangeValues);
+
+    final incSigOffset = signatureOffset - originalLength;
+    final afterSigOffset = incSigOffset + signatureLength;
+    final ranges = <int>[0, incSigOffset, afterSigOffset, incrementalBytes.length - afterSigOffset];
+
+    final context = IncrementalSigningContext(
+      original: original,
+      target: target,
+      incrementalBytes: incrementalBytes,
+      signatureOffsetInIncrement: incSigOffset,
+      signatureLength: signatureLength,
+      byteRangeArray: tracking.byteRangeArray!,
+      incrementalRanges: ranges,
+      totalDocumentLength: totalLength,
+    )..byteRangeValues = byteRangeValues;
+
+    buffer.clear();
+    return context;
   }
 
   void _initialiseCompression(
@@ -185,6 +347,14 @@ class COSWriter {
     final base = object.base;
 
     _normalReferences.add(NormalXReference(offset, key, base));
+    final cosDocument = _activeCOSDocument;
+    if (cosDocument != null) {
+      cosDocument.xrefTable[key] = offset;
+      cosDocument.highestXRefObjectNumber = math.max(
+        cosDocument.highestXRefObjectNumber,
+        key.objectNumber,
+      );
+    }
 
     _writeAscii('${key.objectNumber} ${key.generationNumber} obj\n');
     if (base is COSStream) {
@@ -233,13 +403,51 @@ class COSWriter {
   }
 
   void _writeDictionary(COSDictionary dictionary) {
+    _detectPossibleSignature(dictionary);
     _writeAscii('<<');
     for (final entry in dictionary.entries) {
       _output.writeLF();
       _writeAscii('${entry.key} ');
+      final tracking = _signatureTracking;
+      if (tracking != null && tracking.reachedSignature && entry.key == COSName.contents) {
+        tracking.signatureOffset = _output.position;
+        _writeBase(entry.value);
+        tracking.signatureLength = _output.position - tracking.signatureOffset;
+        continue;
+      }
+      if (tracking != null && tracking.reachedSignature && entry.key == COSName.byteRange) {
+        if (entry.value is COSArray) {
+          tracking.byteRangeArray = entry.value as COSArray;
+        }
+        tracking.byteRangeOffset = _output.position + 1;
+        _writeBase(entry.value);
+        tracking.byteRangeLength = _output.position - 1 - tracking.byteRangeOffset;
+        tracking.reachedSignature = false;
+        continue;
+      }
       _writeBase(entry.value);
     }
     _writeAscii('\n>>');
+  }
+
+  void _detectPossibleSignature(COSDictionary dictionary) {
+    final tracking = _signatureTracking;
+    if (tracking == null || tracking.reachedSignature) {
+      return;
+    }
+    final typeName = _resolveName(dictionary.getDictionaryObject(COSName.type));
+    final docTimeStamp = COSName.get('DocTimeStamp');
+    if (typeName != COSName.sig && typeName != docTimeStamp) {
+      return;
+    }
+    final byteRange = dictionary.getCOSArray(COSName.byteRange);
+    if (byteRange == null || byteRange.length != 4) {
+      return;
+    }
+    final third = _intFrom(byteRange.getObject(2));
+    if (third != null && third > tracking.originalLength) {
+      tracking.reachedSignature = true;
+    }
   }
 
   void _writeBase(COSBase? value) {
@@ -357,6 +565,14 @@ class COSWriter {
       _writeAscii('${COSName.id} [$formatted]\n');
     }
     _writeAscii('>>\nstartxref\n$startXref\n%%EOF\n');
+    final cosDocument = _activeCOSDocument;
+    if (cosDocument != null) {
+      cosDocument.startXref = startXref;
+      cosDocument.highestXRefObjectNumber = math.max(
+        cosDocument.highestXRefObjectNumber,
+        size - 1,
+      );
+    }
   }
 
   void _writeCompressedXrefSection(COSDictionary trailer) {
@@ -412,6 +628,145 @@ class COSWriter {
 
     final startXref = xrefOffset;
     _writeAscii('startxref\n$startXref\n%%EOF\n');
+    final cosDocument = _activeCOSDocument;
+    if (cosDocument != null) {
+      cosDocument.startXref = startXref;
+      cosDocument.highestXRefObjectNumber = math.max(
+        cosDocument.highestXRefObjectNumber,
+        _highestObjectNumber,
+      );
+    }
+  }
+
+  _CopyResult _copyOriginal(RandomAccessRead original) {
+    final initialPosition = original.position;
+    original.seek(0);
+    final length = original.length;
+    var remaining = length;
+    final bufferSize = 8192;
+    final buffer = Uint8List(bufferSize);
+    int? lastByte;
+    while (remaining > 0) {
+      final toRead = math.min(bufferSize, remaining);
+      final read = original.readBuffer(buffer, 0, toRead);
+      if (read <= 0) {
+        break;
+      }
+      _target.writeBytes(buffer, 0, read);
+      remaining -= read;
+      lastByte = buffer[read - 1];
+    }
+    original.seek(initialPosition);
+    return _CopyResult(length - remaining, lastByte);
+  }
+
+  List<_IndirectObject> _collectIncrementalObjects(PDDocument document) {
+    final cosDocument = document.cosDocument;
+    final result = <_IndirectObject>[];
+    for (final cosObject in cosDocument.objects) {
+      final key = cosObject.key;
+      if (key == null) {
+        continue;
+      }
+      // Include objects that are either new (no xref entry yet) or flagged dirty.
+      if (!cosDocument.xrefTable.containsKey(key) ||
+          cosObject.needsUpdateDeep()) {
+        result.add(_IndirectObject(key, cosObject.object));
+      }
+      _highestObjectNumber = math.max(_highestObjectNumber, key.objectNumber);
+    }
+    result.sort((a, b) => _compareKeys(a.key, b.key));
+    return result;
+  }
+
+  int _writeIncrementalXrefSection(
+    PDDocument document,
+    COSDictionary trailer,
+    int? previousStartXref,
+  ) {
+    final cosDocument = document.cosDocument;
+    final startXref = _output.position;
+
+    _writeAscii('xref\n');
+    _writeAscii('0 1\n');
+    _writeAscii('0000000000 65535 f \n');
+
+    final entries = List<NormalXReference>.from(_normalReferences)
+      ..sort((a, b) => _compareKeys(a.referencedKey, b.referencedKey));
+
+    if (entries.isNotEmpty) {
+      var currentStart = entries.first.referencedKey.objectNumber;
+      final buffer = <NormalXReference>[];
+
+      void flushBuffer() {
+        if (buffer.isEmpty) {
+          return;
+        }
+        _writeAscii('$currentStart ${buffer.length}\n');
+        for (final entry in buffer) {
+          final offsetString =
+              entry.secondColumnValue.toString().padLeft(10, '0');
+          final generation =
+              entry.thirdColumnValue.toString().padLeft(5, '0');
+          _writeAscii('$offsetString $generation n \n');
+        }
+        buffer.clear();
+      }
+
+      for (final entry in entries) {
+        if (buffer.isEmpty) {
+          currentStart = entry.referencedKey.objectNumber;
+          buffer.add(entry);
+          continue;
+        }
+        final expected = currentStart + buffer.length;
+        final current = entry.referencedKey.objectNumber;
+        if (current == expected) {
+          buffer.add(entry);
+        } else {
+          flushBuffer();
+          currentStart = current;
+          buffer.add(entry);
+        }
+      }
+      flushBuffer();
+    }
+
+    final size = math.max(
+          cosDocument.highestXRefObjectNumber,
+          _highestObjectNumber,
+        ) +
+        1;
+    trailer.setInt(COSName.size, size);
+    if (previousStartXref != null) {
+      trailer.setInt(COSName.prev, previousStartXref);
+    } else {
+      trailer.removeItem(COSName.prev);
+    }
+    trailer.removeItem(COSName.get('XRefStm'));
+
+    final rootRef = _formatReference(trailer[COSName.root]);
+    final infoRef = _formatReference(trailer[COSName.info]);
+    final idArray = _resolveDocumentId(trailer);
+
+    _writeAscii('trailer\n<<\n');
+    _writeAscii('${COSName.size} $size\n');
+    if (rootRef != null) {
+      _writeAscii('${COSName.root} $rootRef\n');
+    }
+    if (infoRef != null) {
+      _writeAscii('${COSName.info} $infoRef\n');
+    }
+    if (previousStartXref != null) {
+      _writeAscii('${COSName.prev} $previousStartXref\n');
+    }
+    if (idArray != null && idArray.isNotEmpty) {
+      final formatted = idArray.map(_formatIdHexString).join(' ');
+      _writeAscii('${COSName.id} [$formatted]\n');
+    }
+    _writeAscii('>>\nstartxref\n$startXref\n%%EOF\n');
+    cosDocument.highestXRefObjectNumber = size - 1;
+    return startXref;
   }
 
   Uint8List _buildXrefStreamData(List<XReferenceEntry> entries, List<int> widths) {
@@ -556,9 +911,22 @@ class COSWriter {
     return null;
   }
 
+  COSName? _resolveName(COSBase? base) {
+    if (base is COSName) {
+      return base;
+    }
+    if (base is COSObject) {
+      return _resolveName(base.object);
+    }
+    return null;
+  }
+
   int? _intFrom(COSBase? base) {
     if (base is COSNumber) {
       return base.intValue;
+    }
+    if (base is COSObject) {
+      return _intFrom(base.object);
     }
     return null;
   }
@@ -702,6 +1070,85 @@ class COSWriter {
     return a.generationNumber.compareTo(b.generationNumber);
   }
 
+  void _clearUpdateStates(COSDocument cosDocument) {
+    cosDocument.markAllClean();
+  }
+
+  void _promoteDirtyTrailerEntries(COSDocument cosDocument) {
+    final trailer = cosDocument.trailer;
+    final infoEntry = trailer[COSName.info];
+    // Ensure modified trailer dictionaries (e.g., /Info) gain object ids so the
+    // incremental section can serialize their updates without rewriting the body.
+    if (infoEntry is COSDictionary && infoEntry.needsUpdateDeep()) {
+      final promoted = cosDocument.createObject(infoEntry);
+      trailer[COSName.info] = promoted;
+    }
+  }
+
+  bool _originalEndsWithEol(RandomAccessRead source) {
+    if (source.length == 0) {
+      return true;
+    }
+    final current = source.position;
+    try {
+      final lastIndex = source.length - 1;
+      source.seek(lastIndex);
+      final last = source.read();
+      if (last == -1) {
+        return true;
+      }
+      if (last == 0x0a) {
+        return true;
+      }
+      if (last == 0x0d) {
+        if (lastIndex == 0) {
+          return true;
+        }
+        source.seek(lastIndex - 1);
+        final prev = source.read();
+        return prev == 0x0a;
+      }
+      return false;
+    } finally {
+      source.seek(current);
+    }
+  }
+
+  Uint8List _collectIncrementBytes(RandomAccessReadWriteBuffer buffer) {
+    final length = buffer.length;
+    if (length == 0) {
+      return Uint8List(0);
+    }
+    final data = Uint8List(length);
+    buffer.seek(0);
+    buffer.readFully(data);
+    return data;
+  }
+
+  void _patchByteRange(
+    Uint8List bytes,
+    _SignatureTracking tracking,
+    List<int> values,
+  ) {
+    final start = tracking.byteRangeOffset - tracking.originalLength;
+    if (start < 0 || start + tracking.byteRangeLength > bytes.length) {
+      throw StateError('Calculated ByteRange offset outside incremental bytes');
+    }
+    final rangeString = '0 ${values[1]} ${values[2]} ${values[3]}]';
+    final encoded = latin1.encode(rangeString);
+    for (var i = 0; i < tracking.byteRangeLength; i++) {
+      bytes[start + i] = i < encoded.length ? encoded[i] : 0x20;
+    }
+    final array = tracking.byteRangeArray!;
+    if (array.length >= 4) {
+      array[0] = COSInteger(0);
+      array[1] = COSInteger(values[1]);
+      array[2] = COSInteger(values[2]);
+      array[3] = COSInteger(values[3]);
+      array.isDirect = true;
+    }
+  }
+
   _StreamSerialization _prepareStreamForWrite(COSStream stream) {
     final originalFilter = stream.getItem(COSName.filter);
     final data = stream.encodedBytes(copy: false) ?? Uint8List(0);
@@ -749,6 +1196,18 @@ class _ClassicXrefEntry {
   final int generation;
 }
 
+class _SignatureTracking {
+  _SignatureTracking(this.originalLength);
+
+  final int originalLength;
+  bool reachedSignature = false;
+  int signatureOffset = 0;
+  int signatureLength = 0;
+  int byteRangeOffset = 0;
+  int byteRangeLength = 0;
+  COSArray? byteRangeArray;
+}
+
 class _StreamSerialization {
   const _StreamSerialization(
     this.data, {
@@ -759,4 +1218,13 @@ class _StreamSerialization {
   final Uint8List data;
   final COSBase? originalFilter;
   final bool filterAdded;
+}
+
+class _CopyResult {
+  const _CopyResult(this.length, this.lastByte);
+
+  final int length;
+  final int? lastByte;
+
+  bool get endsWithEol => lastByte == 0x0a || lastByte == 0x0d;
 }

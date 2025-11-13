@@ -18,26 +18,32 @@ class COSArray extends COSBase with IterableMixin<COSBase> {
 
   void add(COSObjectable value) {
     _items.add(value.cosObject);
+    markDirty();
   }
 
   void addName(String name) {
     _items.add(COSName(name));
+    markDirty();
   }
 
   void addString(String value) {
     _items.add(COSString(value));
+    markDirty();
   }
 
   void addBytes(Uint8List value) {
     _items.add(COSString.fromBytes(value));
+    markDirty();
   }
 
   void addObject(COSBase value) {
     _items.add(value);
+    markDirty();
   }
 
   void insert(int index, COSObjectable value) {
     _items.insert(index, value.cosObject);
+    markDirty();
   }
 
   COSBase operator [](int index) => _items[index];
@@ -45,7 +51,11 @@ class COSArray extends COSBase with IterableMixin<COSBase> {
   COSBase getObject(int index) => _items[index];
 
   void operator []=(int index, COSObjectable value) {
-    _items[index] = value.cosObject;
+    final newValue = value.cosObject;
+    if (!identical(_items[index], newValue)) {
+      _items[index] = newValue;
+      markDirty();
+    }
   }
 
   List<double> toDoubleList() {
@@ -90,12 +100,23 @@ class COSArray extends COSBase with IterableMixin<COSBase> {
 
   void removeAt(int index) {
     _items.removeAt(index);
+    markDirty();
   }
 
-  bool remove(COSBase value) => _items.remove(value);
+  bool remove(COSBase value) {
+    final removed = _items.remove(value);
+    if (removed) {
+      markDirty();
+    }
+    return removed;
+  }
 
   void clear() {
+    if (_items.isEmpty) {
+      return;
+    }
     _items.clear();
+    markDirty();
   }
 
   int get length => _items.length;
@@ -147,4 +168,21 @@ class COSArray extends COSBase with IterableMixin<COSBase> {
 
   @override
   Iterator<COSBase> get iterator => _items.iterator;
+
+  @override
+  void cleanDescendants(Set<COSBase> visited) {
+    for (final value in _items) {
+      value.markCleanDeep(visited);
+    }
+  }
+
+  @override
+  bool hasDirtyDescendant(Set<COSBase> visited) {
+    for (final value in _items) {
+      if (value.needsUpdateDeep(visited)) {
+        return true;
+      }
+    }
+    return false;
+  }
 }

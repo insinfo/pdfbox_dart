@@ -30,7 +30,11 @@ class COSObject extends COSBase {
   COSBase get object => _object;
 
   set object(COSBase? value) {
-    _object = value ?? COSNull.instance;
+    final newValue = value ?? COSNull.instance;
+    if (!identical(_object, newValue)) {
+      _object = newValue;
+      markDirty();
+    }
   }
 
   int get objectNumber => key?.objectNumber ?? 0;
@@ -41,4 +45,13 @@ class COSObject extends COSBase {
 
   @override
   String toString() => 'COSObject($key -> $_object)';
+
+  @override
+  void cleanDescendants(Set<COSBase> visited) {
+    _object.markCleanDeep(visited);
+  }
+
+  @override
+  bool hasDirtyDescendant(Set<COSBase> visited) =>
+      _object.needsUpdateDeep(visited);
 }

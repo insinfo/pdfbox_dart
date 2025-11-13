@@ -11,6 +11,8 @@ import '../../io/random_access_read_buffered_file.dart';
 import '../../io/random_access_write.dart';
 import '../pdfwriter/cos_writer.dart';
 import '../pdfwriter/pdf_save_options.dart';
+import '../pdmodel/interactive/digitalsignature/external_signing_support.dart';
+import '../pdmodel/interactive/digitalsignature/signing_support.dart';
 import '../pdfparser/pdf_parser.dart';
 import 'pd_document_information.dart';
 import 'pd_document_catalog.dart';
@@ -142,6 +144,28 @@ class PDDocument {
     _ensureOpen();
     final writer = COSWriter(target, options);
     writer.writeDocument(this);
+  }
+
+  void saveIncremental(
+    RandomAccessRead original,
+    RandomAccessWrite target, {
+    PDFSaveOptions options = const PDFSaveOptions(),
+  }) {
+    _ensureOpen();
+    final writer = COSWriter(target, options);
+    writer.writeIncremental(this, original);
+  }
+
+  ExternalSigningSupport saveIncrementalForExternalSigning(
+    RandomAccessRead original,
+    RandomAccessWrite target, {
+    PDFSaveOptions options = const PDFSaveOptions(),
+  }) {
+    _ensureOpen();
+    final buffer = RandomAccessReadWriteBuffer();
+    final writer = COSWriter(buffer, options);
+    final context = writer.prepareIncrementalSigning(this, original, target);
+    return SigningSupport(context);
   }
 
   void close() {

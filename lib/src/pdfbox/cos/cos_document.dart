@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'cos_base.dart';
 import 'cos_dictionary.dart';
 import 'cos_object.dart';
@@ -35,12 +37,18 @@ class COSDocument {
       throw StateError('Cannot add a COSObject without an object key');
     }
     _objects[key] = object;
+    final objectNumber = key.objectNumber;
+    if (objectNumber > _highestXRefObjectNumber) {
+      _highestXRefObjectNumber = objectNumber;
+    }
+    object.markDirty();
   }
 
   COSObject createObject([COSBase? value]) {
-    final objectNumber = _objects.length + 1;
-    final obj = COSObject(objectNumber, 0, value);
+    final nextObjectNumber = math.max(_highestXRefObjectNumber, _objects.length) + 1;
+    final obj = COSObject(nextObjectNumber, 0, value);
     addObject(obj);
+    value?.markDirty();
     return obj;
   }
 
@@ -94,5 +102,13 @@ class COSDocument {
     trailer
       ..clear()
       ..addAll(dictionary);
+    trailer.markCleanDeep();
+  }
+
+  void markAllClean() {
+    for (final object in _objects.values) {
+      object.markCleanDeep();
+    }
+    trailer.markCleanDeep();
   }
 }

@@ -7,7 +7,7 @@ sempre coloque um comentario TODO para coisas portadas imcompletas ou minimament
 io ja esta implementado em C:\MyDartProjects\pdfbox_dart\lib\src\io
 fontbox ja esta implementado em C:\MyDartProjects\pdfbox_dart\lib\src\fontbox
 
-## Pendencias atuais (2025-11-12)
+## Pendencias atuais (2025-11-13)
 
 ### pdfparser
 - Status: Dart possui `base_parser.dart`, `cos_parser.dart` e `parsed_stream.dart` em `lib/src/pdfbox/pdfparser/`, com testes em `test/pdfbox/pdfparser/` cobrindo objetos, streams e xref.
@@ -17,6 +17,13 @@ fontbox ja esta implementado em C:\MyDartProjects\pdfbox_dart\lib\src\fontbox
 - TODO portar `PDFXRefStream.java` e finalizar integrações. `PDFXrefStreamParser` (`lib/src/pdfbox/pdfparser/pdf_xref_stream_parser.dart`), `PDFObjectStreamParser` (`lib/src/pdfbox/pdfparser/pdf_object_stream_parser.dart`) e `XrefParser` (`lib/src/pdfbox/pdfparser/xref_parser.dart`) já possuem primeiras versões em Dart. `COSParser.parseDocument()` agora consome o novo pipeline e hidrata objetos comprimidos, mas ainda faltam `BruteForceParser`, suporte completo a cenários corrompidos (object streams aninhados, índices duplicados) e suite de testes cobrindo xref streams/tabelas danificadas.
 - TODO revisar `COSParser` restante (falta suporte a atualizacao incremental, xref stream, permissao de corrupcao leniente como no Java).
 - Faltam 12 arquivos na raiz para alinhar com o Java (`pdfbox-java/.../pdfparser`).
+
+### pdfwriter
+- Status: Diretório `lib/src/pdfbox/pdfwriter/` cobre `cos_writer.dart`, `cos_standard_output_stream.dart`, `content_stream_writer.dart`, `pdf_save_options.dart` e o subpacote `compress/` (`compress_parameters.dart`, `cos_object_pool.dart`, `cos_writer_compression_pool.dart`, `cos_writer_object_stream.dart`). Os testes em `test/pdfbox/pdmodel/pd_document_test.dart` exercitam salvar com tabelas xref clássicas, compressão Flate e object streams.
+- TODO alinhar `COSWriter` aos recursos avançados do Java: salvar incremental (`incrementalUpdate`), assinatura embutida (`SignatureInterface`, cálculo de `ByteRange` em modo incremental), criptografia (`willEncrypt`, integração com `SecurityHandler`) e geração híbrida (`hasHybridXRef`). Esses fluxos ainda não possuem contrapartida em Dart.
+- TODO implementar o suporte completo a cabeçalhos dinâmicos: escolher versão PDF conforme compressão (`document.setVersion`), persistir `/XRefStm`/`/Prev` quando pertinente e restaurar `COSDictionary` temporariamente marcado como direto (equivalente aos ajustes em XObjects/Resources da versão Java).
+- TODO adicionar serialização dedicada para streams marcados como diretos (inline) que aparecem fora do catálogo, garantindo que `COSWriter` promova esses casos para objetos indiretos antes da escrita quando necessário (respeitando `COSBase.isDirect`).
+- TODO portar os caminhos de escrita alternativos existentes no Java (`doWriteBodyCompressed` com `COSWriterCompressionPool`, `write` para `COSDocument` puro e `writeExternalSignature`). Hoje o Dart só cobre o fluxo simplificado `writeDocument(PDDocument)`.
 
 ### pdmodel
 - Status: Dart cobre `common/`, parte de `graphics/optionalcontent`, `font/`, `interactive/digitalsignature`, `interactive/viewerpreferences`, alem de `pd_document.dart`, `pd_document_catalog.dart`, `pd_document_information.dart`, `pd_page.dart`, `pd_page_tree.dart`, `pd_page_content_stream.dart`, `pd_resources.dart`, `pd_stream.dart`, `page_layout.dart`, `page_mode.dart`.
