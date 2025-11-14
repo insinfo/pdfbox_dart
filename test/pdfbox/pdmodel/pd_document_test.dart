@@ -6,6 +6,8 @@ import 'package:pdfbox_dart/src/pdfbox/cos/cos_array.dart';
 import 'package:pdfbox_dart/src/pdfbox/cos/cos_dictionary.dart';
 import 'package:pdfbox_dart/src/pdfbox/cos/cos_document.dart';
 import 'package:pdfbox_dart/src/pdfbox/cos/cos_name.dart';
+import 'package:pdfbox_dart/src/pdfbox/cos/cos_object.dart';
+import 'package:pdfbox_dart/src/pdfbox/cos/cos_stream.dart';
 import 'package:pdfbox_dart/src/pdfbox/pdmodel/common/pd_rectangle.dart';
 import 'package:pdfbox_dart/src/pdfbox/pdmodel/pd_document.dart';
 import 'package:pdfbox_dart/src/pdfbox/pdmodel/pd_page.dart';
@@ -14,6 +16,12 @@ import 'package:pdfbox_dart/src/pdfbox/pdfwriter/compress/compress_parameters.da
 import 'package:pdfbox_dart/src/pdfbox/pdfwriter/pdf_save_options.dart';
 import 'package:pdfbox_dart/src/pdfbox/pdfparser/cos_parser.dart';
 import 'package:test/test.dart';
+
+String _headerFrom(Uint8List bytes) {
+  final newlineIndex = bytes.indexOf(0x0a);
+  final end = newlineIndex >= 0 ? newlineIndex : bytes.length;
+  return latin1.decode(bytes.sublist(0, end), allowInvalid: true);
+}
 
 void main() {
   group('PDDocument', () {
@@ -131,6 +139,7 @@ void main() {
 
       final bytes = document.saveToBytes();
       expect(bytes, isNotEmpty);
+      expect(_headerFrom(bytes), equals('%PDF-1.7'));
 
       final source = RandomAccessReadBuffer.fromBytes(bytes);
       final parser = COSParser(source);
@@ -197,6 +206,112 @@ void main() {
       expect(compressed.length <= uncompressed.length + 64, isTrue);
 
       document.close();
+    });
+
+    test('saveToBytes preserves direct info dictionary state', () {
+      final document = PDDocument();
+      final info = document.documentInformation;
+      final infoDict = info.cosObject
+        ..isDirect = true;
+      info.title = 'Direct Info';
+
+      final bytes = document.saveToBytes();
+      expect(bytes, isNotEmpty);
+      expect(infoDict.isDirect, isTrue);
+
+      document.close();
+    });
+
+    test('saveToBytes respects explicit PDF version', () {
+      final document = PDDocument();
+      document.version = '1.4';
+
+      final page = PDPage();
+      document.addPage(page);
+
+      final bytes = document.saveToBytes();
+      expect(_headerFrom(bytes), equals('%PDF-1.4'));
+
+      document.close();
+    });
+
+    test('object stream compression bumps header to PDF 1.5', () {
+      final document = PDDocument();
+      document.version = '1.4';
+
+      final page = PDPage();
+      document.addPage(page);
+      final content = Uint8List.fromList(List<int>.generate(512, (index) => index % 256));
+      page.setContentStream(PDStream.fromBytes(content));
+
+      final bytes = document.saveToBytes(
+        options: PDFSaveOptions(
+          compressStreams: true,
+          objectStreamCompression: const CompressParameters(),
+        ),
+      );
+
+      expect(_headerFrom(bytes), equals('%PDF-1.5'));
+      expect(document.version, equals('1.5'));
+
+      document.close();
+    });
+
+    test('saveToBytes promotes inline direct streams to indirect objects', () {
+      final document = PDDocument();
+      final page = PDPage();
+      document.addPage(page);
+
+      final metadata = COSStream()
+        ..isDirect = true
+        ..data = Uint8List.fromList(<int>[1, 2, 3, 4]);
+      page.cosObject[COSName.metadata] = metadata;
+
+      expect(metadata.isDirect, isTrue);
+
+      document.saveToBytes();
+
+      expect(metadata.isDirect, isTrue);
+      final storedEntry = page.cosObject.getItem(COSName.metadata);
+      expect(storedEntry, isA<COSObject>());
+      final storedObject = storedEntry as COSObject;
+      expect(storedObject.key, isNotNull);
+      expect(identical(storedObject.object, metadata), isTrue);
+
+      document.close();
+    });
+
+    test('saveIncremental promotes new inline streams before append', () {
+      final document = PDDocument();
+      final page = PDPage();
+      document.addPage(page);
+
+      final initial = document.saveToBytes();
+      document.close();
+
+      final reloaded = PDDocument.loadFromBytes(initial);
+      final reloadedPage = reloaded.getPage(0);
+
+      final metadata = COSStream()
+        ..isDirect = true
+        ..data = Uint8List.fromList(<int>[5, 6, 7]);
+      reloadedPage.cosObject[COSName.metadata] = metadata;
+
+      final original = RandomAccessReadBuffer.fromBytes(initial);
+      final target = RandomAccessReadWriteBuffer();
+      reloaded.saveIncremental(original, target);
+
+      expect(metadata.isDirect, isTrue);
+      expect(target.length, greaterThan(0));
+      final storedEntry = reloadedPage.cosObject.getItem(COSName.metadata);
+      expect(storedEntry, isA<COSObject>());
+      final storedObject = storedEntry as COSObject;
+      expect(storedObject.key, isNotNull);
+      expect(identical(storedObject.object, metadata), isTrue);
+
+      original.close();
+      target.close();
+      reloaded.close();
     });
 
   });

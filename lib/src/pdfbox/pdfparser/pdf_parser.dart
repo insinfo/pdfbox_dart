@@ -1,6 +1,3 @@
-import 'dart:math' as math;
-import 'dart:typed_data';
-
 import 'package:logging/logging.dart';
 
 import '../../io/exceptions.dart';
@@ -37,6 +34,7 @@ class PDFParser extends COSParser {
 
     source.seek(0);
     final cosDocument = parseDocument();
+    cosDocument.headerVersion = _documentVersion ?? '1.4';
 
     final catalogDict = _resolveRootDictionary(cosDocument);
     if (catalogDict == null) {
@@ -62,33 +60,12 @@ class PDFParser extends COSParser {
   bool _parseFDFHeader() => _parseHeader('%FDF-', defaultVersion: '1.0');
 
   bool _parseHeader(String marker, {required String defaultVersion}) {
-    _documentVersion = defaultVersion;
-    final originalPosition = source.position;
-    try {
-      source.seek(0);
-      final scanLimit = math.min(source.length, 1024);
-      if (scanLimit <= 0) {
-        return false;
-      }
-      final buffer = Uint8List(scanLimit);
-      final read = source.readInto(buffer);
-      if (read <= 0) {
-        return false;
-      }
-      final content = String.fromCharCodes(buffer.sublist(0, read));
-      final index = content.indexOf(marker);
-      if (index < 0) {
-        return false;
-      }
-      final afterMarker = content.substring(index + marker.length);
-      final match = RegExp(r'([0-9]+(?:\.[0-9]+)?)').firstMatch(afterMarker);
-      if (match != null) {
-        _documentVersion = match.group(1);
-      }
-      return true;
-    } finally {
-      source.seek(originalPosition);
+    final version = parseHeader(marker, defaultVersion: defaultVersion);
+    if (version == null) {
+      return false;
     }
+    _documentVersion = version;
+    return true;
   }
 
   void _checkPages(COSDictionary rootDictionary) {

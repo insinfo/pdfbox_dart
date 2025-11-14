@@ -105,6 +105,33 @@ class PDPageContentStream {
     _write('${_formatLiteralString(text)} Tj\n');
   }
 
+  /// Shows text with individual glyph positioning adjustments using the `TJ`
+  /// operator. The [elements] sequence may contain `String` instances for
+  /// literal text segments or numeric values representing glyph displacements
+  /// in text space units.
+  void showTextWithPositioning(Iterable<Object?> elements) {
+    _ensureOpen();
+    final buffer = StringBuffer('[');
+    var first = true;
+    for (final element in elements) {
+      if (!first) {
+        buffer.write(' ');
+      }
+      first = false;
+      if (element is String) {
+        buffer.write(_formatLiteralString(element));
+      } else if (element is num) {
+        buffer.write(_formatNumber(element));
+      } else {
+        throw ArgumentError(
+          'Unsupported TJ element ${element.runtimeType}; expected String or num.',
+        );
+      }
+    }
+    buffer.write('] TJ\n');
+    _write(buffer.toString());
+  }
+
   void showTextLines(Iterable<String> lines) {
     var first = true;
     for (final line in lines) {
@@ -113,6 +140,42 @@ class PDPageContentStream {
       }
       showText(line);
       first = false;
+    }
+  }
+
+  /// Sets the text leading automatically based on the [fontSize] and an
+  /// optional scaling [factor] (default 1.2).
+  void setAutoLeading(double fontSize, {double factor = 1.2}) {
+    if (fontSize <= 0) {
+      throw ArgumentError.value(fontSize, 'fontSize', 'must be positive');
+    }
+    if (factor <= 0) {
+      throw ArgumentError.value(factor, 'factor', 'must be positive');
+    }
+    setLeading(fontSize * factor);
+  }
+
+  /// Writes a paragraph by emitting each line in [text] and advancing the text
+  /// position between lines. Line endings are normalised to LF. By default a
+  /// trailing line break is appended via [trailingLineBreaks].
+  void showParagraph(String text, {int trailingLineBreaks = 1}) {
+    if (trailingLineBreaks < 0) {
+      throw ArgumentError.value(
+        trailingLineBreaks,
+        'trailingLineBreaks',
+        'must be >= 0',
+      );
+    }
+    _ensureOpen();
+    final lines = _splitParagraphLines(text);
+    for (var index = 0; index < lines.length; index++) {
+      if (index > 0) {
+        newLine();
+      }
+      showText(lines[index]);
+    }
+    for (var i = 0; i < trailingLineBreaks; i++) {
+      newLine();
     }
   }
 
@@ -141,6 +204,31 @@ class PDPageContentStream {
         '${_formatNumber(height)} re\n');
   }
 
+  /// Appends a cubic Bézier curve (`c` operator) defined by two control points
+  /// and an end point.
+  void curveTo(double x1, double y1, double x2, double y2, double x3, double y3) {
+    _ensureOpen();
+    _write('${_formatNumber(x1)} ${_formatNumber(y1)} '
+        '${_formatNumber(x2)} ${_formatNumber(y2)} '
+        '${_formatNumber(x3)} ${_formatNumber(y3)} c\n');
+  }
+
+  /// Appends a cubic Bézier curve (`v` operator) sharing the initial control
+  /// point with the current point.
+  void curveToV(double x2, double y2, double x3, double y3) {
+    _ensureOpen();
+    _write('${_formatNumber(x2)} ${_formatNumber(y2)} '
+        '${_formatNumber(x3)} ${_formatNumber(y3)} v\n');
+  }
+
+  /// Appends a cubic Bézier curve (`y` operator) reusing the second control
+  /// point as the end point.
+  void curveToY(double x1, double y1, double x3, double y3) {
+    _ensureOpen();
+    _write('${_formatNumber(x1)} ${_formatNumber(y1)} '
+        '${_formatNumber(x3)} ${_formatNumber(y3)} y\n');
+  }
+
   void closePath() => _writeOperator('h');
 
   void stroke() => _writeOperator('S');
@@ -151,6 +239,26 @@ class PDPageContentStream {
 
   void closeAndStroke() => _writeOperator('s');
 
+  /// Applies the supplied transformation matrix using the `cm` operator.
+  void transform(double a, double b, double c, double d, double e, double f) {
+    _ensureOpen();
+    _write('${_formatNumber(a)} ${_formatNumber(b)} ${_formatNumber(c)} '
+        '${_formatNumber(d)} ${_formatNumber(e)} ${_formatNumber(f)} cm\n');
+  }
+
+  /// Draws an image XObject previously registered in the page resources.
+  void drawImage(COSName name) {
+    _ensureOpen();
+    _write('/${name.name} Do\n');
+  }
+
+  List<String> _splitParagraphLines(String text) {
+    if (text.isEmpty) {
+      return const <String>[];
+    }
+    final normalised = text.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
+    return normalised.split('\n');
+  }
   void setStrokingColorRgb(double r, double g, double b) {
     _ensureOpen();
     _write('${_formatNumber(r)} ${_formatNumber(g)} ${_formatNumber(b)} RG\n');

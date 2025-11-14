@@ -79,6 +79,35 @@ class XrefParser {
               'Expected trailer after xref table at offset $prev');
         }
         trailer = xrefTrailerResolver.currentTrailer;
+        final xrefStmOffset = trailer?.getInt(COSName.xrefStm);
+        if (xrefStmOffset != null) {
+          var streamOffset = xrefStmOffset;
+          final fixedStreamOffset = checkXRefOffset(streamOffset);
+          if (fixedStreamOffset > -1 && fixedStreamOffset != streamOffset) {
+            _logger.warning(
+              '/XRefStm offset $streamOffset is incorrect, corrected to $fixedStreamOffset',
+            );
+            streamOffset = fixedStreamOffset;
+            trailer?.setInt(COSName.xrefStm, streamOffset);
+          }
+          if (streamOffset > 0) {
+            source.seek(streamOffset);
+            parser.skipSpaces();
+            try {
+              parseXrefObjStream(prev, false);
+              document.markHybridXRef();
+            } on IOException catch (exception) {
+              _logger.severe(
+                'Failed to parse /XRefStm at offset $streamOffset',
+                exception,
+              );
+            }
+          } else {
+            _logger.severe(
+              'Skipped XRef stream due to a corrupt offset: $streamOffset',
+            );
+          }
+        }
         if (trailer == null) {
           throw IOException('Missing trailer after xref table');
         }
@@ -114,6 +143,9 @@ class XrefParser {
     final resolvedTable = xrefTrailerResolver.xrefTable;
     if (resolvedTable != null) {
       document.addXRefTable(resolvedTable);
+    }
+    if (!document.isXRefStream && resolvedTable?.values.any((value) => value < 0) == true) {
+      document.markHybridXRef();
     }
     final keys = document.xrefTable.keys;
     var maxObject = 0;

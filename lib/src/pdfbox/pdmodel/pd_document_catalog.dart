@@ -10,6 +10,7 @@ import 'interactive/viewerpreferences/pd_viewer_preferences.dart';
 import 'page_layout.dart';
 import 'page_mode.dart';
 import 'pd_page_tree.dart';
+import 'pd_document_name_dictionary.dart';
 
 /// Represents the document catalog (/Root) dictionary.
 class PDDocumentCatalog {
@@ -24,6 +25,7 @@ class PDDocumentCatalog {
   PDOptionalContentProperties? _optionalContentProperties;
   PDPageLabels? _pageLabels;
   PDViewerPreferences? _viewerPreferences;
+  PDDocumentNameDictionary? _names;
 
   COSDictionary get cosObject => _dictionary;
 
@@ -118,6 +120,29 @@ class PDDocumentCatalog {
     } else {
       _dictionary[COSName.viewerPreferences] = preferences.cosObject;
     }
+  }
+
+  /// Returns the document level `/Names` dictionary, creating it on demand.
+  PDDocumentNameDictionary get names {
+    final current = _names;
+    if (current != null) {
+      return current;
+    }
+    final dict = _dictionary.getCOSDictionary(COSName.names);
+    final created = PDDocumentNameDictionary(_dictionary, dict);
+    _names = created;
+    return created;
+  }
+
+  set names(PDDocumentNameDictionary? value) {
+    if (value == null) {
+      _names = null;
+      _dictionary.removeItem(COSName.names);
+      return;
+    }
+    final wrapped = PDDocumentNameDictionary(_dictionary, value.cosObject);
+    _names = wrapped;
+    _dictionary[COSName.names] = wrapped.cosObject;
   }
 
   /// Returns the page layout preference for the document.

@@ -3,26 +3,45 @@ Foque na parte de criação e edição e assinatura de PDFs a parte de renderiza
 os arquivos originais em java  estão aqui C:\MyDartProjects\pdfbox_dart\pdfbox-java\pdfbox\src para ir portando
 
 vai portando e atualizando este roteiro
-sempre coloque um comentario TODO para coisas portadas imcompletas ou minimamente portado 
+sempre coloque um comentario TODO no codigo para coisas portadas imcompletas ou minimamente portado 
 io ja esta implementado em C:\MyDartProjects\pdfbox_dart\lib\src\io
 fontbox ja esta implementado em C:\MyDartProjects\pdfbox_dart\lib\src\fontbox
 
 ## Pendencias atuais (2025-11-13)
 
+A maior parte do trabalho de portabilidade restante já está documentada em roteiro.md; aqui está um resumo para manter o foco:
+
+pdfparser: Concluir a paridade portando PDFParser, FDFParser e os auxiliares de xref/stream restantes (PDFXRefStream, caminhos de tratamento de corrupção), e expandir os testes em torno de tabelas XRef danificadas e atualizações incrementais.
+
+pdfwriter: Atualizar o COSWriter para paridade de recursos — salvamento/assinatura incremental (incrementalUpdate, assinaturas externas), hooks de criptografia, XRef híbrido, negociação de cabeçalho/versão e os fluxos alternativos de compressão de fluxo de objetos do lado Java.
+
+pdmodel: Grandes partes ainda estão faltando — criptografia, FDF, anotações, formulários, conteúdo opcional, navegação, impressão, correções, infraestrutura de árvore de nomes e wrappers avançados de fluxo de conteúdo (PDAbstractContentStream, padrões de mosaico, auxiliares de cache, etc.).
+
+Fluxo de Conteúdo e Texto: É necessário que os processadores de operador (PDFStreamEngine, árvore OperatorProcessor) e APIs de texto de nível superior (por exemplo, PDFTextStripper) interpretem/exibam o conteúdo em vez de apenas escrevê-lo.
+
+Gráficos e Recursos: Amplie os espaços de cores, o tratamento de XObject, as imagens, os padrões e o cache de recursos para que o PDResources espelhe o comportamento do Java.
+Filtros e Imagens: Implemente os decodificadores pendentes (JPXDecode, CCITTFax) e finalize as opções do DCTDecode, como a preservação de CMYK/YCCK bruto.
+
+Fontes e Subconjuntos: O caminho TrueType/CID está bem encaminhado; o trabalho restante envolve os casos extremos de CFF/Type 0, métricas verticais, atualizações incrementais de fontes e qualquer lógica de incorporação do lado Java que ainda não tenha sido replicada.
+
+Assinaturas e Segurança: Você já possui os componentes básicos; os próximos passos são a integração de manipuladores de segurança, permissões (aplicação de MDP/seed) e fluxos de assinatura incremental de ponta a ponta com testes.
+Utilitários de Alto Nível: Mesclar/dividir (multipdf), árvores de estrutura/PDF com tags, dicionários de estrutura lógica, preferências do visualizador e auxiliares de catálogo de documentos ainda precisam de equivalentes em Dart.
+Testes e Ferramentas: Continuar a portar os conjuntos de testes Java juntamente com cada módulo, adicionar PDFs de teste para casos extremos (especialmente arquivos incrementais corrompidos) e manter o `dart analyze` como o ponto de controle.
+Próximos passos naturais: (1) escolher um módulo das listas de tarefas pendentes — o salvamento incremental do `pdfwriter` ou o carregador completo de documentos do `pdfparser` são os mais relevantes — e mapear as classes Java para stubs em Dart; (2) portar os testes Java correspondentes para que as regressões permaneçam visíveis.
+
 ### pdfparser
 - Status: Dart possui `base_parser.dart`, `cos_parser.dart` e `parsed_stream.dart` em `lib/src/pdfbox/pdfparser/`, com testes em `test/pdfbox/pdfparser/` cobrindo objetos, streams e xref.
 - `BruteForceParser`, `EndstreamFilterStream`, `PDFObjectStreamParser` e `PDFStreamParser` já foram portada/os para `lib/src/pdfbox/pdfparser/`, com testes exercitando cenários de brute force e conteúdo em `test/pdfbox/pdfparser/brute_force_parser_test.dart`, `test/pdfbox/pdmodel/pd_page_parser_test.dart` e `test/pdfbox/pdmodel/graphics/pd_form_xobject_test.dart`.
-- TODO portar `FDFParser.java` (suporte a formularios FDF).
-- TODO portar `PDFParser.java` (orquestrador de `load` completo com integracao a `PDDocument`).
-- TODO portar `PDFXRefStream.java` e finalizar integrações. `PDFXrefStreamParser` (`lib/src/pdfbox/pdfparser/pdf_xref_stream_parser.dart`), `PDFObjectStreamParser` (`lib/src/pdfbox/pdfparser/pdf_object_stream_parser.dart`) e `XrefParser` (`lib/src/pdfbox/pdfparser/xref_parser.dart`) já possuem primeiras versões em Dart. `COSParser.parseDocument()` agora consome o novo pipeline e hidrata objetos comprimidos, mas ainda faltam `BruteForceParser`, suporte completo a cenários corrompidos (object streams aninhados, índices duplicados) e suite de testes cobrindo xref streams/tabelas danificadas.
+- `FDFParser` portado para `lib/src/pdfbox/pdfparser/fdf_parser.dart`, reutilizando a descoberta de cabeçalho comum via `COSParser.parseHeader()` e validado por `test/pdfbox/pdfparser/fdf_parser_test.dart` com um fluxo mínimo de FDF carregável.
+- `PDFParser` mantém a integração com `PDDocument` e agora delega a detecção de cabeçalho ao `COSParser`; TODO: alinhar os caminhos de criptografia, permissões e salvamento incremental (`parse` ainda não injeta `PDEncryption`).
+- `PDFXRefStream` possui contraparte em `lib/src/pdfbox/pdfparser/pdf_xref_stream.dart` e já alimenta o caminho de xref comprimido do `COSWriter` tanto em gravações completas quanto incrementais; detecção de XRef híbrido portada (`COSParser` agora marca `COSDocument.hasHybridXRef` ao seguir `/XRefStm`); geração do dicionário híbrido (tabela + stream) implementada no fluxo incremental do `COSWriter`; TODO: ampliar testes de salvamento incremental/corrupção.
 - TODO revisar `COSParser` restante (falta suporte a atualizacao incremental, xref stream, permissao de corrupcao leniente como no Java).
-- Faltam 12 arquivos na raiz para alinhar com o Java (`pdfbox-java/.../pdfparser`).
 
 ### pdfwriter
 - Status: Diretório `lib/src/pdfbox/pdfwriter/` cobre `cos_writer.dart`, `cos_standard_output_stream.dart`, `content_stream_writer.dart`, `pdf_save_options.dart` e o subpacote `compress/` (`compress_parameters.dart`, `cos_object_pool.dart`, `cos_writer_compression_pool.dart`, `cos_writer_object_stream.dart`). Os testes em `test/pdfbox/pdmodel/pd_document_test.dart` exercitam salvar com tabelas xref clássicas, compressão Flate e object streams.
-- TODO alinhar `COSWriter` aos recursos avançados do Java: salvar incremental (`incrementalUpdate`), assinatura embutida (`SignatureInterface`, cálculo de `ByteRange` em modo incremental), criptografia (`willEncrypt`, integração com `SecurityHandler`) e geração híbrida (`hasHybridXRef`). Esses fluxos ainda não possuem contrapartida em Dart.
-- TODO implementar o suporte completo a cabeçalhos dinâmicos: escolher versão PDF conforme compressão (`document.setVersion`), persistir `/XRefStm`/`/Prev` quando pertinente e restaurar `COSDictionary` temporariamente marcado como direto (equivalente aos ajustes em XObjects/Resources da versão Java).
-- TODO adicionar serialização dedicada para streams marcados como diretos (inline) que aparecem fora do catálogo, garantindo que `COSWriter` promova esses casos para objetos indiretos antes da escrita quando necessário (respeitando `COSBase.isDirect`).
+- TODO alinhar `COSWriter` aos recursos avançados do Java: salvar incremental (`incrementalUpdate`), assinatura embutida (`SignatureInterface`, cálculo de `ByteRange` em modo incremental) e criptografia (`willEncrypt`, integração com `SecurityHandler`). Os caminhos de xref comprimido e híbrido (tabela + stream via `/XRefStm`) já reutilizam `PDFXRefStream` tanto em gravações completas quanto incrementais. Esses fluxos ainda não possuem contrapartida completa em Dart.
+- Suporte a cabeçalhos dinâmicos implementado: `PDDocument.version` alimenta o cabeçalho `%PDF-x.y`, o `COSWriter` mantém `/Prev`/`/XRefStm`, eleva a versão automaticamente para 1.5 quando object streams estão ativos e restaura dicionários marcados como diretos após a serialização (espelhando os ajustes de XObjects/Resources do Java).
+- Streams marcados como diretos (inline) que aparecem fora do catálogo agora são promovidos automaticamente para objetos indiretos antes da serialização, preservando `COSBase.isDirect` após a escrita para manter a paridade com o comportamento Java.
 - TODO portar os caminhos de escrita alternativos existentes no Java (`doWriteBodyCompressed` com `COSWriterCompressionPool`, `write` para `COSDocument` puro e `writeExternalSignature`). Hoje o Dart só cobre o fluxo simplificado `writeDocument(PDDocument)`.
 
 ### pdmodel
@@ -30,7 +49,15 @@ fontbox ja esta implementado em C:\MyDartProjects\pdfbox_dart\lib\src\fontbox
 - `PDStream` agora implementa `PDContentStream`, `PDPage` oferece `parseContentStreamTokens()` e `PDFormXObject` (junto com o esqueleto de `PDXObject`) foi portado com suporte a bbox, matriz e recursos. Novos testes em `test/pdfbox/pdmodel/pd_page_parser_test.dart` e `test/pdfbox/pdmodel/graphics/pd_form_xobject_test.dart` validam a integração do `PDFStreamParser` com streams de página e XObjects.
 - `PDResources` compartilha um `ResourceCache` com `PDDocument`, `PDImageXObject`, `PDFormXObject`, `PDShading`, padrões (`/Pattern`) e listas de propriedades (`/Properties`). `PDResources.getXObject/getShading/getPattern/getPropertyList` agora reutilizam wrappers via cache, incluindo reconhecimento de XObjects `/PS`. Testes em `test/pdfbox/pdmodel/graphics/pd_image_xobject_test.dart` cobrem imagens, padrões, propriedades opcionais e propagação do cache.
 - TODO portar pacotes ausentes em Dart: `encryption/`, `fdf/`, `fixup/`, `documentinterchange/*` (logicalstructure, tagged PDF, mark info), `interactive/action`, `interactive/annotation`, `interactive/form`, `interactive/measurement`, `interactive/optionalcontent` (restante), `interactive/pagenavigation`, `interactive/documentnavigation/*`, `interactive/printing`, `interactive/viewerpreferences` (complementar com preferencias faltantes), `interactive/transition`, alem dos caches (`DefaultResourceCache`, `ResourceCache`, `ResourceCacheFactory`, `ResourceCacheCreateFunction`).
-- TODO portar classes de alto nivel ainda inexistentes: `PDAbstractContentStream`, `PDAppearanceContentStream`, `PDFormContentStream`, `PDPatternContentStream`, `PDDocumentNameDictionary`, `PDDestinationNameTreeNode`, `PDEmbeddedFilesNameTreeNode`, `PDJavascriptNameTreeNode`, `PDStructureElementNameTreeNode`, `PDDocumentNameDestinationDictionary`, `PDOutputIntent`, `PDMarkInfo`, `PDStructureTreeRoot`.
+- `PDDocumentNameDictionary`: agora retorna name trees tipados (`PDDestinationNameTreeNode`, `PDEmbeddedFilesNameTreeNode`, `PDJavascriptNameTreeNode`) com cache e fallback para `/Dests` no catálogo.
+- `PDDestinationNameTreeNode`, `PDEmbeddedFilesNameTreeNode` e `PDJavascriptNameTreeNode`: usam wrappers provisórios (`PDDestination`, `PDFileSpecification`, `PDActionJavaScript`) mantendo os `COSDictionary` originais acessíveis; TODO expandir para hierarquias completas (destinos de página, `PDComplexFileSpecification` com `PDEmbeddedFile`, `PDAction` especializada).
+- `PDDestinationNameTreeNode`, `PDEmbeddedFilesNameTreeNode` e `PDJavascriptNameTreeNode`: agora convertem entradas diretamente para wrappers tipados (`PDPageDestination` para arrays, `PDComplexFileSpecification`, `PDAction*`).
+- `PDDestination` reorganizado com subclasses `PDExplicitDestination` e `PDNamedDestination`, cobertura em `test/pdfbox/pdmodel/common/pd_destination_test.dart`; `PDActionGoTo` adicionado para ações internas e integrado ao pipeline de name trees.
+- `PDComplexFileSpecification` agora expõe getters/setters para nomes multiplataforma, volatilidade, descrição e arquivos incorporados (`PDEmbeddedFile`), com suporte a múltiplas variações (F/UF/DOS/Mac/Unix); `PDEmbeddedFile` encapsula o stream, parâmetros (`/Params`) e metadados Mac, com testes em `test/pdfbox/pdmodel/common/pd_embedded_file_test.dart` e asserts adicionais em `pd_document_catalog_test.dart`.
+- `PDFileSpecification`/`PDComplexFileSpecification` e `PDActionJavaScript`: wrappers mínimos seguem disponíveis; TODO avançar com `PDEmbeddedFile` richer params (stream filters, compression hints) e demais ações (`PDActionRemoteGoTo`, `PDActionLaunch`, etc.).
+- `PDPageDestination` (`pd_page_destination.dart`) porta as variantes XYZ/Fit/FitR incluindo acesso às coordenadas/zoom; `PDDestination.fromCOS` e os name trees agora retornam essas subclasses. Testes adicionados em `test/pdfbox/pdmodel/common/pd_destination_test.dart` e atualizações no catálogo.
+- `PDActionFactory` centraliza o mapeamento de `/S` → wrapper e inclui novos wrappers (`PDActionURI`, `PDActionNamed`, `PDActionUnknown`) além de conveniências para nomes de destino/string em `PDActionGoTo`/`PDActionRemoteGoTo` e leitura de scripts via stream em `PDActionJavaScript`. Novos testes em `test/pdfbox/pdmodel/interactive/pd_action_test.dart`.
+- TODO portar classes de alto nivel ainda inexistentes: `PDAbstractContentStream`, `PDAppearanceContentStream`, `PDFormContentStream`, `PDPatternContentStream`, `PDStructureElementNameTreeNode`, `PDDocumentNameDestinationDictionary`, `PDOutputIntent`, `PDMarkInfo`, `PDStructureTreeRoot`.
 - TODO revisar `common/` para incluir wrappers faltantes (`COSArrayList`, `PDNumberTreeNode` ja ok; falta `PDPageLabels` provider especiais, `PDPageTreeNode`, `COSStreamArray` etc.).
 - TODO suportar padrões do tipo tiling (`/PatternType 1`) e completar wrappers de pattern/PS com operadores específicos (atualmente `PDUnknownPattern` apenas sinaliza ausência de suporte).
 - TODO documentar no roteiro os testes correspondentes que ainda nao existem para esses modulos `pdmodel`.
@@ -104,7 +131,7 @@ Status Dart: módulo `lib/src/pdfbox/pdmodel/` agora inclui `pd_document.dart`, 
 Próximos passos focados em criação de PDF:
 - `PDType0Font.embedTrueTypeFont` já está integrado ao `PDCIDFontType2Embedder`, incluindo geração de `ToUnicode`, `CIDSet`, `CIDToGIDMap` e suporte a métricas verticais (`Identity-V`, `WMode`, `DW2`/`W2`) quando disponíveis, além de incorporar tanto subsets determinísticos quanto a fonte completa (`embedSubset = false`) com `CIDToGIDMap` Identity.
 - `PDType0Font.fromTrueTypeFile` e `PDType0Font.fromTrueTypeData` encapsulam o parser `TtfParser` para arquivos, bytes em memória e coleções (`collectionIndex`/`collectionFontName`), preservando o fechamento dos recursos; TODO: suportar fontes TrueType com atualizações incrementais.
-- Implementar `PDPageContentStream` avançado: operações de layout de texto (leading automático, parágrafos, `showTextWithPositioning`), curvas Bézier (c, v, y), imagens (`Do`) e transformação de matriz (`cm`).
+- Implementar `PDPageContentStream` avançado: operações de layout de texto orientadas a parágrafo completo (quebra automática/word wrapping). As conveniências de leading automático, parágrafos explícitos, `showTextWithPositioning` (`TJ`), curvas Bézier (`c`, `v`, `y`), transformação de matriz (`cm`) e desenho de imagens (`Do`) já estão disponíveis na camada Dart.
 - Expandir `PDResources` para abranger XObjects, color spaces e padrões assim que os respectivos módulos forem portados.
 - Adicionar utilitários de alto nível igual a versão java (helpers de página) para criar rapidamente documentos com cabeçalhos, rodapés, múltiplas colunas e suporte a templates.
 

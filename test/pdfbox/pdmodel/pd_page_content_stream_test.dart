@@ -136,6 +136,107 @@ void main() {
       );
     });
 
+        test('emits TJ operator with positioning array', () {
+          final document = PDDocument();
+          final page = PDPage();
+          document.addPage(page);
+
+          final fontResource = COSName.get('F1');
+          final stream = PDPageContentStream(document, page);
+          stream.resources.registerStandard14Font(fontResource, 'Helvetica');
+
+          stream.beginText();
+          stream.setFont(fontResource, 11);
+          stream.showTextWithPositioning(['Hello', -120, 'World']);
+          stream.endText();
+          stream.close();
+
+          final data = page.contentStreams.single.encodedBytes;
+          expect(data, isNotNull);
+          expect(
+            latin1.decode(data!),
+            'BT\n/F1 11 Tf\n[(Hello) -120 (World)] TJ\nET\n',
+          );
+        });
+
+        test('writes Bézier curve operators', () {
+          final document = PDDocument();
+          final page = PDPage();
+          document.addPage(page);
+
+          final stream = PDPageContentStream(document, page);
+          stream.moveTo(0, 0);
+          stream.curveTo(10, 10, 20, 20, 30, 30);
+          stream.curveToV(40, 40, 50, 50);
+          stream.curveToY(60, 60, 70, 70);
+          stream.stroke();
+          stream.close();
+
+          final data = page.contentStreams.single.encodedBytes;
+          expect(data, isNotNull);
+          expect(
+            latin1.decode(data!),
+            '0 0 m\n'
+            '10 10 20 20 30 30 c\n'
+            '40 40 50 50 v\n'
+            '60 60 70 70 y\n'
+            'S\n',
+          );
+        });
+
+        test('setAutoLeading applies factor to font size', () {
+          final document = PDDocument();
+          final page = PDPage();
+          document.addPage(page);
+
+          final stream = PDPageContentStream(document, page);
+          stream.setAutoLeading(12);
+          stream.close();
+
+          final data = page.contentStreams.single.encodedBytes;
+          expect(data, isNotNull);
+          expect(latin1.decode(data!), '14.4 TL\n');
+        });
+
+        test('showParagraph emits lines with trailing breaks', () {
+          final document = PDDocument();
+          final page = PDPage();
+          document.addPage(page);
+
+          final stream = PDPageContentStream(document, page);
+          stream.beginText();
+          stream.setLeading(14);
+          stream.showParagraph('First line\nSecond line', trailingLineBreaks: 2);
+          stream.endText();
+          stream.close();
+
+          final data = page.contentStreams.single.encodedBytes;
+          expect(data, isNotNull);
+          expect(
+            latin1.decode(data!),
+            'BT\n14 TL\n(First line) Tj\nT*\n(Second line) Tj\nT*\nT*\nET\n',
+          );
+        });
+
+        test('writes cm transform and Do image operators', () {
+          final document = PDDocument();
+          final page = PDPage();
+          document.addPage(page);
+
+          final imageName = COSName.get('Im1');
+          final stream = PDPageContentStream(document, page);
+          stream.transform(1, 0, 0, 1, 10, 20);
+          stream.drawImage(imageName);
+          stream.close();
+
+          final data = page.contentStreams.single.encodedBytes;
+          expect(data, isNotNull);
+          expect(
+            latin1.decode(data!),
+            '1 0 0 1 10 20 cm\n/Im1 Do\n',
+          );
+        });
+
     test('append mode with no content leaves page unchanged', () {
       final document = PDDocument();
       final page = PDPage();

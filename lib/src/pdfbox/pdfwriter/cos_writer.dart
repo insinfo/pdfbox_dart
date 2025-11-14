@@ -1,3 +1,4 @@
+import 'dart:collection';
 import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
@@ -22,6 +23,7 @@ import '../cos/cos_stream.dart';
 import '../cos/cos_string.dart';
 import '../pdmodel/pd_document.dart';
 import '../filter/flate_filter.dart';
+import '../pdfparser/pdf_xref_stream.dart';
 import '../pdfparser/xref/free_x_reference.dart';
 import '../pdfparser/xref/normal_x_reference.dart';
 import '../pdfparser/xref/object_stream_x_reference.dart';
@@ -38,7 +40,6 @@ class COSWriter {
   COSWriter(this._target, this._options)
       : _output = COSStandardOutputStream(_target);
 
-  static final Uint8List _pdfHeader = Uint8List.fromList('%PDF-1.7\n'.codeUnits);
   static final Uint8List _binaryHeader =
       Uint8List.fromList(latin1.encode('%\u00e2\u00e3\u00cf\u00d3\n'));
   static const FlateFilter _flateFilter = FlateFilter();
@@ -50,6 +51,8 @@ class COSWriter {
   final List<NormalXReference> _normalReferences = <NormalXReference>[];
   final List<ObjectStreamXReference> _objectStreamReferences =
       <ObjectStreamXReference>[];
+    final Map<COSBase, bool> _directStateOverrides =
+      LinkedHashMap<COSBase, bool>.identity();
 
   int _highestObjectNumber = 0;
   COSDocument? _activeCOSDocument;
@@ -65,6 +68,7 @@ class COSWriter {
     final trailer = cosDocument.trailer;
     _activeCOSDocument = cosDocument;
     cosDocument.xrefTable.clear();
+    _promoteInlineStreams(cosDocument);
 
     try {
       final Map<COSObjectKey, COSBase> documentObjects =
@@ -129,6 +133,7 @@ class COSWriter {
       _clearUpdateStates(cosDocument);
     } finally {
       _activeCOSDocument = null;
+      _restoreDirectStates();
     }
   }
 
@@ -139,6 +144,7 @@ class COSWriter {
 
     final cosDocument = document.cosDocument;
     final trailer = cosDocument.trailer;
+    _promoteInlineStreams(cosDocument);
     _highestObjectNumber = cosDocument.highestXRefObjectNumber;
     _activeCOSDocument = cosDocument;
 
@@ -169,7 +175,6 @@ class COSWriter {
 
       final previousStartXref =
           _options.previousStartXref ?? cosDocument.startXref;
-      cosDocument.isXRefStream = false;
       final startXref = _writeIncrementalXrefSection(
         document,
         trailer,
@@ -179,6 +184,7 @@ class COSWriter {
       _clearUpdateStates(cosDocument);
     } finally {
       _activeCOSDocument = null;
+      _restoreDirectStates();
     }
   }
 
@@ -190,7 +196,8 @@ class COSWriter {
     if (_target is! RandomAccessReadWriteBuffer) {
       throw StateError('prepareIncrementalSigning requires a RandomAccessReadWriteBuffer target');
     }
-    final buffer = _target as RandomAccessReadWriteBuffer;
+
+  final RandomAccessReadWriteBuffer buffer = _target;
     buffer.clear();
 
     _normalReferences.clear();
@@ -198,6 +205,7 @@ class COSWriter {
 
     final cosDocument = document.cosDocument;
     final trailer = cosDocument.trailer;
+  _promoteInlineStreams(cosDocument);
     _highestObjectNumber = cosDocument.highestXRefObjectNumber;
     _activeCOSDocument = cosDocument;
     final originalLength = original.length;
@@ -226,7 +234,6 @@ class COSWriter {
 
       final previousStartXref =
           _options.previousStartXref ?? cosDocument.startXref;
-      cosDocument.isXRefStream = false;
       final startXref = _writeIncrementalXrefSection(
         document,
         trailer,
@@ -237,6 +244,7 @@ class COSWriter {
     } finally {
       _activeCOSDocument = null;
       _signatureTracking = null;
+      _restoreDirectStates();
     }
 
     final incrementalBytes = _collectIncrementBytes(buffer);
@@ -335,7 +343,15 @@ class COSWriter {
   }
 
   void _writeHeader() {
-    _output.writeBytes(_pdfHeader);
+    final cosDocument = _activeCOSDocument;
+    var version = cosDocument?.headerVersion ?? '1.7';
+    if (_options.objectStreamCompression?.isCompress ?? false) {
+      version = _ensureMinimumHeaderVersion(version, '1.5');
+      if (cosDocument != null) {
+        cosDocument.headerVersion = version;
+      }
+    }
+    _writeAscii('%PDF-$version\n');
     if (_options.includeBinaryHeader) {
       _output.writeBytes(_binaryHeader);
     }
@@ -345,6 +361,7 @@ class COSWriter {
     final offset = _output.position;
     final key = object.key;
     final base = object.base;
+    _temporarilyClearDirectFlag(base);
 
     _normalReferences.add(NormalXReference(offset, key, base));
     final cosDocument = _activeCOSDocument;
@@ -578,51 +595,41 @@ class COSWriter {
   void _writeCompressedXrefSection(COSDictionary trailer) {
     final xrefOffset = _output.position;
     final xrefKey = COSObjectKey(_highestObjectNumber + 1, 0);
-  _highestObjectNumber = xrefKey.objectNumber;
+    _highestObjectNumber = xrefKey.objectNumber;
 
     final entries = <XReferenceEntry>[FreeXReference.nullEntry]
       ..addAll(_normalReferences)
       ..addAll(_objectStreamReferences)
-      ..add(NormalXReference(xrefOffset, xrefKey, COSNull.instance));
-
-    entries.sort();
+      ..add(NormalXReference(xrefOffset, xrefKey, COSNull.instance))
+      ..sort();
 
     final size = _calculateCompressedSize(entries);
-    final wArray = _computeFieldWidths(entries);
-    final indexArray = _computeIndexArray(entries);
-    final data = _buildXrefStreamData(entries, wArray);
-
-    final xrefStream = COSStream();
-    xrefStream.key = xrefKey;
-    xrefStream.setItem(COSName.type, COSName.get('XRef'));
-    xrefStream.setInt(COSName.size, size);
-    xrefStream.setItem(COSName.w, _toCOSIntegerArray(wArray));
-    xrefStream.setItem(COSName.index, _toCOSIntegerArray(indexArray));
-
-    final rootEntry = trailer[COSName.root];
-    if (rootEntry != null) {
-      xrefStream.setItem(COSName.root, rootEntry);
-    }
-    final infoEntry = trailer[COSName.info];
-    if (infoEntry != null) {
-      xrefStream.setItem(COSName.info, infoEntry);
-    }
     final prevOffset =
-  _options.previousStartXref ?? _intFrom(trailer.getDictionaryObject(COSName.prev));
-    if (prevOffset != null) {
-      xrefStream.setInt(COSName.prev, prevOffset);
-    }
-
+        _options.previousStartXref ?? _intFrom(trailer.getDictionaryObject(COSName.prev));
     final idArray = _resolveDocumentId(trailer);
+
+    final builder = PDFXRefStream()
+      ..setSize(size)
+      ..addTrailerInfo(trailer);
+
     if (idArray != null && idArray.isNotEmpty) {
       final id = COSArray();
       for (final bytes in idArray) {
         id.addObject(COSString.fromBytes(bytes, isHex: true));
       }
-      xrefStream[COSName.id] = id;
+      builder.stream.setItem(COSName.id, id);
     }
 
-    xrefStream.data = data;
+    for (final entry in entries) {
+      builder.addEntry(entry);
+    }
+
+    final xrefStream = builder.build();
+    xrefStream.key = xrefKey;
+
+    if (prevOffset != null) {
+      xrefStream.setInt(COSName.prev, prevOffset);
+    }
 
     _writeIndirectObject(_IndirectObject(xrefKey, xrefStream));
 
@@ -685,14 +692,48 @@ class COSWriter {
     int? previousStartXref,
   ) {
     final cosDocument = document.cosDocument;
+    if (!cosDocument.isXRefStream) {
+      cosDocument.hasHybridXRef = false;
+      cosDocument.isXRefStream = false;
+      return _writeIncrementalXrefTable(
+        document,
+        trailer,
+        previousStartXref,
+      );
+    }
+    if (cosDocument.hasHybridXRef) {
+      return _writeIncrementalHybridXref(
+        document,
+        trailer,
+        previousStartXref,
+      );
+    }
+    return _writeIncrementalXrefStream(
+      document,
+      trailer,
+      previousStartXref,
+    );
+  }
+
+  int _writeIncrementalXrefTable(
+    PDDocument document,
+    COSDictionary trailer,
+    int? previousStartXref, {
+    int? hybridXrefStreamOffset,
+    NormalXReference? hybridXrefEntry,
+  }) {
+    final cosDocument = document.cosDocument;
     final startXref = _output.position;
 
     _writeAscii('xref\n');
     _writeAscii('0 1\n');
     _writeAscii('0000000000 65535 f \n');
 
-    final entries = List<NormalXReference>.from(_normalReferences)
-      ..sort((a, b) => _compareKeys(a.referencedKey, b.referencedKey));
+    final entries = List<NormalXReference>.from(_normalReferences);
+    if (hybridXrefEntry != null) {
+      entries.add(hybridXrefEntry);
+    }
+    entries.sort((a, b) => _compareKeys(a.referencedKey, b.referencedKey));
 
     if (entries.isNotEmpty) {
       var currentStart = entries.first.referencedKey.objectNumber;
@@ -743,7 +784,11 @@ class COSWriter {
     } else {
       trailer.removeItem(COSName.prev);
     }
-    trailer.removeItem(COSName.get('XRefStm'));
+    if (hybridXrefStreamOffset != null) {
+      trailer.setInt(COSName.xrefStm, hybridXrefStreamOffset);
+    } else {
+      trailer.removeItem(COSName.xrefStm);
+    }
 
     final rootRef = _formatReference(trailer[COSName.root]);
     final infoRef = _formatReference(trailer[COSName.info]);
@@ -760,6 +805,9 @@ class COSWriter {
     if (previousStartXref != null) {
       _writeAscii('${COSName.prev} $previousStartXref\n');
     }
+    if (hybridXrefStreamOffset != null) {
+      _writeAscii('${COSName.xrefStm} $hybridXrefStreamOffset\n');
+    }
     if (idArray != null && idArray.isNotEmpty) {
       final formatted = idArray.map(_formatIdHexString).join(' ');
       _writeAscii('${COSName.id} [$formatted]\n');
@@ -769,83 +817,106 @@ class COSWriter {
     return startXref;
   }
 
-  Uint8List _buildXrefStreamData(List<XReferenceEntry> entries, List<int> widths) {
-    final builder = BytesBuilder(copy: false);
-    for (final entry in entries) {
-      _writeNumber(builder, entry.firstColumnValue, widths[0]);
-      _writeNumber(builder, entry.secondColumnValue, widths[1]);
-      _writeNumber(builder, entry.thirdColumnValue, widths[2]);
-    }
-    return builder.toBytes();
+  int _writeIncrementalXrefStream(
+    PDDocument document,
+    COSDictionary trailer,
+    int? previousStartXref,
+  ) {
+    final info = _writeIncrementalXrefStreamObject(
+      document,
+      trailer,
+      previousStartXref,
+    );
+    trailer.removeItem(COSName.xrefStm);
+    final startXref = info.offset;
+    _writeAscii('startxref\n$startXref\n%%EOF\n');
+    return startXref;
   }
 
-  void _writeNumber(BytesBuilder builder, int value, int width) {
-    if (width <= 0) {
-      return;
-    }
-    final buffer = Uint8List(width);
-    var remaining = value;
-    for (var i = width - 1; i >= 0; i--) {
-      buffer[i] = remaining & 0xff;
-      remaining >>= 8;
-    }
-    builder.add(buffer);
+  int _writeIncrementalHybridXref(
+    PDDocument document,
+    COSDictionary trailer,
+    int? previousStartXref,
+  ) {
+    final info = _writeIncrementalXrefStreamObject(
+      document,
+      trailer,
+      previousStartXref,
+    );
+    return _writeIncrementalXrefTable(
+      document,
+      trailer,
+      previousStartXref,
+      hybridXrefStreamOffset: info.offset,
+      hybridXrefEntry: info.selfEntry,
+    );
   }
 
-  List<int> _computeFieldWidths(List<XReferenceEntry> entries) {
-    var maxType = 0;
-    var maxSecond = 0;
-    var maxThird = 0;
+  _XrefStreamInfo _writeIncrementalXrefStreamObject(
+    PDDocument document,
+    COSDictionary trailer,
+    int? previousStartXref,
+  ) {
+    final cosDocument = document.cosDocument;
+    final xrefOffset = _output.position;
+    final xrefKey = COSObjectKey(_highestObjectNumber + 1, 0);
+    _highestObjectNumber = xrefKey.objectNumber;
+
+    final selfEntry = NormalXReference(xrefOffset, xrefKey, COSNull.instance);
+
+    final entries = <XReferenceEntry>[FreeXReference.nullEntry]
+      ..addAll(_normalReferences)
+      ..addAll(_objectStreamReferences)
+      ..add(selfEntry)
+      ..sort();
+
+    final size = _calculateCompressedSize(entries);
+    trailer.setInt(COSName.size, size);
+    if (previousStartXref != null) {
+      trailer.setInt(COSName.prev, previousStartXref);
+    } else {
+      trailer.removeItem(COSName.prev);
+    }
+
+    final builder = PDFXRefStream()
+      ..setSize(size)
+      ..addTrailerInfo(trailer);
+
+    final idArray = _resolveDocumentId(trailer);
+    if (idArray != null && idArray.isNotEmpty) {
+      final id = COSArray();
+      for (final bytes in idArray) {
+        id.addObject(COSString.fromBytes(bytes, isHex: true));
+      }
+      builder.stream.setItem(COSName.id, id);
+    }
+
     for (final entry in entries) {
-      maxType = math.max(maxType, entry.firstColumnValue);
-      maxSecond = math.max(maxSecond, entry.secondColumnValue);
-      maxThird = math.max(maxThird, entry.thirdColumnValue);
-    }
-    return <int>[
-      _bytesForValue(maxType),
-      _bytesForValue(maxSecond),
-      _bytesForValue(maxThird),
-    ];
-  }
-
-  List<int> _computeIndexArray(List<XReferenceEntry> entries) {
-    final result = <int>[];
-    int? start;
-    int? previous;
-    var count = 0;
-
-    for (final entry in entries) {
-      final key = entry.referencedKey;
-      if (key == null) {
-        continue;
-      }
-      final number = key.objectNumber;
-      if (start == null) {
-        start = number;
-        previous = number;
-        count = 1;
-        continue;
-      }
-      if (previous != null && number == previous + 1) {
-        previous = number;
-        count++;
-        continue;
-      }
-      result
-        ..add(start)
-        ..add(count);
-      start = number;
-      previous = number;
-      count = 1;
+      builder.addEntry(entry);
     }
 
-    if (start != null) {
-      result
-        ..add(start)
-        ..add(count);
+    final xrefStream = builder.build();
+    xrefStream.key = xrefKey;
+
+    if (previousStartXref != null) {
+      xrefStream.setInt(COSName.prev, previousStartXref);
+    } else {
+      xrefStream.removeItem(COSName.prev);
     }
 
-    return result;
+    _writeIndirectObject(_IndirectObject(xrefKey, xrefStream));
+
+    cosDocument.highestXRefObjectNumber = math.max(
+      cosDocument.highestXRefObjectNumber,
+      _highestObjectNumber,
+    );
+    cosDocument.isXRefStream = true;
+
+    return _XrefStreamInfo(
+      offset: xrefOffset,
+      key: xrefKey,
+      selfEntry: selfEntry,
+    );
   }
 
   int _calculateClassicSize() {
@@ -867,27 +938,6 @@ class COSWriter {
       max = math.max(max, key.objectNumber);
     }
     return max + 1;
-  }
-
-  COSArray _toCOSIntegerArray(List<int> values) {
-    final array = COSArray();
-    for (final value in values) {
-      array.addObject(COSInteger(value));
-    }
-    return array;
-  }
-
-  int _bytesForValue(int value) {
-    if (value <= 0) {
-      return 1;
-    }
-    var bytes = 0;
-    var current = value;
-    while (current > 0) {
-      current >>= 8;
-      bytes++;
-    }
-    return math.max(bytes, 1);
   }
 
   String? _formatReference(COSBase? base) {
@@ -1062,6 +1112,35 @@ class COSWriter {
     _output.writeBytes(Uint8List.fromList(latin1.encode(value)));
   }
 
+  String _ensureMinimumHeaderVersion(String current, String minimum) {
+    final currentParts = _parseVersionParts(current);
+    final minimumParts = _parseVersionParts(minimum);
+    final comparison = _compareVersionParts(currentParts, minimumParts);
+    if (comparison >= 0) {
+      return current.trim();
+    }
+    return '${minimumParts[0]}.${minimumParts[1]}';
+  }
+
+  List<int> _parseVersionParts(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) {
+      return const <int>[1, 4];
+    }
+    final segments = trimmed.split('.');
+    final major = int.tryParse(segments.first) ?? 1;
+    final minor = segments.length > 1 ? int.tryParse(segments[1]) ?? 0 : 0;
+    return <int>[major, minor];
+  }
+
+  int _compareVersionParts(List<int> a, List<int> b) {
+    final majorComparison = a[0].compareTo(b[0]);
+    if (majorComparison != 0) {
+      return majorComparison;
+    }
+    return a[1].compareTo(b[1]);
+  }
+
   int _compareKeys(COSObjectKey a, COSObjectKey b) {
     final objectComparison = a.objectNumber.compareTo(b.objectNumber);
     if (objectComparison != 0) {
@@ -1074,12 +1153,117 @@ class COSWriter {
     cosDocument.markAllClean();
   }
 
+  void _restoreDirectStates() {
+    if (_directStateOverrides.isEmpty) {
+      return;
+    }
+    _directStateOverrides.forEach((base, original) {
+      base.isDirect = original;
+    });
+    _directStateOverrides.clear();
+  }
+
+  void _promoteInlineStreams(COSDocument cosDocument) {
+    final visited = LinkedHashSet<COSBase>.identity();
+    for (final cosObject in List<COSObject>.from(cosDocument.objects)) {
+      _promoteInlineStreamsRecursive(
+        cosObject.object,
+        cosDocument,
+        visited,
+      );
+    }
+    _promoteInlineStreamsRecursive(cosDocument.trailer, cosDocument, visited);
+  }
+
+  void _promoteInlineStreamsRecursive(
+    COSBase? base,
+    COSDocument cosDocument,
+    Set<COSBase> visited, {
+    COSDictionary? parentDictionary,
+    COSName? dictionaryKey,
+    COSArray? parentArray,
+    int? arrayIndex,
+  }) {
+    if (base == null) {
+      return;
+    }
+    if (base is COSObject) {
+      _promoteInlineStreamsRecursive(
+        base.object,
+        cosDocument,
+        visited,
+        parentDictionary: parentDictionary,
+        dictionaryKey: dictionaryKey,
+        parentArray: parentArray,
+        arrayIndex: arrayIndex,
+      );
+      return;
+    }
+    if (!visited.add(base)) {
+      return;
+    }
+
+    if (base is COSStream && base.key == null) {
+      final promoted = cosDocument.createObject(base);
+      if (parentDictionary != null && dictionaryKey != null) {
+        parentDictionary[dictionaryKey] = promoted;
+      } else if (parentArray != null && arrayIndex != null) {
+        parentArray[arrayIndex] = promoted;
+      }
+    }
+
+    if (base is COSDictionary) {
+      final entries = List<MapEntry<COSName, COSBase>>.from(base.entries);
+      for (final entry in entries) {
+        _promoteInlineStreamsRecursive(
+          entry.value,
+          cosDocument,
+          visited,
+          parentDictionary: base,
+          dictionaryKey: entry.key,
+        );
+      }
+      return;
+    }
+
+    if (base is COSArray) {
+      for (var index = 0; index < base.length; index++) {
+        _promoteInlineStreamsRecursive(
+          base[index],
+          cosDocument,
+          visited,
+          parentArray: base,
+          arrayIndex: index,
+        );
+      }
+    }
+  }
+
+  void _temporarilyClearDirectFlag(COSBase? base) {
+    if (base == null) {
+      return;
+    }
+    if (base is COSObject) {
+      _temporarilyClearDirectFlag(base.object);
+      return;
+    }
+    if (base is! COSDictionary && base is! COSStream && base is! COSArray) {
+      return;
+    }
+    if (!base.isDirect) {
+      return;
+    }
+    _directStateOverrides.putIfAbsent(base, () => true);
+    base.isDirect = false;
+  }
+
   void _promoteDirtyTrailerEntries(COSDocument cosDocument) {
     final trailer = cosDocument.trailer;
     final infoEntry = trailer[COSName.info];
     // Ensure modified trailer dictionaries (e.g., /Info) gain object ids so the
     // incremental section can serialize their updates without rewriting the body.
     if (infoEntry is COSDictionary && infoEntry.needsUpdateDeep()) {
+      _temporarilyClearDirectFlag(infoEntry);
       final promoted = cosDocument.createObject(infoEntry);
       trailer[COSName.info] = promoted;
     }
@@ -1218,6 +1402,18 @@ class _StreamSerialization {
   final Uint8List data;
   final COSBase? originalFilter;
   final bool filterAdded;
+}
+
+class _XrefStreamInfo {
+  const _XrefStreamInfo({
+    required this.offset,
+    required this.key,
+    required this.selfEntry,
+  });
+
+  final int offset;
+  final COSObjectKey key;
+  final NormalXReference selfEntry;
 }
 
 class _CopyResult {

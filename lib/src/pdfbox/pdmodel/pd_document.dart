@@ -96,6 +96,13 @@ class PDDocument {
 
   ResourceCache get resourceCache => _resourceCache;
 
+  String get version => _document.headerVersion;
+
+  set version(String value) {
+    _ensureOpen();
+    _document.headerVersion = value;
+  }
+
   int get numberOfPages => documentCatalog.pages.count;
 
   PDPage getPage(int pageIndex) => documentCatalog.pages[pageIndex];

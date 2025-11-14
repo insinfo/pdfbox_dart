@@ -3,17 +3,11 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import '../../io/range_filtered_random_access_read.dart';
-import '../../io/random_access.dart';
-import '../../io/random_access_input_stream.dart';
 import '../../io/random_access_read.dart';
 import '../../io/random_access_read_buffer.dart';
-import '../../io/random_access_read_view.dart';
 import '../../io/random_access_write.dart';
 import '../../io/sequence_random_access_read.dart';
 import '../../pdfbox/cos/cos_array.dart';
-import '../../pdfbox/cos/cos_integer.dart';
-import '../../pdfbox/cos/cos_name.dart';
-import '../pdfparser/xref/normal_x_reference.dart';
 
 /// Carries the incremental update bytes and offsets required to perform an
 /// external signature update.

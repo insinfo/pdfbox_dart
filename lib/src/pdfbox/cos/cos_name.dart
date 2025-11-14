@@ -49,8 +49,11 @@ class COSName extends COSBase implements Comparable<COSName> {
   static final COSName fontBBox = COSName('FontBBox');
   static final COSName form = COSName('Form');
   static final COSName image = COSName('Image');
+  static final COSName hints = COSName('Hints');
   static final COSName bBox = COSName('BBox');
   static final COSName flags = COSName('Flags');
+  static final COSName xref = COSName('XRef');
+  static final COSName xrefStm = COSName('XRefStm');
   static final COSName italicAngle = COSName('ItalicAngle');
   static final COSName ascent = COSName('Ascent');
   static final COSName descent = COSName('Descent');
@@ -111,6 +114,7 @@ class COSName extends COSBase implements Comparable<COSName> {
   static final COSName length = COSName('Length');
   static final COSName length1 = COSName('Length1');
   static final COSName lw = COSName('LW');
+  static final COSName linearized = COSName('Linearized');
   static final COSName index = COSName('Index');
   static final COSName limits = COSName('Limits');
   static final COSName nums = COSName('Nums');
@@ -165,6 +169,7 @@ class COSName extends COSBase implements Comparable<COSName> {
   static final COSName hideToolbar = COSName('HideToolbar');
   static final COSName hideMenubar = COSName('HideMenubar');
   static final COSName hideWindowUI = COSName('HideWindowUI');
+  static final COSName h = COSName('H');
   static final COSName fitWindow = COSName('FitWindow');
   static final COSName centerWindow = COSName('CenterWindow');
   static final COSName displayDocTitle = COSName('DisplayDocTitle');
@@ -248,6 +253,7 @@ class COSName extends COSBase implements Comparable<COSName> {
   static final COSName legalAttestation = COSName('LegalAttestation');
   static final COSName addRevInfo = COSName('AddRevInfo');
   static final COSName url = COSName('URL');
+  static final COSName uri = COSName('URI');
   static final COSName ft = COSName('FT');
   static final COSName p = COSName('P');
   static final COSName cert = COSName('Cert');
@@ -280,6 +286,24 @@ class COSName extends COSBase implements Comparable<COSName> {
   static final COSName outlines = COSName('Outlines');
   static final COSName lang = COSName('Lang');
   static final COSName ps = COSName('PS');
+  static final COSName dests = COSName('Dests');
+  static final COSName embeddedFiles = COSName('EmbeddedFiles');
+  static final COSName javaScript = COSName('JavaScript');
+  static final COSName uf = COSName('UF');
+  static final COSName dos = COSName('DOS');
+  static final COSName mac = COSName('Mac');
+  static final COSName unix = COSName('Unix');
+  static final COSName ef = COSName('EF');
+  static final COSName js = COSName('JS');
+  static final COSName filespec = COSName('Filespec');
+  static final COSName embeddedFile = COSName('EmbeddedFile');
+  static final COSName params = COSName('Params');
+  static final COSName checkSum = COSName('CheckSum');
+  static final COSName resFork = COSName('ResFork');
+  static final COSName desc = COSName('Desc');
+  static final COSName newWindow = COSName('NewWindow');
+  static final COSName win = COSName('Win');
+  static final COSName isMap = COSName('IsMap');
 
   @override
   int compareTo(COSName other) => name.compareTo(other.name);

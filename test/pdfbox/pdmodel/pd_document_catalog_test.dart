@@ -1,11 +1,23 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
+import 'package:pdfbox_dart/src/pdfbox/cos/cos_dictionary.dart';
 import 'package:pdfbox_dart/src/pdfbox/cos/cos_name.dart';
+import 'package:pdfbox_dart/src/pdfbox/cos/cos_array.dart';
+import 'package:pdfbox_dart/src/pdfbox/cos/cos_float.dart';
+import 'package:pdfbox_dart/src/pdfbox/cos/cos_integer.dart';
+import 'package:pdfbox_dart/src/pdfbox/pdmodel/common/pd_destination_name_tree_node.dart';
+import 'package:pdfbox_dart/src/pdfbox/pdmodel/common/pd_embedded_files_name_tree_node.dart';
+import 'package:pdfbox_dart/src/pdfbox/pdmodel/common/pd_embedded_file.dart';
+import 'package:pdfbox_dart/src/pdfbox/pdmodel/common/pd_file_specification.dart';
+import 'package:pdfbox_dart/src/pdfbox/pdmodel/common/pd_javascript_name_tree_node.dart';
+import 'package:pdfbox_dart/src/pdfbox/pdmodel/common/pd_page_destination.dart';
 import 'package:pdfbox_dart/src/pdfbox/pdmodel/common/pd_metadata.dart';
 import 'package:pdfbox_dart/src/pdfbox/pdmodel/common/pd_page_label_range.dart';
 import 'package:pdfbox_dart/src/pdfbox/pdmodel/common/pd_page_labels.dart';
 import 'package:pdfbox_dart/src/pdfbox/pdmodel/documentinterchange/markedcontent/pd_property_list.dart';
 import 'package:pdfbox_dart/src/pdfbox/pdmodel/graphics/optionalcontent/pd_optional_content_properties.dart';
+import 'package:pdfbox_dart/src/pdfbox/pdmodel/interactive/action/pd_action_java_script.dart';
 import 'package:pdfbox_dart/src/pdfbox/pdmodel/interactive/viewerpreferences/pd_viewer_preferences.dart';
 import 'package:pdfbox_dart/src/pdfbox/pdmodel/page_layout.dart';
 import 'package:pdfbox_dart/src/pdfbox/pdmodel/page_mode.dart';
@@ -105,6 +117,85 @@ void main() {
 
       catalog.viewerPreferences = null;
       expect(catalog.cosObject.getDictionaryObject(COSName.viewerPreferences), isNull);
+    });
+
+    test('names dictionary lazily created and updates catalog structures', () {
+      final document = PDDocument();
+      final catalog = document.documentCatalog;
+
+      final legacyDests = COSDictionary();
+      catalog.cosObject[COSName.dests] = legacyDests;
+
+      final names = catalog.names;
+      final storedNamesDict =
+          catalog.cosObject.getCOSDictionary(COSName.names)!;
+      expect(identical(names.cosObject, storedNamesDict), isTrue);
+
+      // When `/Names` lacks `/Dests`, fall back to the catalog level entry.
+      expect(names.dests, isNotNull);
+      expect(identical(names.dests!.cosObject, legacyDests), isTrue);
+
+      final newDestsNode = PDDestinationNameTreeNode(
+        dictionary: COSDictionary()..setName(COSName.type, 'Dests'),
+      );
+      final destinationArray = COSArray()
+        ..add(COSInteger(0))
+        ..add(COSName.get('XYZ'))
+        ..add(COSFloat(100))
+        ..add(COSFloat(200))
+        ..add(COSFloat(0));
+      newDestsNode.setNames({
+        'p1': PDPageXYZDestination(destinationArray),
+      });
+      names.dests = newDestsNode;
+      expect(names.dests, isNotNull);
+      expect(identical(names.dests!.cosObject, newDestsNode.cosObject), isTrue);
+      expect(storedNamesDict.getCOSDictionary(COSName.dests), same(newDestsNode.cosObject));
+      expect(catalog.cosObject.getCOSDictionary(COSName.dests), isNull);
+      final destEntries = names.dests!.getNames();
+      expect(destEntries, isNotNull);
+      expect(destEntries!['p1'], isA<PDPageXYZDestination>());
+
+      final attachmentsNode =
+          PDEmbeddedFilesNameTreeNode(dictionary: COSDictionary());
+      final fileSpec = PDComplexFileSpecification()
+        ..file = 'Report.pdf'
+        ..unicodeFile = 'Report.pdf';
+      final embeddedFile = PDEmbeddedFile.fromBytes(
+        Uint8List.fromList(<int>[0x25, 0x50, 0x44, 0x46]),
+      )
+        ..subtype = 'application/pdf'
+        ..size = 4;
+      fileSpec.embeddedFile = embeddedFile;
+      attachmentsNode.setNames({'Report': fileSpec});
+      names.embeddedFiles = attachmentsNode;
+      expect(names.embeddedFiles, isNotNull);
+      final embedded = names.embeddedFiles!.getNames();
+      expect(embedded, isNotNull);
+      final embeddedSpec = embedded!['Report'];
+      expect(embeddedSpec, isA<PDComplexFileSpecification>());
+      final embeddedPrimary =
+          (embeddedSpec as PDComplexFileSpecification).embeddedFile;
+      expect(embeddedPrimary, isNotNull);
+      expect(embeddedPrimary!.subtype, 'application/pdf');
+      expect(embeddedPrimary.size, 4);
+
+      final scriptsNode =
+          PDJavascriptNameTreeNode(dictionary: COSDictionary());
+      final jsAction = PDActionJavaScript()..script = 'app.alert("Hi")';
+      scriptsNode.setNames({'Open': jsAction});
+      names.javascript = scriptsNode;
+      expect(names.javascript, isNotNull);
+      final javascript = names.javascript!.getNames();
+      expect(javascript, isNotNull);
+      expect(javascript!['Open']?.script, 'app.alert("Hi")');
+
+      names.javascript = null;
+      expect(names.javascript, isNull);
+      expect(storedNamesDict.getDictionaryObject(COSName.javaScript), isNull);
+
+      catalog.names = null;
+      expect(catalog.cosObject.getDictionaryObject(COSName.names), isNull);
     });
   });
 

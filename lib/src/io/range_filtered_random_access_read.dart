@@ -49,9 +49,6 @@ class RangeFilteredRandomAccessRead extends RandomAccessRead {
   int _segmentIndex = 0;
   bool _closed = false;
 
-  _Segment? get _currentSegment =>
-      _segmentIndex < _segments.length ? _segments[_segmentIndex] : null;
-
   @override
   int read() {
     _ensureOpen();
@@ -86,10 +83,9 @@ class RangeFilteredRandomAccessRead extends RandomAccessRead {
       final segmentOffset = _position - segment.cumulativeStart;
       final available = segment.length - segmentOffset;
       final toCopy = math.min(available, remaining);
-
-    final sourceOffset = segment.start + segmentOffset;
-    final slice = Uint8List.sublistView(_data, sourceOffset, sourceOffset + toCopy);
-    buffer.setRange(offset + written, offset + written + toCopy, slice);
+      final sourceOffset = segment.start + segmentOffset;
+      final slice = Uint8List.sublistView(_data, sourceOffset, sourceOffset + toCopy);
+      buffer.setRange(offset + written, offset + written + toCopy, slice);
 
       written += toCopy;
       remaining -= toCopy;

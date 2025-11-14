@@ -26,6 +26,9 @@ void main() {
       final document = parser.parseDocument();
       addTearDown(document.close);
 
+        expect(document.hasHybridXRef, isTrue,
+          reason: 'Hybrid cross-reference documents should be flagged');
+
       final root = document.trailer.getItem(COSName.root);
       expect(root, isNotNull,
           reason: 'Trailer should contain catalog reference');

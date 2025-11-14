@@ -86,6 +86,36 @@ class COSParser extends BaseParser {
       _bruteForceParser = null;
     }
   }
+  
+  /// Scans the source for [marker] and returns the detected version, falling back
+  /// to [defaultVersion] when no explicit version is present. Returns `null`
+  /// when the marker cannot be found within the first kilobyte, mirroring the
+  /// behaviour of PDFBox's header detection.
+  String? parseHeader(String marker, {required String defaultVersion}) {
+    final originalPosition = source.position;
+    try {
+      source.seek(0);
+      final scanLimit = math.min(source.length, 1024);
+      if (scanLimit <= 0) {
+        return null;
+      }
+      final buffer = Uint8List(scanLimit);
+      final read = source.readInto(buffer);
+      if (read <= 0) {
+        return null;
+      }
+      final content = String.fromCharCodes(buffer.sublist(0, read));
+      final index = content.indexOf(marker);
+      if (index < 0) {
+        return null;
+      }
+      final afterMarker = content.substring(index + marker.length);
+      final match = RegExp(r'([0-9]+(?:\.[0-9]+)?)').firstMatch(afterMarker);
+      return match?.group(1) ?? defaultVersion;
+    } finally {
+      source.seek(originalPosition);
+    }
+  }
 
   /// Parses the next direct object from the source, returning `null` when EOF is reached.
   COSBase? parseObject() {
