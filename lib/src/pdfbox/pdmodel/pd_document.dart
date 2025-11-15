@@ -11,7 +11,9 @@ import '../../io/random_access_read_buffered_file.dart';
 import '../../io/random_access_write.dart';
 import '../pdfwriter/cos_writer.dart';
 import '../pdfwriter/pdf_save_options.dart';
-import '../pdmodel/encryption/pd_encryption.dart';
+import 'encryption/pd_encryption.dart';
+import 'encryption/access_permission.dart';
+import 'encryption/standard_security_handler.dart';
 import '../pdmodel/interactive/digitalsignature/external_signing_support.dart';
 import '../pdmodel/interactive/digitalsignature/signing_support.dart';
 import '../pdmodel/interactive/documentnavigation/pd_outline_node.dart';
@@ -25,7 +27,8 @@ import 'pd_stream.dart';
 
 /// High level representation of a PDF document.
 class PDDocument {
-  PDDocument._(this._document, this._catalog, this._resourceCache);
+  PDDocument._(this._document, this._catalog, this._resourceCache)
+      : _accessPermission = AccessPermission.ownerAccessPermission();
 
   factory PDDocument() {
     final cosDocument = COSDocument();
@@ -44,7 +47,9 @@ class PDDocument {
 
     final resourceCache = ResourceCache();
     final catalog = PDDocumentCatalog(cosDocument, resourceCache, catalogDict);
-    return PDDocument._(cosDocument, catalog, resourceCache);
+    final document = PDDocument._(cosDocument, catalog, resourceCache);
+    document._accessPermission = AccessPermission.ownerAccessPermission();
+    return document;
   }
 
   factory PDDocument.fromCOSDocument(COSDocument document) {
@@ -56,6 +61,10 @@ class PDDocument {
     final encryptionDict = document.trailer.getCOSDictionary(COSName.encrypt);
     if (encryptionDict != null) {
       pdDocument._encryption = PDEncryption(encryptionDict);
+      pdDocument._accessPermission = StandardSecurityHandler
+          .permissionsFromEncryption(pdDocument._encryption!);
+    } else {
+      pdDocument._accessPermission = AccessPermission.ownerAccessPermission();
     }
     return pdDocument;
   }
@@ -97,6 +106,7 @@ class PDDocument {
   bool _closed = false;
   PDDocumentInformation? _documentInformation;
   PDEncryption? _encryption;
+  AccessPermission _accessPermission;
 
   COSDocument get cosDocument => _document;
 
@@ -254,4 +264,7 @@ class PDDocument {
   }
 
   PDEncryption? get encryption => _encryption;
+
+  /// Permissions granted to the caller for the current encrypted document.
+  AccessPermission get currentAccessPermission => _accessPermission;
 }

@@ -18,6 +18,8 @@ pdfwriter: Atualizar o COSWriter para paridade de recursos — salvamento/assina
 pdmodel: Grandes partes ainda estão faltando — criptografia, FDF, anotações, formulários, conteúdo opcional, navegação, impressão, correções, infraestrutura de árvore de nomes e wrappers avançados de fluxo de conteúdo (PDAbstractContentStream, padrões de mosaico, auxiliares de cache, etc.).
 
 Fluxo de Conteúdo e Texto: É necessário que os processadores de operador (PDFStreamEngine, árvore OperatorProcessor) e APIs de texto de nível superior (por exemplo, PDFTextStripper) interpretem/exibam o conteúdo em vez de apenas escrevê-lo.
+- PDFStreamEngine agora cobre operadores de conteúdo marcado, métricas Type3 (d0/d1) e preenchimento com shading, com testes exercitando cores, caminhos e ExtGState; TODO conectar a renderização real de shading e pilha completa de marked content.
+- Operadores de texto adicionais portados: gerenciamento de leading/espacamentos (TL, Tc, Tw, Tz, Tr, Ts) e atalhos T*, ' e ", com testes garantindo que o `RecordingPDFStreamEngine` registre os eventos esperados.
 
 Gráficos e Recursos: Amplie os espaços de cores, o tratamento de XObject, as imagens, os padrões e o cache de recursos para que o PDResources espelhe o comportamento do Java.
 Filtros e Imagens: Implemente os decodificadores pendentes (JPXDecode, CCITTFax) e finalize as opções do DCTDecode, como a preservação de CMYK/YCCK bruto.

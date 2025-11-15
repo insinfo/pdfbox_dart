@@ -11,6 +11,7 @@ import 'graphics/pattern/pd_abstract_pattern.dart';
 import 'graphics/pd_post_script_xobject.dart';
 import 'graphics/pdxobject.dart';
 import 'graphics/shading/pd_shading.dart';
+import 'graphics/state/pd_extended_graphics_state.dart';
 import 'resource_cache.dart';
 
 /// Wraps a page/resources dictionary, mirroring PDFBox's PDResources.
@@ -238,6 +239,35 @@ class PDResources {
       cache.putPattern(cacheKey, pattern);
     }
     return pattern;
+  }
+
+  /// Resolves an extended graphics state by name.
+  PDExtendedGraphicsState? getExtGState(COSName name) {
+    final extGStates = _dictionary.getCOSDictionary(COSName.extGState);
+    if (extGStates == null) {
+      return null;
+    }
+
+    final COSBase? raw = extGStates[name];
+    final COSDictionary? dictionary = extGStates.getCOSDictionary(name);
+    if (dictionary == null) {
+      return null;
+    }
+
+    final cacheKey = raw ?? dictionary;
+    final cache = _resourceCache;
+    if (cache != null) {
+      final cached = cache.getExtGState(cacheKey);
+      if (cached != null) {
+        return cached;
+      }
+    }
+
+    final state = PDExtendedGraphicsState(dictionary);
+    if (cache != null) {
+      cache.putExtGState(cacheKey, state);
+    }
+    return state;
   }
 
   /// Resolves a property list resource (Optional Content, etc.) by name.

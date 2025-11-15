@@ -15,6 +15,42 @@ class PDTextState {
   double rise = 0;
   bool knockout = true;
 
+  double getCharacterSpacing() => characterSpacing;
+
+  void setCharacterSpacing(double value) {
+    characterSpacing = value;
+  }
+
+  double getWordSpacing() => wordSpacing;
+
+  void setWordSpacing(double value) {
+    wordSpacing = value;
+  }
+
+  double getHorizontalScaling() => horizontalScaling;
+
+  void setHorizontalScaling(double value) {
+    horizontalScaling = value;
+  }
+
+  double getLeading() => leading;
+
+  void setLeading(double value) {
+    leading = value;
+  }
+
+  RenderingMode getRenderingMode() => renderingMode;
+
+  void setRenderingMode(RenderingMode mode) {
+    renderingMode = mode;
+  }
+
+  double getRise() => rise;
+
+  void setRise(double value) {
+    rise = value;
+  }
+
   /// Indicates whether text knockout is enabled (true by default).
   bool get knockoutFlag => knockout;
 

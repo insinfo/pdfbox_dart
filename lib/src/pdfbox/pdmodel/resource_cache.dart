@@ -6,6 +6,7 @@ import 'documentinterchange/markedcontent/pd_property_list.dart';
 import 'graphics/pattern/pd_abstract_pattern.dart';
 import 'graphics/pdxobject.dart';
 import 'graphics/shading/pd_shading.dart';
+import 'graphics/state/pd_extended_graphics_state.dart';
 
 /// Caches high-level PDModel wrappers for shared resources.
 class ResourceCache {
@@ -17,6 +18,8 @@ class ResourceCache {
       HashMap<Object, PDAbstractPattern>();
   final Map<Object, PDPropertyList> _propertyListCache =
       HashMap<Object, PDPropertyList>();
+    final Map<Object, PDExtendedGraphicsState> _extGStateCache =
+      HashMap<Object, PDExtendedGraphicsState>();
 
   PDXObject? getXObject(COSBase key) => _xObjectCache[_cacheKey(key)];
 
@@ -41,6 +44,13 @@ class ResourceCache {
 
   void putPropertyList(COSBase key, PDPropertyList value) {
     _propertyListCache[_cacheKey(key)] = value;
+  }
+
+  PDExtendedGraphicsState? getExtGState(COSBase key) =>
+      _extGStateCache[_cacheKey(key)];
+
+  void putExtGState(COSBase key, PDExtendedGraphicsState value) {
+    _extGStateCache[_cacheKey(key)] = value;
   }
 
   Object _cacheKey(COSBase base) {

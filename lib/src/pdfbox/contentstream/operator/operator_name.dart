@@ -36,6 +36,7 @@ class OperatorName {
   static const String setLineWidth = 'w';
   static const String setMatrix = 'Tm';
   static const String setRenderingintent = 'ri';
+  static const String setSmoothness = 'sm';
 
   // Graphics operators
   static const String appendRect = 're';

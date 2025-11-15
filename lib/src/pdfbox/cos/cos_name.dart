@@ -103,6 +103,7 @@ class COSName extends COSBase implements Comparable<COSName> {
   static final COSName xObject = COSName('XObject');
   static final COSName colorSpace = COSName('ColorSpace');
   static final COSName colorants = COSName('Colorants');
+  static final COSName extGState = COSName('ExtGState');
   static final COSName process = COSName('Process');
   static final COSName components = COSName('Components');
   static final COSName deviceGray = COSName('DeviceGray');
