@@ -12,6 +12,7 @@ import 'package:pdfbox_dart/src/pdfbox/pdmodel/common/pd_rectangle.dart';
 import 'package:pdfbox_dart/src/pdfbox/pdmodel/pd_document.dart';
 import 'package:pdfbox_dart/src/pdfbox/pdmodel/pd_page.dart';
 import 'package:pdfbox_dart/src/pdfbox/pdmodel/pd_stream.dart';
+import 'package:pdfbox_dart/src/pdfbox/pdmodel/interactive/documentnavigation/pd_outline_node.dart';
 import 'package:pdfbox_dart/src/pdfbox/pdfwriter/compress/compress_parameters.dart';
 import 'package:pdfbox_dart/src/pdfbox/pdfwriter/pdf_save_options.dart';
 import 'package:pdfbox_dart/src/pdfbox/pdfparser/cos_parser.dart';
@@ -90,6 +91,24 @@ void main() {
 
       document.close();
       cosDocument.close();
+    });
+
+    test('document outline convenience delegates to catalog', () {
+      final document = PDDocument();
+      expect(document.documentOutline, isNull);
+
+      final outline = PDOutlineRoot();
+      document.documentOutline = outline;
+      expect(document.documentOutline, same(outline));
+
+      final bookmark = PDOutlineItem()..title = 'Bookmark';
+      outline.addLast(bookmark);
+      outline.open = true;
+      expect(document.documentOutline?.openCount, 1);
+
+      document.documentOutline = null;
+      expect(document.documentOutline, isNull);
+      expect(document.documentCatalog.cosObject.getDictionaryObject(COSName.outlines), isNull);
     });
 
     test('insert page maintains ordering', () {

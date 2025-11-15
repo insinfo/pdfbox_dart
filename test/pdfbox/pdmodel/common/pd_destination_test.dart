@@ -88,6 +88,20 @@ void main() {
       expect((dest as PDExplicitDestination).length, 2);
     });
 
+    test('asPageDestination resolves explicit array when possible', () {
+      final array = COSArray()
+        ..add(COSInteger(0))
+        ..add(COSName.get('FitH'))
+        ..add(COSFloat(72));
+      final explicit = PDExplicitDestination(array);
+      final pageDest = explicit.asPageDestination;
+      expect(pageDest, isA<PDPageFitHorizontalDestination>());
+      expect((pageDest as PDPageFitHorizontalDestination).top, 72);
+
+      final named = PDNamedDestination(COSName('Chapter1'));
+      expect(named.asPageDestination, isNull);
+    });
+
     test('creates explicit destination from dictionary with /D array', () {
       final array = COSArray()..add(COSInteger(2));
       final dict = COSDictionary()..setItem(COSName.d, array);

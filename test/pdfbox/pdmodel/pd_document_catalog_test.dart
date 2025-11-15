@@ -11,13 +11,16 @@ import 'package:pdfbox_dart/src/pdfbox/pdmodel/common/pd_embedded_files_name_tre
 import 'package:pdfbox_dart/src/pdfbox/pdmodel/common/pd_embedded_file.dart';
 import 'package:pdfbox_dart/src/pdfbox/pdmodel/common/pd_file_specification.dart';
 import 'package:pdfbox_dart/src/pdfbox/pdmodel/common/pd_javascript_name_tree_node.dart';
-import 'package:pdfbox_dart/src/pdfbox/pdmodel/common/pd_page_destination.dart';
 import 'package:pdfbox_dart/src/pdfbox/pdmodel/common/pd_metadata.dart';
 import 'package:pdfbox_dart/src/pdfbox/pdmodel/common/pd_page_label_range.dart';
 import 'package:pdfbox_dart/src/pdfbox/pdmodel/common/pd_page_labels.dart';
+import 'package:pdfbox_dart/src/pdfbox/pdmodel/common/pd_page_destination.dart';
 import 'package:pdfbox_dart/src/pdfbox/pdmodel/documentinterchange/markedcontent/pd_property_list.dart';
 import 'package:pdfbox_dart/src/pdfbox/pdmodel/graphics/optionalcontent/pd_optional_content_properties.dart';
+import 'package:pdfbox_dart/src/pdfbox/pdmodel/interactive/documentnavigation/pd_outline_node.dart';
 import 'package:pdfbox_dart/src/pdfbox/pdmodel/interactive/action/pd_action_java_script.dart';
+import 'package:pdfbox_dart/src/pdfbox/pdmodel/interactive/action/pd_action_factory.dart';
+import 'package:pdfbox_dart/src/pdfbox/pdmodel/interactive/action/pd_action_uri.dart';
 import 'package:pdfbox_dart/src/pdfbox/pdmodel/interactive/viewerpreferences/pd_viewer_preferences.dart';
 import 'package:pdfbox_dart/src/pdfbox/pdmodel/page_layout.dart';
 import 'package:pdfbox_dart/src/pdfbox/pdmodel/page_mode.dart';
@@ -196,6 +199,71 @@ void main() {
 
       catalog.names = null;
       expect(catalog.cosObject.getDictionaryObject(COSName.names), isNull);
+    });
+
+    test('document outline round-trip and hierarchy updates', () {
+      final document = PDDocument();
+      final catalog = document.documentCatalog;
+
+      expect(catalog.documentOutline, isNull);
+
+      final outline = PDOutlineRoot();
+      catalog.documentOutline = outline;
+      expect(identical(catalog.documentOutline, outline), isTrue);
+
+      final first = PDOutlineItem()..title = 'Chapter 1';
+      final second = PDOutlineItem()..title = 'Chapter 2';
+      outline
+        ..addLast(first)
+        ..addLast(second);
+
+      final child = PDOutlineItem()..title = 'Section 2.1';
+      second.addLast(child);
+      second.open = true;
+      outline.open = true;
+
+      final destArray = COSArray()
+        ..add(COSInteger(0))
+        ..add(COSName.get('Fit'));
+      final destination = PDPageDestination.fromArray(destArray);
+      expect(destination, isNotNull);
+      first.destination = destination;
+      expect(first.destination, isA<PDPageDestination>());
+
+      final uriDict = COSDictionary()
+        ..setName(COSName.s, 'URI')
+        ..setString(COSName.uri, 'https://example.com');
+      first.action = PDActionFactory.instance.createAction(uriDict);
+      expect(first.action, isA<PDActionURI>());
+
+      expect(outline.firstChild, same(first));
+      expect(first.nextSibling, same(second));
+      expect(second.previousSibling, same(first));
+      expect(second.firstChild, same(child));
+      expect(outline.openCount, 3);
+
+      outline.open = true;
+      second.open = true;
+      expect(second.openCount, 1);
+      expect(outline.openCount, 3);
+
+      second.open = false;
+      expect(second.openCount, -1);
+      expect(outline.openCount, 2);
+
+      second.open = true;
+      child.remove();
+      expect(second.hasChildren, isFalse);
+      expect(second.openCount, isNull);
+      expect(outline.openCount, 2);
+
+      second.remove();
+      expect(outline.lastChild, same(first));
+      expect(outline.openCount, 1);
+
+      catalog.documentOutline = null;
+      expect(catalog.documentOutline, isNull);
+      expect(catalog.cosObject.getDictionaryObject(COSName.outlines), isNull);
     });
   });
 

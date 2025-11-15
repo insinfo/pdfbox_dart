@@ -46,6 +46,18 @@ abstract class PDDestination implements PDDestinationOrAction {
     }
     return null;
   }
+
+  /// Returns this destination as a [PDPageDestination] when possible.
+  PDPageDestination? get asPageDestination {
+    if (this is PDPageDestination) {
+      return this as PDPageDestination;
+    }
+    if (this is PDExplicitDestination) {
+      final array = (this as PDExplicitDestination).array;
+      return PDPageDestination.fromArray(array);
+    }
+    return null;
+  }
 }
 
 /// Destination that refers to an explicit array describing the view.

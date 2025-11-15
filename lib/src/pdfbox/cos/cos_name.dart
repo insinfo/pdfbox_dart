@@ -24,6 +24,7 @@ class COSName extends COSBase implements Comparable<COSName> {
   static final COSName pages = COSName('Pages');
   static final COSName page = COSName('Page');
   static final COSName root = COSName('Root');
+  static final COSName a = COSName('A');
   static final COSName parent = COSName('Parent');
   static final COSName kids = COSName('Kids');
   static final COSName count = COSName('Count');
@@ -120,6 +121,8 @@ class COSName extends COSBase implements Comparable<COSName> {
   static final COSName nums = COSName('Nums');
   static final COSName names = COSName('Names');
   static final COSName first = COSName('First');
+  static final COSName last = COSName('Last');
+  static final COSName dest = COSName('Dest');
   static final COSName d = COSName('D');
   static final COSName order = COSName('Order');
   static final COSName on = COSName('ON');
@@ -193,6 +196,7 @@ class COSName extends COSBase implements Comparable<COSName> {
   static final COSName dp = COSName('DP');
   static final COSName n = COSName('N');
   static final COSName s = COSName('S');
+  static final COSName next = COSName('Next');
   static final COSName st = COSName('St');
   static final COSName predictor = COSName('Predictor');
   static final COSName colors = COSName('Colors');

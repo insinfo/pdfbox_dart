@@ -11,6 +11,7 @@ import 'page_layout.dart';
 import 'page_mode.dart';
 import 'pd_page_tree.dart';
 import 'pd_document_name_dictionary.dart';
+import 'interactive/documentnavigation/pd_outline_node.dart';
 
 /// Represents the document catalog (/Root) dictionary.
 class PDDocumentCatalog {
@@ -26,6 +27,7 @@ class PDDocumentCatalog {
   PDPageLabels? _pageLabels;
   PDViewerPreferences? _viewerPreferences;
   PDDocumentNameDictionary? _names;
+  PDOutlineRoot? _documentOutline;
 
   COSDictionary get cosObject => _dictionary;
 
@@ -143,6 +145,34 @@ class PDDocumentCatalog {
     final wrapped = PDDocumentNameDictionary(_dictionary, value.cosObject);
     _names = wrapped;
     _dictionary[COSName.names] = wrapped.cosObject;
+  }
+
+  /// Returns the document outline (/Outlines) dictionary if present.
+  PDOutlineRoot? get documentOutline {
+    final current = _documentOutline;
+    if (current != null) {
+      return current;
+    }
+    final dict = _dictionary.getCOSDictionary(COSName.outlines);
+    if (dict == null) {
+      return null;
+    }
+    final outline = PDOutlineRoot(dictionary: dict);
+    _documentOutline = outline;
+    return outline;
+  }
+
+  set documentOutline(PDOutlineRoot? outline) {
+    _documentOutline = outline;
+    if (outline == null) {
+      _dictionary.removeItem(COSName.outlines);
+      return;
+    }
+    final dict = outline.cosObject;
+    if (dict.getNameAsString(COSName.type) != 'Outlines') {
+      dict.setName(COSName.type, 'Outlines');
+    }
+    _dictionary[COSName.outlines] = dict;
   }
 
   /// Returns the page layout preference for the document.

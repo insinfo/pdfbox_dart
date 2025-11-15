@@ -13,6 +13,7 @@ import '../pdfwriter/cos_writer.dart';
 import '../pdfwriter/pdf_save_options.dart';
 import '../pdmodel/interactive/digitalsignature/external_signing_support.dart';
 import '../pdmodel/interactive/digitalsignature/signing_support.dart';
+import '../pdmodel/interactive/documentnavigation/pd_outline_node.dart';
 import '../pdfparser/pdf_parser.dart';
 import 'pd_document_information.dart';
 import 'pd_document_catalog.dart';
@@ -95,6 +96,11 @@ class PDDocument {
   PDDocumentCatalog get documentCatalog => _catalog;
 
   ResourceCache get resourceCache => _resourceCache;
+
+  PDOutlineRoot? get documentOutline => _catalog.documentOutline;
+
+  set documentOutline(PDOutlineRoot? outline) =>
+      _catalog.documentOutline = outline;
 
   String get version => _document.headerVersion;
 
