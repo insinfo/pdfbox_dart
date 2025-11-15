@@ -13,6 +13,9 @@ import 'package:pdfbox_dart/src/pdfbox/pdmodel/pd_document.dart';
 import 'package:pdfbox_dart/src/pdfbox/pdmodel/pd_page.dart';
 import 'package:pdfbox_dart/src/pdfbox/pdmodel/pd_stream.dart';
 import 'package:pdfbox_dart/src/pdfbox/pdmodel/interactive/documentnavigation/pd_outline_node.dart';
+import 'package:pdfbox_dart/src/pdfbox/pdmodel/encryption/access_permission.dart';
+import 'package:pdfbox_dart/src/pdfbox/pdmodel/encryption/standard_protection_policy.dart';
+import 'package:pdfbox_dart/src/pdfbox/pdmodel/encryption/standard_security_handler.dart';
 import 'package:pdfbox_dart/src/pdfbox/pdfwriter/compress/compress_parameters.dart';
 import 'package:pdfbox_dart/src/pdfbox/pdfwriter/pdf_save_options.dart';
 import 'package:pdfbox_dart/src/pdfbox/pdfparser/cos_parser.dart';
@@ -109,7 +112,10 @@ void main() {
 
       document.documentOutline = null;
       expect(document.documentOutline, isNull);
-      expect(document.documentCatalog.cosObject.getDictionaryObject(COSName.outlines), isNull);
+      expect(
+          document.documentCatalog.cosObject
+              .getDictionaryObject(COSName.outlines),
+          isNull);
     });
 
     test('insert page maintains ordering', () {
@@ -231,8 +237,7 @@ void main() {
     test('saveToBytes preserves direct info dictionary state', () {
       final document = PDDocument();
       final info = document.documentInformation;
-      final infoDict = info.cosObject
-        ..isDirect = true;
+      final infoDict = info.cosObject..isDirect = true;
       info.title = 'Direct Info';
 
       final bytes = document.saveToBytes();
@@ -261,7 +266,8 @@ void main() {
 
       final page = PDPage();
       document.addPage(page);
-      final content = Uint8List.fromList(List<int>.generate(512, (index) => index % 256));
+      final content =
+          Uint8List.fromList(List<int>.generate(512, (index) => index % 256));
       page.setContentStream(PDStream.fromBytes(content));
 
       final bytes = document.saveToBytes(
@@ -334,5 +340,45 @@ void main() {
       reloaded.close();
     });
 
+    test(
+        'saveToBytes serializes the encryption dictionary as an indirect reference',
+        () {
+      final document = PDDocument();
+      final page = PDPage();
+      document.addPage(page);
+
+      final permissions = AccessPermission()
+        ..setCanModify(false)
+        ..setCanExtractContent(false);
+      final policy =
+          StandardProtectionPolicy('owner-pass', 'user-pass', permissions)
+            ..setEncryptionKeyLength(256);
+
+      final handler = StandardSecurityHandler(policy);
+      handler.prepareDocumentForEncryption(document);
+
+      final bytes = document.saveToBytes();
+      expect(bytes, isNotEmpty);
+
+      final source = RandomAccessReadBuffer.fromBytes(bytes);
+      final parser = COSParser(source);
+      final parsed = parser.parseDocument();
+
+      final encryptEntry = parsed.trailer.getItem(COSName.encrypt);
+      expect(encryptEntry, isA<COSObject>());
+      final encryptObject = encryptEntry as COSObject;
+      expect(encryptObject.key, isNotNull);
+
+      final encryptDict = encryptObject.object;
+      expect(encryptDict, isA<COSDictionary>());
+      final dictionary = encryptDict as COSDictionary;
+      expect(dictionary.getInt(COSName.r), equals(6));
+      expect(dictionary.getCOSName(COSName.filter)?.name,
+          StandardSecurityHandler.filter);
+
+      parsed.close();
+      source.close();
+      document.close();
+    });
   });
 }

@@ -281,6 +281,75 @@ void main() {
       expect(granted!.permissionBytes, permissions.permissionBytes);
     });
 
+    test('prepareDocumentForEncryption emits revision 6 dictionary', () {
+      final document = PDDocument();
+      final permissions = AccessPermission()
+        ..setCanModify(false)
+        ..setCanExtractContent(false);
+      final policy =
+          StandardProtectionPolicy('owner\u00A0pass', '\u212Buser', permissions)
+            ..setEncryptionKeyLength(256);
+
+      final handler = StandardSecurityHandler(policy);
+      handler.prepareDocumentForEncryption(document);
+
+      final encryption = document.encryption;
+      expect(encryption, isNotNull);
+      expect(encryption!.revision, 6);
+      expect(encryption.streamFilter, equals(COSName.stdCF));
+      expect(encryption.stringFilter, equals(COSName.stdCF));
+      expect(encryption.cfDictionary, isNotNull);
+
+      final fileKey = handler.encryptionKey;
+      expect(fileKey, isNotNull);
+      expect(fileKey!.length, 32);
+
+      final owner = encryption.ownerValue?.bytes;
+      final user = encryption.userValue?.bytes;
+      final ownerEncryption = encryption.ownerEncryption?.bytes;
+      final userEncryption = encryption.userEncryption?.bytes;
+      final perms = encryption.perms?.bytes;
+
+      expect(owner, isNotNull);
+      expect(user, isNotNull);
+      expect(ownerEncryption, isNotNull);
+      expect(userEncryption, isNotNull);
+      expect(perms, isNotNull);
+      expect(owner!.length, 48);
+      expect(user!.length, 48);
+      expect(ownerEncryption!.length, 32);
+      expect(userEncryption!.length, 32);
+      expect(perms!.length, 16);
+
+      final expectedKey = _referenceFileKey(
+        password: '\u212Buser',
+        isOwnerPassword: false,
+        owner: owner,
+        user: user,
+        ownerEncryption: ownerEncryption,
+        userEncryption: userEncryption,
+        revision: 6,
+      );
+      expect(fileKey, orderedEquals(expectedKey));
+
+      final permsPlain = _aesEcbDecrypt(expectedKey, perms);
+      expect(permsPlain.length, 16);
+      expect(
+        _littleEndianToInt(permsPlain.sublist(0, 4)),
+        _asSigned32(permissions.permissionBytes),
+      );
+      expect(permsPlain[4], 0xFF);
+      expect(permsPlain[5], 0xFF);
+      expect(permsPlain[6], 0xFF);
+      expect(permsPlain[7], 0xFF);
+      expect(permsPlain[8], 'T'.codeUnitAt(0));
+      expect(permsPlain[9], 'a'.codeUnitAt(0));
+      expect(permsPlain[10], 'd'.codeUnitAt(0));
+      expect(permsPlain[11], 'b'.codeUnitAt(0));
+
+      expect(encryption.encryptMetadata, isTrue);
+    });
+
     test('prepareForDecryption unlocks revision 6 sample PDFBox dictionary',
         () {
       final encryption = _buildPasswordSample256Encryption();

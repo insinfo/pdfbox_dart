@@ -46,6 +46,10 @@ class SimplePdfWriter {
     if (infoBase is COSDictionary) {
       _collect(infoBase);
     }
+    final encryptEntry = cosDocument.trailer.getItem(COSName.encrypt);
+    if (encryptEntry != null) {
+      _collect(encryptEntry);
+    }
 
     final builder = BytesBuilder(copy: false);
     void writeText(String value) => builder.add(latin1.encode(value));
@@ -78,7 +82,10 @@ class SimplePdfWriter {
 
     final rootRef = _referenceFor(rootBase);
     final infoRef = infoBase is COSDictionary ? _referenceFor(infoBase) : null;
-    final prevOffset = options.previousStartXref ?? _intFrom(cosDocument.trailer.getDictionaryObject(COSName.prev));
+    final encryptRef =
+        encryptEntry != null ? _referenceFor(encryptEntry) : null;
+    final prevOffset = options.previousStartXref ??
+        _intFrom(cosDocument.trailer.getDictionaryObject(COSName.prev));
     final idArray = _resolveDocumentId(cosDocument.trailer);
 
     writeText('trailer\n<<\n');
@@ -86,6 +93,9 @@ class SimplePdfWriter {
     writeText('${COSName.root} $rootRef\n');
     if (infoRef != null) {
       writeText('${COSName.info} $infoRef\n');
+    }
+    if (encryptRef != null) {
+      writeText('${COSName.encrypt} $encryptRef\n');
     }
     if (prevOffset != null) {
       writeText('${COSName.prev} $prevOffset\n');
@@ -358,7 +368,9 @@ class SimplePdfWriter {
         final value = Uint8List.fromList(override.first);
         return <Uint8List>[value, Uint8List.fromList(value)];
       }
-      return override.map((bytes) => Uint8List.fromList(bytes)).toList(growable: false);
+      return override
+          .map((bytes) => Uint8List.fromList(bytes))
+          .toList(growable: false);
     }
 
     final existing = trailer.getDictionaryObject(COSName.id);
@@ -425,8 +437,7 @@ class SimplePdfWriter {
     return entry;
   }
 
-  static String _toOctal(int value) =>
-      value.toRadixString(8).padLeft(3, '0');
+  static String _toOctal(int value) => value.toRadixString(8).padLeft(3, '0');
 }
 
 class _StreamSerialization {

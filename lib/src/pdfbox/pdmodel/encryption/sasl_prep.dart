@@ -1,3 +1,4 @@
+import 'package:bidi/bidi.dart';
 import 'package:unorm_dart/unorm_dart.dart' as unorm;
 
 /// Minimal SASLprep implementation mirroring the PDFBox helper for revision 6 passwords.
@@ -50,8 +51,9 @@ class SaslPrep {
         throw ArgumentError('Character U+$hex at index $i is unassigned');
       }
 
-      final isRandAL = _isRandALCat(codepoint);
-      final isLCat = _isLCat(codepoint);
+      final type = getCharacterType(codepoint);
+      final isRandAL = _isRandALCat(type);
+      final isLCat = _isLCat(type);
       if (i == 0) {
         firstIsRandAL = isRandAL;
       }
@@ -169,16 +171,12 @@ class SaslPrep {
         codepoint == 0xFEFF;
   }
 
-  static bool _isRandALCat(int codepoint) {
-    return _inRangeList(codepoint, _randALCatRanges);
+  static bool _isRandALCat(CharacterType type) {
+    return type == CharacterType.rtl || type == CharacterType.al;
   }
 
-  static bool _isLCat(int codepoint) {
-    return (codepoint >= 0x0041 && codepoint <= 0x005A) ||
-        (codepoint >= 0x0061 && codepoint <= 0x007A) ||
-        (codepoint >= 0x00C0 && codepoint <= 0x02AF) ||
-        (codepoint >= 0x0370 && codepoint <= 0x052F) ||
-        (codepoint >= 0x1E00 && codepoint <= 0x1FFF);
+  static bool _isLCat(CharacterType type) {
+    return type == CharacterType.ltr;
   }
 
   static bool _isDefined(int codepoint) {
@@ -190,36 +188,4 @@ class SaslPrep {
     }
     return true;
   }
-
-  static bool _inRangeList(int codepoint, List<int> ranges) {
-    for (var i = 0; i < ranges.length; i += 2) {
-      final start = ranges[i];
-      final end = ranges[i + 1];
-      if (codepoint >= start && codepoint <= end) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  static const List<int> _randALCatRanges = <int>[
-    0x0590,
-    0x05FF,
-    0x0600,
-    0x06FF,
-    0x0700,
-    0x077F,
-    0x0780,
-    0x07BF,
-    0x07C0,
-    0x08FF,
-    0xFB1D,
-    0xFDFF,
-    0xFE70,
-    0xFEFF,
-    0x10800,
-    0x10FFF,
-    0x1EE00,
-    0x1EEFF,
-  ];
 }

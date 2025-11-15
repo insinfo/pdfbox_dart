@@ -19,7 +19,7 @@ Utilitários: I/O multiplataforma, compressão LZW e buffers de dados.
 
 No momento, a biblioteca brilha como um poderoso framework de criptografia e PKI, e não como uma ferramenta de manipulação de PDF.
 
-Atualização recente: o manipulador de segurança padrão passou a aplicar SASLprep (RFC 4013) para senhas da revisão 6, com normalização NFKC, verificação bidi e testes automatizados garantindo a paridade com o PDFBox.
+Atualização recente: o manipulador de segurança padrão passou a aplicar SASLprep (RFC 4013) para senhas da revisão 6, com normalização NFKC, verificação bidi e testes automatizados garantindo a paridade com o PDFBox. A mesma rotina agora também cobre a geração completa do dicionário de criptografia da revisão 6 (campos /U, /UE, /O, /OE, /Perms) com chave AES-256 aleatória, filtros `/StdCF`/`AESV3` e validação de permissões.
 
 🚀 Deep Dive: Gerenciamento de Autoridade Certificadora (CA) e PKI
 A biblioteca fornece todas as ferramentas necessárias para construir e gerenciar um fluxo de trabalho de Autoridade Certificadora. O módulo principal para essas operações é uma combinação de basic_utils (especificamente X509Utils) e dart_pkcs.

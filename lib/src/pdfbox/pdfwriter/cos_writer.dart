@@ -51,7 +51,7 @@ class COSWriter {
   final List<NormalXReference> _normalReferences = <NormalXReference>[];
   final List<ObjectStreamXReference> _objectStreamReferences =
       <ObjectStreamXReference>[];
-    final Map<COSBase, bool> _directStateOverrides =
+  final Map<COSBase, bool> _directStateOverrides =
       LinkedHashMap<COSBase, bool>.identity();
 
   int _highestObjectNumber = 0;
@@ -194,10 +194,11 @@ class COSWriter {
     RandomAccessWrite target,
   ) {
     if (_target is! RandomAccessReadWriteBuffer) {
-      throw StateError('prepareIncrementalSigning requires a RandomAccessReadWriteBuffer target');
+      throw StateError(
+          'prepareIncrementalSigning requires a RandomAccessReadWriteBuffer target');
     }
 
-  final RandomAccessReadWriteBuffer buffer = _target;
+    final RandomAccessReadWriteBuffer buffer = _target;
     buffer.clear();
 
     _normalReferences.clear();
@@ -205,7 +206,7 @@ class COSWriter {
 
     final cosDocument = document.cosDocument;
     final trailer = cosDocument.trailer;
-  _promoteInlineStreams(cosDocument);
+    _promoteInlineStreams(cosDocument);
     _highestObjectNumber = cosDocument.highestXRefObjectNumber;
     _activeCOSDocument = cosDocument;
     final originalLength = original.length;
@@ -256,7 +257,9 @@ class COSWriter {
     if (signatureOffset == 0 || signatureLength == 0) {
       throw StateError('Signature dictionary without /Contents detected');
     }
-    if (byteRangeOffset == 0 || byteRangeLength == 0 || tracking.byteRangeArray == null) {
+    if (byteRangeOffset == 0 ||
+        byteRangeLength == 0 ||
+        tracking.byteRangeArray == null) {
       throw StateError('Signature dictionary without /ByteRange placeholder');
     }
 
@@ -270,7 +273,12 @@ class COSWriter {
 
     final incSigOffset = signatureOffset - originalLength;
     final afterSigOffset = incSigOffset + signatureLength;
-    final ranges = <int>[0, incSigOffset, afterSigOffset, incrementalBytes.length - afterSigOffset];
+    final ranges = <int>[
+      0,
+      incSigOffset,
+      afterSigOffset,
+      incrementalBytes.length - afterSigOffset
+    ];
 
     final context = IncrementalSigningContext(
       original: original,
@@ -326,7 +334,8 @@ class COSWriter {
       final stream = COSStream();
       stream.key = streamKey;
       writer.writeObjectsToStream(stream);
-      objectStreams.add(_ObjectStreamInfo(streamKey, stream, writer.preparedKeys));
+      objectStreams
+          .add(_ObjectStreamInfo(streamKey, stream, writer.preparedKeys));
       indirectObjects[streamKey] = stream;
       _highestObjectNumber = math.max(_highestObjectNumber, nextObjectNumber);
 
@@ -426,19 +435,24 @@ class COSWriter {
       _output.writeLF();
       _writeAscii('${entry.key} ');
       final tracking = _signatureTracking;
-      if (tracking != null && tracking.reachedSignature && entry.key == COSName.contents) {
+      if (tracking != null &&
+          tracking.reachedSignature &&
+          entry.key == COSName.contents) {
         tracking.signatureOffset = _output.position;
         _writeBase(entry.value);
         tracking.signatureLength = _output.position - tracking.signatureOffset;
         continue;
       }
-      if (tracking != null && tracking.reachedSignature && entry.key == COSName.byteRange) {
+      if (tracking != null &&
+          tracking.reachedSignature &&
+          entry.key == COSName.byteRange) {
         if (entry.value is COSArray) {
           tracking.byteRangeArray = entry.value as COSArray;
         }
         tracking.byteRangeOffset = _output.position + 1;
         _writeBase(entry.value);
-        tracking.byteRangeLength = _output.position - 1 - tracking.byteRangeOffset;
+        tracking.byteRangeLength =
+            _output.position - 1 - tracking.byteRangeOffset;
         tracking.reachedSignature = false;
         continue;
       }
@@ -562,8 +576,9 @@ class COSWriter {
 
     final rootRef = _formatReference(trailer[COSName.root]);
     final infoRef = _formatReference(trailer[COSName.info]);
-    final prevOffset =
-  _options.previousStartXref ?? _intFrom(trailer.getDictionaryObject(COSName.prev));
+    final encryptRef = _formatReference(trailer[COSName.encrypt]);
+    final prevOffset = _options.previousStartXref ??
+        _intFrom(trailer.getDictionaryObject(COSName.prev));
     final idArray = _resolveDocumentId(trailer);
 
     _writeAscii('trailer\n<<\n');
@@ -573,6 +588,9 @@ class COSWriter {
     }
     if (infoRef != null) {
       _writeAscii('${COSName.info} $infoRef\n');
+    }
+    if (encryptRef != null) {
+      _writeAscii('${COSName.encrypt} $encryptRef\n');
     }
     if (prevOffset != null) {
       _writeAscii('${COSName.prev} $prevOffset\n');
@@ -604,8 +622,8 @@ class COSWriter {
       ..sort();
 
     final size = _calculateCompressedSize(entries);
-    final prevOffset =
-        _options.previousStartXref ?? _intFrom(trailer.getDictionaryObject(COSName.prev));
+    final prevOffset = _options.previousStartXref ??
+        _intFrom(trailer.getDictionaryObject(COSName.prev));
     final idArray = _resolveDocumentId(trailer);
 
     final builder = PDFXRefStream()
@@ -748,8 +766,7 @@ class COSWriter {
         for (final entry in buffer) {
           final offsetString =
               entry.secondColumnValue.toString().padLeft(10, '0');
-          final generation =
-              entry.thirdColumnValue.toString().padLeft(5, '0');
+          final generation = entry.thirdColumnValue.toString().padLeft(5, '0');
           _writeAscii('$offsetString $generation n \n');
         }
         buffer.clear();
@@ -793,6 +810,7 @@ class COSWriter {
 
     final rootRef = _formatReference(trailer[COSName.root]);
     final infoRef = _formatReference(trailer[COSName.info]);
+    final encryptRef = _formatReference(trailer[COSName.encrypt]);
     final idArray = _resolveDocumentId(trailer);
 
     _writeAscii('trailer\n<<\n');
@@ -802,6 +820,9 @@ class COSWriter {
     }
     if (infoRef != null) {
       _writeAscii('${COSName.info} $infoRef\n');
+    }
+    if (encryptRef != null) {
+      _writeAscii('${COSName.encrypt} $encryptRef\n');
     }
     if (previousStartXref != null) {
       _writeAscii('${COSName.prev} $previousStartXref\n');
@@ -1014,8 +1035,7 @@ class COSWriter {
       return null;
     }
 
-    final seed =
-        _options.documentIdSeed ?? _defaultIdSeed();
+    final seed = _options.documentIdSeed ?? _defaultIdSeed();
     final digest = md5.convert(seed).bytes;
     final idBytes = Uint8List.fromList(digest);
     return <Uint8List>[idBytes, Uint8List.fromList(idBytes)];
@@ -1025,8 +1045,8 @@ class COSWriter {
     final buffer = BytesBuilder(copy: false);
     final now = DateTime.now().toUtc();
     buffer.add(utf8.encode(now.toIso8601String()));
-  buffer.addByte(_normalReferences.length & 0xff);
-  buffer.addByte(_objectStreamReferences.length & 0xff);
+    buffer.addByte(_normalReferences.length & 0xff);
+    buffer.addByte(_objectStreamReferences.length & 0xff);
     final random = math.Random();
     final randomData = ByteData(4)..setUint32(0, random.nextInt(0xffffffff));
     buffer.add(randomData.buffer.asUint8List());
@@ -1338,14 +1358,11 @@ class COSWriter {
     final originalFilter = stream.getItem(COSName.filter);
     final data = stream.encodedBytes(copy: false) ?? Uint8List(0);
 
-    if (!_options.compressStreams ||
-        originalFilter != null ||
-        data.isEmpty) {
+    if (!_options.compressStreams || originalFilter != null || data.isEmpty) {
       return _StreamSerialization(data, originalFilter: originalFilter);
     }
 
-    final compressed =
-        _flateFilter.encode(data, COSDictionary(), 0);
+    final compressed = _flateFilter.encode(data, COSDictionary(), 0);
     if (_options.compressOnlyIfSmaller && compressed.length >= data.length) {
       return _StreamSerialization(data, originalFilter: originalFilter);
     }

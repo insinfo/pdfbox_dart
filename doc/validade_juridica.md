@@ -2,7 +2,7 @@ Sim — dá para ter validade jurídica interna, desde que vocês “amarrem” 
 
 Vou destrinchar.
 
-Atualização técnica: o fluxo de assinatura do SALI passou a aplicar SASLprep (RFC 4013) antes da derivação de chaves em PDFs com criptografia padrão revisão 6, alinhando a normalização de senhas internas às mesmas garantias do PDFBox oficial.
+Atualização técnica: o fluxo de assinatura do SALI passou a aplicar SASLprep (RFC 4013) antes da derivação de chaves em PDFs com criptografia padrão revisão 6, alinhando a normalização de senhas internas às mesmas garantias do PDFBox oficial. O dicionário de criptografia dessa revisão também é gerado integralmente (campos /U, /UE, /O, /OE e /Perms) com chave AES-256 e filtros `/StdCF`/`AESV3` iguais aos do PDFBox.
 
 O que a lei brasileira diz
 

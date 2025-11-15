@@ -5,6 +5,7 @@ import '../cos/cos_array.dart';
 import '../cos/cos_dictionary.dart';
 import '../cos/cos_document.dart';
 import '../cos/cos_name.dart';
+import '../cos/cos_object.dart';
 import '../../io/random_access_read.dart';
 import '../../io/random_access_read_buffer.dart';
 import '../../io/random_access_read_buffered_file.dart';
@@ -269,7 +270,27 @@ class PDDocument {
   /// Associates the supplied encryption dictionary with the document trailer.
   void setEncryptionDictionary(PDEncryption encryption) {
     _encryption = encryption;
-    _document.trailer[COSName.encrypt] = encryption.cosObject;
+    final cosDocument = _document;
+    final encryptionDict = encryption.cosObject;
+    COSObject trailerObject;
+
+    final currentKey = encryptionDict.key;
+    if (currentKey == null) {
+      trailerObject = cosDocument.createObject(encryptionDict);
+    } else {
+      final existing = cosDocument.getObject(currentKey);
+      if (existing == null) {
+        trailerObject = COSObject.fromKey(currentKey, encryptionDict);
+        cosDocument.addObject(trailerObject);
+      } else {
+        if (!identical(existing.object, encryptionDict)) {
+          existing.object = encryptionDict;
+        }
+        trailerObject = existing;
+      }
+    }
+
+    cosDocument.trailer[COSName.encrypt] = trailerObject;
   }
 
   /// Permissions granted to the caller for the current encrypted document.

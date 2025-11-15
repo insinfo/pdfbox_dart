@@ -122,19 +122,25 @@ class StandardSecurityHandler
     final lengthInBytes = math.max(1, keyLength ~/ 8);
 
     if (revision == _revision6) {
-      // TODO(la-porta): Port revision 6 dictionary preparation.
-      throw UnimplementedError('Revision 6 encryption is not yet supported');
+      final preparedOwner = SaslPrep.saslPrepStored(effectiveOwnerPassword);
+      final preparedUser = SaslPrep.saslPrepStored(userPassword);
+      _prepareEncryptionDictRev6(
+        preparedOwner,
+        preparedUser,
+        encryptionDictionary,
+        permissionsValue,
+      );
+    } else {
+      _prepareEncryptionDictRev234(
+        effectiveOwnerPassword,
+        userPassword,
+        encryptionDictionary,
+        permissionsValue,
+        document,
+        revision,
+        lengthInBytes,
+      );
     }
-
-    _prepareEncryptionDictRev234(
-      effectiveOwnerPassword,
-      userPassword,
-      encryptionDictionary,
-      permissionsValue,
-      document,
-      revision,
-      lengthInBytes,
-    );
 
     document.setEncryptionDictionary(encryptionDictionary);
   }
@@ -347,6 +353,96 @@ class StandardSecurityHandler
     if (revision == _revision4 && isAES) {
       _prepareEncryptionDictAES(encryptionDictionary, COSName.aesV2);
     }
+  }
+
+  void _prepareEncryptionDictRev6(
+    String ownerPassword,
+    String userPassword,
+    PDEncryption encryptionDictionary,
+    int permissionInt,
+  ) {
+    final random = math.Random.secure();
+    final zeroIv = Uint8List(16);
+
+    final fileKey = _randomBytes(random, 32);
+    setEncryptionKey(fileKey);
+
+    final userPasswordBytes =
+        _truncate127(Uint8List.fromList(utf8.encode(userPassword)));
+    final userValidationSalt = _randomBytes(random, 8);
+    final userKeySalt = _randomBytes(random, 8);
+
+    final hashU = _computeHash2B(
+      _concat(<Uint8List>[userPasswordBytes, userValidationSalt]),
+      userPasswordBytes,
+      null,
+    );
+    final u = _concat(<Uint8List>[hashU, userValidationSalt, userKeySalt]);
+
+    final hashUE = _computeHash2B(
+      _concat(<Uint8List>[userPasswordBytes, userKeySalt]),
+      userPasswordBytes,
+      null,
+    );
+    final ue = _aesCbc(
+      hashUE,
+      zeroIv,
+      encryptionKeyOrThrow,
+      forEncryption: true,
+    );
+
+    final ownerPasswordBytes =
+        _truncate127(Uint8List.fromList(utf8.encode(ownerPassword)));
+    final ownerValidationSalt = _randomBytes(random, 8);
+    final ownerKeySalt = _randomBytes(random, 8);
+
+    final hashO = _computeHash2B(
+      _concat(<Uint8List>[ownerPasswordBytes, ownerValidationSalt, u]),
+      ownerPasswordBytes,
+      u,
+    );
+    final o = _concat(<Uint8List>[hashO, ownerValidationSalt, ownerKeySalt]);
+
+    final hashOE = _computeHash2B(
+      _concat(<Uint8List>[ownerPasswordBytes, ownerKeySalt, u]),
+      ownerPasswordBytes,
+      u,
+    );
+    final oe = _aesCbc(
+      hashOE,
+      zeroIv,
+      encryptionKeyOrThrow,
+      forEncryption: true,
+    );
+
+    final perms = Uint8List(16)
+      ..setRange(0, 4, _intToBytesLE(permissionInt))
+      ..[4] = 0xFF
+      ..[5] = 0xFF
+      ..[6] = 0xFF
+      ..[7] = 0xFF
+      ..[8] = 'T'.codeUnitAt(0)
+      ..[9] = 'a'.codeUnitAt(0)
+      ..[10] = 'd'.codeUnitAt(0)
+      ..[11] = 'b'.codeUnitAt(0);
+    perms.setRange(12, 16, _randomBytes(random, 4));
+
+    final permsEncrypted = _aesCbc(
+      encryptionKeyOrThrow,
+      zeroIv,
+      perms,
+      forEncryption: true,
+    );
+
+    encryptionDictionary
+      ..ownerValue = COSString.fromBytes(o)
+      ..ownerEncryption = COSString.fromBytes(oe)
+      ..userValue = COSString.fromBytes(u)
+      ..userEncryption = COSString.fromBytes(ue)
+      ..perms = COSString.fromBytes(permsEncrypted)
+      ..encryptMetadata = true;
+
+    _prepareEncryptionDictAES(encryptionDictionary, COSName.aesV3);
   }
 
   void _prepareEncryptionDictAES(
@@ -963,6 +1059,14 @@ class StandardSecurityHandler
     buffer[2] = (value >> 16) & 0xFF;
     buffer[3] = (value >> 24) & 0xFF;
     return buffer;
+  }
+
+  Uint8List _randomBytes(math.Random random, int length) {
+    final bytes = Uint8List(length);
+    for (var i = 0; i < length; i++) {
+      bytes[i] = random.nextInt(256);
+    }
+    return bytes;
   }
 
   Uint8List _bigIntToBytes(BigInt value) {

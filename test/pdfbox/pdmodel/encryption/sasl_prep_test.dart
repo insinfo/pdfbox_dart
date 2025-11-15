@@ -38,5 +38,11 @@ void main() {
       const input = '\u05D0\u05D1';
       expect(SaslPrep.saslPrepStored(input), input);
     });
+
+    test('accepts supplementary RandALCat input', () {
+      const input = '\u{1EE24}\u{1EE27}';
+      final normalized = SaslPrep.saslPrepStored(input);
+      expect(normalized.isNotEmpty, isTrue);
+    });
   });
 }
