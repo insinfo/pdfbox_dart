@@ -3,9 +3,9 @@
 /// The policy defines the intended key length (in bits) and whether AES
 /// should be preferred when multiple algorithms are available.
 abstract class ProtectionPolicy {
-  static const int _defaultKeyLength = 40;
+  static const int defaultKeyLength = 40;
 
-  int _encryptionKeyLength = _defaultKeyLength;
+  int _encryptionKeyLength = defaultKeyLength;
   bool _preferAes = false;
 
   /// Updates the key length in bits.

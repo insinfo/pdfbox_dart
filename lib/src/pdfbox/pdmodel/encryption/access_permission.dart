@@ -9,7 +9,8 @@ class AccessPermission {
   /// Constructs a new permission object. When [permissions] is omitted the
   /// default owner permissions are assumed.
   AccessPermission([int? permissions])
-      : _permissions = _normalisePermissions(permissions ?? _defaultPermissions);
+      : _permissions =
+            _normalisePermissions(permissions ?? _defaultPermissions);
 
   /// Constructs a permission object from the four permission bytes contained in
   /// an encryption dictionary (`/P`).
@@ -103,8 +104,7 @@ class AccessPermission {
 
   bool get canFillInForm => _isPermissionBitOn(_fillInFormBit);
 
-  void setCanFillInForm(bool allow) =>
-      setPermissionBit(_fillInFormBit, allow);
+  void setCanFillInForm(bool allow) => setPermissionBit(_fillInFormBit, allow);
 
   bool get canExtractForAccessibility =>
       _isPermissionBitOn(_extractForAccessibilityBit);
@@ -122,8 +122,7 @@ class AccessPermission {
   void setCanPrintFaithful(bool allow) =>
       setPermissionBit(_faithfulPrintBit, allow);
 
-  bool _isPermissionBitOn(int bit) =>
-      (_permissions & (1 << (bit - 1))) != 0;
+  bool _isPermissionBitOn(int bit) => (_permissions & (1 << (bit - 1))) != 0;
 
   bool setPermissionBit(int bit, bool value) {
     if (_readOnly) {
@@ -137,5 +136,20 @@ class AccessPermission {
     }
     _permissions = _normalisePermissions(permissions);
     return _isPermissionBitOn(bit);
+  }
+
+  /// Returns `true` when no further modifications to the permission bits are
+  /// allowed.
+  bool get isReadOnly => _readOnly;
+
+  /// Indicates whether any revision 3 specific permission bits are enabled.
+  ///
+  /// This mirrors PDFBox' `AccessPermission.hasAnyRevision3PermissionSet()` and
+  /// is used when selecting the appropriate security handler revision.
+  bool hasAnyRevision3PermissionSet() {
+    return canFillInForm ||
+        canExtractForAccessibility ||
+        canAssembleDocument ||
+        canPrintFaithful;
   }
 }

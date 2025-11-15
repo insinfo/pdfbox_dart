@@ -2,6 +2,8 @@ Sim — dá para ter validade jurídica interna, desde que vocês “amarrem” 
 
 Vou destrinchar.
 
+Atualização técnica: o fluxo de assinatura do SALI passou a aplicar SASLprep (RFC 4013) antes da derivação de chaves em PDFs com criptografia padrão revisão 6, alinhando a normalização de senhas internas às mesmas garantias do PDFBox oficial.
+
 O que a lei brasileira diz
 
 A MP 2.200-2/2001 criou a ICP-Brasil e disse: se o documento for assinado com certificado ICP-Brasil, tem presunção plena de validade. 

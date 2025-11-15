@@ -300,6 +300,7 @@ class COSName extends COSBase implements Comparable<COSName> {
   static final COSName o = COSName('O');
   static final COSName u = COSName('U');
   static final COSName cf = COSName('CF');
+  static final COSName stdCF = COSName('StdCF');
   static final COSName stmf = COSName('StmF');
   static final COSName strf = COSName('StrF');
   static final COSName eff = COSName('EFF');

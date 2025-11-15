@@ -61,8 +61,9 @@ class PDDocument {
     final encryptionDict = document.trailer.getCOSDictionary(COSName.encrypt);
     if (encryptionDict != null) {
       pdDocument._encryption = PDEncryption(encryptionDict);
-      pdDocument._accessPermission = StandardSecurityHandler
-          .permissionsFromEncryption(pdDocument._encryption!);
+      pdDocument._accessPermission =
+          StandardSecurityHandler.permissionsFromEncryption(
+              pdDocument._encryption!);
     } else {
       pdDocument._accessPermission = AccessPermission.ownerAccessPermission();
     }
@@ -264,6 +265,12 @@ class PDDocument {
   }
 
   PDEncryption? get encryption => _encryption;
+
+  /// Associates the supplied encryption dictionary with the document trailer.
+  void setEncryptionDictionary(PDEncryption encryption) {
+    _encryption = encryption;
+    _document.trailer[COSName.encrypt] = encryption.cosObject;
+  }
 
   /// Permissions granted to the caller for the current encrypted document.
   AccessPermission get currentAccessPermission => _accessPermission;
