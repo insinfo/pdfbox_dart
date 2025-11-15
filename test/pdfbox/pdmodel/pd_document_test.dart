@@ -104,6 +104,7 @@ void main() {
       final bookmark = PDOutlineItem()..title = 'Bookmark';
       outline.addLast(bookmark);
       outline.open = true;
+      expect(document.documentOutline?.open, isTrue);
       expect(document.documentOutline?.openCount, 1);
 
       document.documentOutline = null;

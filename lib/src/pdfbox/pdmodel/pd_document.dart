@@ -11,6 +11,7 @@ import '../../io/random_access_read_buffered_file.dart';
 import '../../io/random_access_write.dart';
 import '../pdfwriter/cos_writer.dart';
 import '../pdfwriter/pdf_save_options.dart';
+import '../pdmodel/encryption/pd_encryption.dart';
 import '../pdmodel/interactive/digitalsignature/external_signing_support.dart';
 import '../pdmodel/interactive/digitalsignature/signing_support.dart';
 import '../pdmodel/interactive/documentnavigation/pd_outline_node.dart';
@@ -51,7 +52,12 @@ class PDDocument {
     final resourceCache = ResourceCache();
     final catalog =
         PDDocumentCatalog(document, resourceCache, catalogDictionary);
-    return PDDocument._(document, catalog, resourceCache);
+    final pdDocument = PDDocument._(document, catalog, resourceCache);
+    final encryptionDict = document.trailer.getCOSDictionary(COSName.encrypt);
+    if (encryptionDict != null) {
+      pdDocument._encryption = PDEncryption(encryptionDict);
+    }
+    return pdDocument;
   }
 
   /// Loads a PDF document from a [RandomAccessRead] source using [PDFParser].
@@ -90,6 +96,7 @@ class PDDocument {
   final ResourceCache _resourceCache;
   bool _closed = false;
   PDDocumentInformation? _documentInformation;
+  PDEncryption? _encryption;
 
   COSDocument get cosDocument => _document;
 
@@ -245,4 +252,6 @@ class PDDocument {
     }
     throw StateError('COSDocument trailer missing /Root dictionary');
   }
+
+  PDEncryption? get encryption => _encryption;
 }

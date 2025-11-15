@@ -1,0 +1,59 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R /Outlines 5 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Count 1 /Kids [3 0 R] >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Annots [9 0 R 10 0 R 11 0 R] >>
+endobj
+4 0 obj
+<< /Length 0 >>
+stream
+endstream
+endobj
+5 0 obj
+<< /Type /Outlines /First 6 0 R /Last 8 0 R /Count 3 >>
+endobj
+6 0 obj
+<< /Title (Intro) /Parent 5 0 R /Dest [3 0 R /Fit] /Next 7 0 R >>
+endobj
+7 0 obj
+<< /Title (Next Page) /Parent 5 0 R /Prev 6 0 R /Next 8 0 R /A << /S /Named /N /NextPage >> /First 12 0 R /Last 12 0 R /Count -1 >>
+endobj
+8 0 obj
+<< /Title (Example URI) /Parent 5 0 R /Prev 7 0 R /A << /S /URI /URI (https://example.com) >> >>
+endobj
+9 0 obj
+<< /Type /Annot /Subtype /Link /Rect [0 0 100 20] /Dest [3 0 R /Fit] >>
+endobj
+10 0 obj
+<< /Type /Annot /Subtype /Link /Rect [0 0 100 20] /A << /S /Named /N /NextPage >> >>
+endobj
+11 0 obj
+<< /Type /Annot /Subtype /Link /Rect [0 0 100 20] /A << /S /URI /URI (https://example.com) >> >>
+endobj
+12 0 obj
+<< /Title (Hidden child) /Parent 7 0 R >>
+endobj
+xref
+0 13
+0000000000 65535 f 
+0000000009 00000 n 
+0000000074 00000 n 
+0000000131 00000 n 
+0000000248 00000 n 
+0000000296 00000 n 
+0000000367 00000 n 
+0000000448 00000 n 
+0000000595 00000 n 
+0000000707 00000 n 
+0000000794 00000 n 
+0000000895 00000 n 
+0000001008 00000 n 
+trailer
+<< /Size 13 /Root 1 0 R >>
+startxref
+1066
+%%EOF

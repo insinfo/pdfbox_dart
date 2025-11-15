@@ -1,3 +1,4 @@
+import 'dart:collection';
 import 'dart:typed_data';
 
 import 'package:logging/logging.dart';
@@ -15,6 +16,8 @@ import '../cos/cos_null.dart';
 import '../cos/cos_number.dart';
 import '../cos/cos_object.dart';
 import '../cos/cos_stream.dart';
+import 'interactive/annotation/pd_annotation.dart';
+import 'interactive/annotation/pd_annotation_factory.dart';
 import 'common/pd_rectangle.dart';
 import 'pd_resources.dart';
 import 'pd_stream.dart';
@@ -32,6 +35,7 @@ class PDPage implements PDContentStream {
 
   final COSDictionary _dictionary;
   ResourceCache? _resourceCache;
+  List<PDAnnotation>? _annotationCache;
 
   COSDictionary get cosObject => _dictionary;
 
@@ -93,6 +97,71 @@ class PDPage implements PDContentStream {
 
   set resources(PDResources resources) {
     _dictionary[COSName.resources] = resources.cosObject;
+  }
+
+  /// Returns the annotations associated with this page (`/Annots`).
+  List<PDAnnotation> get annotations {
+    final cached = _annotationCache;
+    if (cached != null) {
+      return cached;
+    }
+    final loaded = UnmodifiableListView<PDAnnotation>(_loadAnnotations());
+    _annotationCache = loaded;
+    return loaded;
+  }
+
+  set annotations(List<PDAnnotation> value) {
+    if (value.isEmpty) {
+      _dictionary.removeItem(COSName.annots);
+      _annotationCache = const <PDAnnotation>[];
+      return;
+    }
+    final array = COSArray();
+    for (final annotation in value) {
+      array.addObject(annotation.cosObject);
+    }
+    _dictionary.setItem(COSName.annots, array);
+    _annotationCache = UnmodifiableListView<PDAnnotation>(List<PDAnnotation>.from(value));
+  }
+
+  void addAnnotation(PDAnnotation annotation) {
+    final annots = _dictionary.getCOSArray(COSName.annots);
+    if (annots == null) {
+      final array = COSArray()..addObject(annotation.cosObject);
+      _dictionary.setItem(COSName.annots, array);
+    } else {
+      annots.addObject(annotation.cosObject);
+    }
+    _annotationCache = null;
+  }
+
+  List<PDAnnotation> _loadAnnotations() {
+    final annotsObject = _dictionary.getDictionaryObject(COSName.annots);
+    if (annotsObject == null || annotsObject == COSNull.instance) {
+      return const <PDAnnotation>[];
+    }
+    COSArray? array;
+    if (annotsObject is COSArray) {
+      array = annotsObject;
+    } else if (annotsObject is COSObject && annotsObject.object is COSArray) {
+      array = annotsObject.object as COSArray;
+    }
+    final factory = PDAnnotationFactory.instance;
+    if (array == null) {
+      final annotation = factory.createAnnotation(annotsObject);
+      if (annotation == null) {
+        return const <PDAnnotation>[];
+      }
+      return <PDAnnotation>[annotation];
+    }
+    final annotations = <PDAnnotation>[];
+    for (final entry in array) {
+      final annotation = factory.createAnnotation(entry);
+      if (annotation != null) {
+        annotations.add(annotation);
+      }
+    }
+    return annotations;
   }
 
   /// Returns the content streams associated with the page.

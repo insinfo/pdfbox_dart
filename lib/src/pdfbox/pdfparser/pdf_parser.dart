@@ -36,7 +36,10 @@ class PDFParser extends COSParser {
     final cosDocument = parseDocument();
     cosDocument.headerVersion = _documentVersion ?? '1.4';
 
-    final catalogDict = _resolveRootDictionary(cosDocument);
+    var catalogDict = _resolveRootDictionary(cosDocument);
+    if (catalogDict == null && isLenient) {
+      catalogDict = _recoverCatalogFromBruteForce(cosDocument);
+    }
     if (catalogDict == null) {
       throw IOException('Missing root object specification in trailer.');
     }
@@ -53,6 +56,32 @@ class PDFParser extends COSParser {
 
   PDDocument createDocument(COSDocument cosDocument) {
     return PDDocument.fromCOSDocument(cosDocument);
+  }
+
+  COSDictionary? _recoverCatalogFromBruteForce(COSDocument cosDocument) {
+    _logger.warning(
+      'Missing document catalog; attempting brute-force recovery in lenient mode',
+    );
+    try {
+      final previousDocument = document;
+      document = cosDocument;
+      try {
+        source.seek(0);
+        rebuildDocumentFromBruteForce(cosDocument);
+      } finally {
+        document = previousDocument;
+      }
+      cosDocument.startXref = 0;
+      cosDocument.markAllClean();
+      return _resolveRootDictionary(cosDocument);
+    } on IOException catch (exception, stackTrace) {
+      _logger.warning(
+        'Brute-force recovery failed to rebuild catalog',
+        exception,
+        stackTrace,
+      );
+      return null;
+    }
   }
 
   bool _parsePDFHeader() => _parseHeader('%PDF-', defaultVersion: '1.4');

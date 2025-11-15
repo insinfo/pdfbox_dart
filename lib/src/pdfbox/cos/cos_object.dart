@@ -23,6 +23,10 @@ class COSObject extends COSBase {
   set key(COSObjectKey? value) {
     _key = value;
     super.key = value;
+    final current = _object;
+    if (!identical(current, COSNull.instance) && current.key == null) {
+      current.key = value;
+    }
   }
 
   COSBase _object = COSNull.instance;
@@ -33,6 +37,9 @@ class COSObject extends COSBase {
     final newValue = value ?? COSNull.instance;
     if (!identical(_object, newValue)) {
       _object = newValue;
+      if (_object.key == null) {
+        _object.key = key;
+      }
       markDirty();
     }
   }

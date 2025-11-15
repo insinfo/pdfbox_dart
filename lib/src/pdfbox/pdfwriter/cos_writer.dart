@@ -676,8 +676,9 @@ class COSWriter {
         continue;
       }
       // Include objects that are either new (no xref entry yet) or flagged dirty.
-      if (!cosDocument.xrefTable.containsKey(key) ||
-          cosObject.needsUpdateDeep()) {
+      final hasRef = cosDocument.xrefTable.containsKey(key);
+      final isDirty = cosObject.needsUpdateDeep();
+      if (!hasRef || isDirty) {
         result.add(_IndirectObject(key, cosObject.object));
       }
       _highestObjectNumber = math.max(_highestObjectNumber, key.objectNumber);

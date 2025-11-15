@@ -1,4 +1,6 @@
+import '../../../cos/cos_array.dart';
 import '../../../cos/cos_dictionary.dart';
+import '../../../cos/cos_float.dart';
 import '../../../cos/cos_name.dart';
 import '../../../cos/cos_string.dart';
 import '../../common/pd_destination.dart';
@@ -7,7 +9,8 @@ import '../action/pd_action_factory.dart';
 
 /// Shared implementation for outline nodes (ISO 32000-1, §12.3.3).
 abstract class PDOutlineNode<T extends PDOutlineItem> {
-  PDOutlineNode(this._dictionary) {
+  PDOutlineNode(this._dictionary)
+      : _openStateCache = _deriveOpenState(_dictionary) {
     _nodeCache[_dictionary] = this;
   }
 
@@ -17,22 +20,35 @@ abstract class PDOutlineNode<T extends PDOutlineItem> {
   final COSDictionary _dictionary;
   T? _firstChildCache;
   T? _lastChildCache;
+  bool? _openStateCache;
+
+  static bool? _deriveOpenState(COSDictionary dictionary) {
+    final count = dictionary.getInt(COSName.count);
+    if (count == null) {
+      return null;
+    }
+    return count >= 0;
+  }
 
   COSDictionary get cosObject => _dictionary;
 
   /// Returns `true` when the node is open or when `/Count` is missing.
   bool get open {
-    final count = _dictionary.getInt(COSName.count);
-    if (count == null) {
-      return true;
+    final cached = _openStateCache;
+    if (cached != null) {
+      return cached;
     }
-    return count >= 0;
+    final count = _dictionary.getInt(COSName.count);
+    final computed = count == null || count >= 0;
+    _openStateCache = computed;
+    return computed;
   }
 
   set open(bool value) {
     if (value == open) {
       return;
     }
+    _openStateCache = value;
     if (!_hasChildren) {
       _dictionary.removeItem(COSName.count);
       return;
@@ -53,6 +69,7 @@ abstract class PDOutlineNode<T extends PDOutlineItem> {
       }
     }
     _propagateCountChanges();
+    _openStateCache = value;
   }
 
   int? get openCount => _dictionary.getInt(COSName.count);
@@ -155,6 +172,8 @@ abstract class PDOutlineNode<T extends PDOutlineItem> {
     var ancestor = parentNode;
     while (ancestor != null) {
       ancestor._updateOwnCount();
+      ancestor._openStateCache =
+          _deriveOpenState(ancestor._dictionary) ?? ancestor._openStateCache;
       ancestor = ancestor.parentNode;
     }
   }
@@ -162,22 +181,27 @@ abstract class PDOutlineNode<T extends PDOutlineItem> {
   void _updateOwnCount() {
     if (!_hasChildren) {
       _dictionary.removeItem(COSName.count);
+      _openStateCache = null;
       return;
     }
     final totalDescendants = _totalDescendantCount();
     if (totalDescendants == 0) {
       _dictionary.removeItem(COSName.count);
+      _openStateCache = null;
       return;
     }
     if (open) {
       final openDescendants = _openDescendantCount();
       if (openDescendants == 0) {
         _dictionary.removeItem(COSName.count);
+        _openStateCache = null;
       } else {
         _dictionary.setInt(COSName.count, openDescendants);
+        _openStateCache = true;
       }
     } else {
       _dictionary.setInt(COSName.count, -totalDescendants);
+      _openStateCache = false;
     }
   }
 
@@ -343,6 +367,42 @@ class PDOutlineItem extends PDOutlineNode<PDOutlineItem> {
 
   set title(String? value) => cosObject.setString(COSName.title, value);
 
+  List<double>? get color {
+    final array = cosObject.getCOSArray(COSName.c);
+    if (array == null) {
+      return null;
+    }
+    final values = array.toDoubleList();
+    if (values.length < 3) {
+      return null;
+    }
+    return List<double>.unmodifiable(values.take(3));
+  }
+
+  set color(List<double>? value) {
+    if (value == null) {
+      cosObject.removeItem(COSName.c);
+      return;
+    }
+    if (value.length != 3) {
+      throw ArgumentError.value(value, 'value', 'Outline color must have exactly 3 components');
+    }
+    final components = value.map((component) => component.toDouble()).toList(growable: false);
+    final array = COSArray()
+      ..add(COSFloat(components[0]))
+      ..add(COSFloat(components[1]))
+      ..add(COSFloat(components[2]));
+    cosObject.setItem(COSName.c, array);
+  }
+
+  bool get isItalic => cosObject.getFlag(COSName.f, 1);
+
+  set isItalic(bool value) => cosObject.setFlag(COSName.f, 1, value);
+
+  bool get isBold => cosObject.getFlag(COSName.f, 2);
+
+  set isBold(bool value) => cosObject.setFlag(COSName.f, 2, value);
+
   PDDestination? get destination =>
       PDDestination.fromCOS(cosObject.getDictionaryObject(COSName.dest));
 
@@ -372,6 +432,10 @@ class PDOutlineItem extends PDOutlineNode<PDOutlineItem> {
       PDActionFactory.instance.createAction(cosObject.getDictionaryObject(COSName.a));
 
   set action(PDAction? value) => cosObject.setItem(COSName.a, value?.cosObject);
+
+  COSDictionary? get structureElement => cosObject.getCOSDictionary(COSName.se);
+
+  set structureElement(COSDictionary? value) => cosObject.setItem(COSName.se, value);
 
   void remove() {
     final parentNodeRef = parentNode;

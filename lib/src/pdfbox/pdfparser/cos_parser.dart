@@ -2,6 +2,8 @@ import 'dart:collection';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:logging/logging.dart';
+
 import '../../io/exceptions.dart';
 import '../../io/random_access_read.dart';
 import '../cos/cos_array.dart';
@@ -32,7 +34,10 @@ import 'xref_parser.dart';
 class COSParser extends BaseParser {
   COSParser(RandomAccessRead source, {COSDocument? document})
       : _document = document,
+        _logger = Logger('pdfbox.COSParser'),
         super(source);
+
+  final Logger _logger;
 
   bool _lenient = true;
   bool _initialParseDone = false;
@@ -260,42 +265,130 @@ class COSParser extends BaseParser {
     try {
       final startXref = _findStartXref();
       if (startXref == null) {
-        throw IOException('Unable to locate startxref in source');
-      }
-
-      final xrefParser = XrefParser(this);
-      final trailer = xrefParser.parseXref(cosDocument, startXref);
-      if (cosDocument.trailer.isEmpty) {
-        cosDocument.trailer.addAll(trailer);
-      }
-
-      final entries = cosDocument.xrefTable.entries
-          .where((entry) => entry.value > 0 && entry.key.objectNumber != 0)
-          .toList()
-        ..sort((a, b) {
-          final first = a.key;
-          final second = b.key;
-          final cmp = first.objectNumber.compareTo(second.objectNumber);
-          if (cmp != 0) {
-            return cmp;
-          }
-          return first.generationNumber.compareTo(second.generationNumber);
-        });
-
-      for (final entry in entries) {
-        final key = entry.key;
-        final existing = cosDocument.getObject(key);
-        if (existing != null && !existing.isNull) {
-          continue;
+        if (!isLenient) {
+          throw IOException('Unable to locate startxref in source');
         }
-        parseIndirectObjectAt(entry.value, document: cosDocument);
+        _logger.warning(
+          'Unable to locate startxref; attempting brute-force recovery',
+        );
+        _rebuildDocumentFromBruteForce(cosDocument);
+        return cosDocument..markAllClean();
       }
 
-      _parseCompressedObjects(cosDocument);
+      try {
+        _parseUsingXref(cosDocument, startXref);
+      } on IOException catch (exception, stackTrace) {
+        if (!isLenient) {
+          rethrow;
+        }
+        _logger.warning(
+          'Falling back to brute-force parsing due to xref failure',
+          exception,
+          stackTrace,
+        );
+        _rebuildDocumentFromBruteForce(cosDocument);
+      }
+
       cosDocument.markAllClean();
       return cosDocument;
     } finally {
       document = null;
+    }
+  }
+
+  void _parseUsingXref(COSDocument cosDocument, int startXref) {
+    final xrefParser = XrefParser(this);
+    final trailer = xrefParser.parseXref(cosDocument, startXref);
+    if (cosDocument.trailer.isEmpty) {
+      cosDocument.trailer.addAll(trailer);
+    }
+
+    _loadObjectsFromXref(cosDocument);
+    _parseCompressedObjectsSafely(cosDocument);
+  }
+
+  void _rebuildDocumentFromBruteForce(COSDocument cosDocument) {
+    final previousTrailer = COSDictionary()
+      ..addAll(cosDocument.trailer);
+    final bruteForce = bruteForceParser;
+    final trailer = bruteForce.rebuildTrailer(cosDocument.xrefTable);
+    if (cosDocument.trailer.isEmpty && trailer.isNotEmpty) {
+      cosDocument.trailer.addAll(trailer);
+    } else if (previousTrailer.isNotEmpty) {
+      for (final entry in previousTrailer.entries) {
+        final key = entry.key;
+        if (!cosDocument.trailer.containsKey(key)) {
+          cosDocument.trailer[key] = entry.value;
+        }
+      }
+    }
+
+    _loadObjectsFromXref(cosDocument);
+    _parseCompressedObjectsSafely(cosDocument);
+  }
+
+  /// Exposes brute-force reconstruction for subclasses needing to retry parsing.
+  void rebuildDocumentFromBruteForce(COSDocument cosDocument) {
+    _rebuildDocumentFromBruteForce(cosDocument);
+  }
+
+  void _loadObjectsFromXref(COSDocument cosDocument) {
+    final entries = cosDocument.xrefTable.entries
+        .where((entry) => entry.value > 0 && entry.key.objectNumber != 0)
+        .toList()
+      ..sort((a, b) {
+        final first = a.key;
+        final second = b.key;
+        final cmp = first.objectNumber.compareTo(second.objectNumber);
+        if (cmp != 0) {
+          return cmp;
+        }
+        return first.generationNumber.compareTo(second.generationNumber);
+      });
+
+    for (final entry in entries) {
+      final key = entry.key;
+      final existing = cosDocument.getObject(key);
+      if (existing != null && !existing.isNull) {
+        continue;
+      }
+      try {
+        final parsed =
+            parseIndirectObjectAt(entry.value, document: cosDocument);
+        if (parsed == null) {
+          const message = 'EOF reached while parsing indirect object';
+          if (!isLenient) {
+            throw IOException(message);
+          }
+          _logger.warning(
+            '$message at offset ${entry.value} for ${key.objectNumber} ${key.generationNumber} R',
+          );
+        }
+      } on IOException catch (exception, stackTrace) {
+        if (!isLenient) {
+          rethrow;
+        }
+        _logger.warning(
+          'Skipping corrupt object ${key.objectNumber} ${key.generationNumber} R at offset ${entry.value}',
+          exception,
+          stackTrace,
+        );
+      }
+    }
+  }
+
+  void _parseCompressedObjectsSafely(COSDocument cosDocument) {
+    try {
+      _parseCompressedObjects(cosDocument);
+    } on IOException catch (exception, stackTrace) {
+      if (!isLenient) {
+        rethrow;
+      }
+      _logger.warning(
+        'Failed to parse compressed object streams; continuing leniently',
+        exception,
+        stackTrace,
+      );
     }
   }
 

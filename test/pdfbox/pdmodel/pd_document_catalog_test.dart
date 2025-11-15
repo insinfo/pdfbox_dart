@@ -249,6 +249,7 @@ void main() {
 
       second.open = false;
       expect(second.openCount, -1);
+      expect(second.open, isFalse);
       expect(outline.openCount, 2);
 
       second.open = true;

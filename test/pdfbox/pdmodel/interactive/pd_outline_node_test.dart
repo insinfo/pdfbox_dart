@@ -1,4 +1,6 @@
 import 'package:pdfbox_dart/src/pdfbox/cos/cos_array.dart';
+import 'package:pdfbox_dart/src/pdfbox/cos/cos_dictionary.dart';
+import 'package:pdfbox_dart/src/pdfbox/cos/cos_float.dart';
 import 'package:pdfbox_dart/src/pdfbox/cos/cos_integer.dart';
 import 'package:pdfbox_dart/src/pdfbox/cos/cos_name.dart';
 import 'package:pdfbox_dart/src/pdfbox/pdmodel/common/pd_destination.dart';
@@ -37,6 +39,11 @@ void main() {
         ..addLast(chapter)
         ..addLast(section);
       section.addLast(paragraph);
+
+      expect(root.open, isTrue);
+      expect(root.openCount, 3);
+      expect(section.open, isTrue);
+      expect(section.openCount, 1);
 
       root.open = true;
       section.open = true;
@@ -81,6 +88,42 @@ void main() {
 
       item.destination = destination;
       expect(item.destination, isA<PDPageDestination>());
+    });
+
+    test('color, style and structure element round trip', () {
+      final item = PDOutlineItem();
+      item.color = <double>[1.0, 0.5, 0.25];
+      item.isBold = true;
+      item.isItalic = false;
+
+      final structure = COSDictionary()..setName(COSName.type, 'StructElem');
+      item.structureElement = structure;
+
+      expect(item.color, equals(<double>[1.0, 0.5, 0.25]));
+      expect(item.isBold, isTrue);
+      expect(item.isItalic, isFalse);
+      expect(item.structureElement, same(structure));
+
+      item.isItalic = true;
+      expect(item.isItalic, isTrue);
+
+      item.color = null;
+      expect(item.color, isNull);
+
+      final dict = COSDictionary()
+        ..setString(COSName.title, 'Styled')
+        ..setItem(
+          COSName.c,
+          COSArray()
+            ..add(COSFloat(0.0))
+            ..add(COSFloat(0.0))
+            ..add(COSFloat(1.0)),
+        )
+        ..setInt(COSName.f, 3);
+      final imported = PDOutlineItem(dictionary: dict);
+      expect(imported.color, equals(<double>[0.0, 0.0, 1.0]));
+      expect(imported.isBold, isTrue);
+      expect(imported.isItalic, isTrue);
     });
   });
 }

@@ -27,13 +27,19 @@ class COSName extends COSBase implements Comparable<COSName> {
   static final COSName a = COSName('A');
   static final COSName parent = COSName('Parent');
   static final COSName kids = COSName('Kids');
+  static final COSName annots = COSName('Annots');
   static final COSName count = COSName('Count');
   static final COSName bounds = COSName('Bounds');
   static final COSName subtype = COSName('Subtype');
   static final COSName mediaBox = COSName('MediaBox');
   static final COSName cropBox = COSName('CropBox');
   static final COSName contents = COSName('Contents');
+  static final COSName border = COSName('Border');
+  static final COSName bs = COSName('BS');
+  static final COSName quadPoints = COSName('QuadPoints');
+  static final COSName rect = COSName('Rect');
   static final COSName resources = COSName('Resources');
+  static final COSName c = COSName('C');
   static final COSName font = COSName('Font');
   static final COSName baseFont = COSName('BaseFont');
   static final COSName encoding = COSName('Encoding');
@@ -132,6 +138,8 @@ class COSName extends COSBase implements Comparable<COSName> {
   static final COSName nameKey = COSName('Name');
   static final COSName view = COSName('View');
   static final COSName viewState = COSName('ViewState');
+  static final COSName state = COSName('State');
+  static final COSName stateModel = COSName('StateModel');
   static final COSName print = COSName('Print');
   static final COSName printState = COSName('PrintState');
   static final COSName export = COSName('Export');
@@ -221,6 +229,8 @@ class COSName extends COSBase implements Comparable<COSName> {
   static final COSName dctDecodeAbbreviation = COSName('DCT');
   static final COSName sig = COSName('Sig');
   static final COSName subFilter = COSName('SubFilter');
+    static final COSName encrypt = COSName('Encrypt');
+    static final COSName encryptMetadata = COSName('EncryptMetadata');
   static final COSName location = COSName('Location');
   static final COSName reason = COSName('Reason');
   static final COSName contactInfo = COSName('ContactInfo');
@@ -228,6 +238,20 @@ class COSName extends COSBase implements Comparable<COSName> {
   static final COSName byteRange = COSName('ByteRange');
   static final COSName propBuild = COSName('Prop_Build');
   static final COSName app = COSName('App');
+  static final COSName appearance = COSName('AP');
+  static final COSName appearanceState = COSName('AS');
+  static final COSName defaultAppearance = COSName('DA');
+  static final COSName bg = COSName('BG');
+  static final COSName bc = COSName('BC');
+  static final COSName rc = COSName('RC');
+  static final COSName ac = COSName('AC');
+  static final COSName ds = COSName('DS');
+  static final COSName appearanceCharacteristics = COSName('MK');
+  static final COSName ix = COSName('IX');
+  static final COSName i = COSName('I');
+  static final COSName ifKey = COSName('IF');
+  static final COSName tp = COSName('TP');
+  static final COSName open = COSName('Open');
   static final COSName pubSec = COSName('PubSec');
   static final COSName os = COSName('OS');
   static final COSName preRelease = COSName('PreRelease');
@@ -269,6 +293,15 @@ class COSName extends COSBase implements Comparable<COSName> {
   static final COSName subjectDn = COSName('SubjectDN');
   static final COSName keyUsage = COSName('KeyUsage');
   static final COSName urlType = COSName('URLType');
+  static final COSName o = COSName('O');
+  static final COSName u = COSName('U');
+    static final COSName cf = COSName('CF');
+    static final COSName stmf = COSName('StmF');
+    static final COSName strf = COSName('StrF');
+    static final COSName eff = COSName('EFF');
+    static final COSName oe = COSName('OE');
+    static final COSName ue = COSName('UE');
+    static final COSName perms = COSName('Perms');
   static final COSName whitePoint = COSName('WhitePoint');
   static final COSName blackPoint = COSName('BlackPoint');
   static final COSName gamma = COSName('Gamma');
@@ -307,6 +340,7 @@ class COSName extends COSBase implements Comparable<COSName> {
   static final COSName desc = COSName('Desc');
   static final COSName newWindow = COSName('NewWindow');
   static final COSName win = COSName('Win');
+  static final COSName se = COSName('SE');
   static final COSName isMap = COSName('IsMap');
 
   @override
