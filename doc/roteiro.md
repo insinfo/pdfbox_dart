@@ -23,6 +23,16 @@ Fluxo de Conteúdo e Texto: É necessário que os processadores de operador (PDF
 
 Gráficos e Recursos: Amplie os espaços de cores, o tratamento de XObject, as imagens, os padrões e o cache de recursos para que o PDResources espelhe o comportamento do Java.
 Filtros e Imagens: Implemente os decodificadores pendentes (JPXDecode, CCITTFax) e finalize as opções do DCTDecode, como a preservação de CMYK/YCCK bruto.
+- Port iniciado do JJ2000: criado o módulo `lib/src/jj2000/j2k/util/` com `ParameterList`, logging (`MsgLogger`, `StreamMsgLogger`, `FacilityManager`) e utilitários de arrays, base para portar o decoder e liberar o JPXDecode.
+- Infra util do JJ2000 expandida: adicionados `MathUtil`, as interfaces de I/O (`EndianType`, `BinaryDataInput`, `BinaryDataOutput`, `RandomAccessIO`) e a implementação read-only `ISRandomAccessIO` (por enquanto lê tudo em memória; TODO suportar buffering incremental para streams grandes).
+- Manipulação de codestream portada: `CodestreamManipulator` reescreve tile-parts e headers PPM/PPT utilizando `BEBufferedRandomAccessFile`, preserva os marcadores SOP/EPH e mantém TODOs para integração com pipelines multi-thread e otimizações de buffer.
+- Estruturas básicas do codestream: adicionados `CorruptedCodestreamException`, `ProgressionType`, metadados `CoordInfo`/`CBlkCoordInfo`/`PrecCoordInfo`/`PrecInfo` e o helper `image/Coord`, preparando o terreno para portar `HeaderInfo` e os leitores do codestream.
+- Código-fonte Java do JJ2000: usar `C:\MyDartProjects\pdfbox_dart\jj2000` como referência para os próximos portes (o diretório `pdfbox-java` será removido futuramente).
+- Próximos passos focados em JPX:
+  - Portar o restante de `ucar/jpeg/jj2000/j2k/util` (`CodestreamManipulator`, `CSJ2KImageIOWriter` helpers relevantes, `ThreadPool`, `ProgressWatch` concretos) e criar testes equivalentes em `test/jj2000/j2k/util/` validando cenários de manipulação de codestream e callbacks de progresso.
+  - Atravessar o pipeline do decoder iniciando por `codestream.reader` (classes como `BitstreamReaderAgent`, `HeaderInfo`, `CodestreamReader`), em seguida `entropy.decoder` (`EntropyDecoder`, `MQDecoder`, `BufferingEntropyDecoder`) e finalmente `wavelet.synthesis` (`InvWT`, `SynWTFilter`) garantindo TODOs explícitos quando dependências ainda não existirem.
+  - Para cada pacote portado, amarrar testes regressivos: reutilize os fixtures JJ2000 originais (`*.j2k`, `*.jp2`) a partir de `resources/jpx/` assim que forem adicionados, comparando resultados com execuções do decoder Java.
+  - Documentar restrições temporárias (ex.: falta de multi-threading real no `ThreadPool`, ausência de `TileDecoder` incremental) diretamente no código com TODO e agregar checkpoints aqui no roteiro.
 
 Fontes e Subconjuntos: O caminho TrueType/CID está bem encaminhado; o trabalho restante envolve os casos extremos de CFF/Type 0, métricas verticais, atualizações incrementais de fontes e qualquer lógica de incorporação do lado Java que ainda não tenha sido replicada.
 

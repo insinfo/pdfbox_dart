@@ -1,14 +1,41 @@
 import '../../cos/cos_dictionary.dart';
 import '../../cos/cos_name.dart';
 import '../../cos/cos_string.dart';
+import 'protection_policy.dart';
+import 'security_handler.dart';
+import 'security_handler_factory.dart';
 
 /// Wrapper for a PDF encryption dictionary (ISO 32000-1, Table 20).
 class PDEncryption {
-  PDEncryption(this._dictionary);
+    PDEncryption([COSDictionary? dictionary])
+            : _dictionary = dictionary ?? COSDictionary() {
+        _initialiseSecurityHandler();
+    }
 
   final COSDictionary _dictionary;
+    SecurityHandler<ProtectionPolicy>? _securityHandler;
 
   COSDictionary get cosObject => _dictionary;
+
+    SecurityHandler<ProtectionPolicy>? get securityHandler => _securityHandler;
+
+    set securityHandler(SecurityHandler<ProtectionPolicy>? value) {
+        _securityHandler = value;
+    }
+
+    bool get hasSecurityHandler => _securityHandler != null;
+
+    void _initialiseSecurityHandler() {
+        final filterName = filter;
+        if (filterName == null) {
+            return;
+        }
+        final handler = SecurityHandlerFactory.instance
+                .newSecurityHandlerForFilter(filterName);
+        if (handler != null) {
+            _securityHandler = handler;
+        }
+    }
 
   String? get filter => _dictionary.getNameAsString(COSName.filter);
 

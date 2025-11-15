@@ -40,3 +40,11 @@ isaque_santana.cer
 INSTALAR_CERTIFICADO.bat
 isaque_santana.pem
 documento_assinado_native.pdf
+
+jbig2-imageio/
+jj2000/src
+jj2000/.gitignore
+jj2000/build.xml
+jj2000/COPYRIGHT
+jj2000/pom.xml
+jj2000/README.md

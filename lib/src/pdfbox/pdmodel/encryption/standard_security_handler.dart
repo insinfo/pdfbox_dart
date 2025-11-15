@@ -21,6 +21,7 @@ import 'security_handler.dart';
 import 'standard_decryption_material.dart';
 import 'standard_protection_policy.dart';
 import 'sasl_prep.dart';
+import 'protection_policy.dart';
 
 /// Password based security handler mirroring Apache PDFBox' implementation.
 class StandardSecurityHandler
@@ -142,6 +143,9 @@ class StandardSecurityHandler
       );
     }
 
+    final genericHandler = this as SecurityHandler<ProtectionPolicy>;
+    encryptionDictionary.securityHandler = genericHandler;
+    document.setSecurityHandler(genericHandler);
     document.setEncryptionDictionary(encryptionDictionary);
   }
 

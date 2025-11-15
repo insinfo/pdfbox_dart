@@ -12,8 +12,10 @@ import '../../io/random_access_read_buffered_file.dart';
 import '../../io/random_access_write.dart';
 import '../pdfwriter/cos_writer.dart';
 import '../pdfwriter/pdf_save_options.dart';
-import 'encryption/pd_encryption.dart';
 import 'encryption/access_permission.dart';
+import 'encryption/pd_encryption.dart';
+import 'encryption/protection_policy.dart';
+import 'encryption/security_handler.dart';
 import 'encryption/standard_security_handler.dart';
 import '../pdmodel/interactive/digitalsignature/external_signing_support.dart';
 import '../pdmodel/interactive/digitalsignature/signing_support.dart';
@@ -62,6 +64,7 @@ class PDDocument {
     final encryptionDict = document.trailer.getCOSDictionary(COSName.encrypt);
     if (encryptionDict != null) {
       pdDocument._encryption = PDEncryption(encryptionDict);
+      pdDocument._securityHandler = pdDocument._encryption?.securityHandler;
       pdDocument._accessPermission =
           StandardSecurityHandler.permissionsFromEncryption(
               pdDocument._encryption!);
@@ -108,6 +111,7 @@ class PDDocument {
   bool _closed = false;
   PDDocumentInformation? _documentInformation;
   PDEncryption? _encryption;
+  SecurityHandler<ProtectionPolicy>? _securityHandler;
   AccessPermission _accessPermission;
 
   COSDocument get cosDocument => _document;
@@ -267,9 +271,16 @@ class PDDocument {
 
   PDEncryption? get encryption => _encryption;
 
+  SecurityHandler<ProtectionPolicy>? get securityHandler => _securityHandler;
+
+  void setSecurityHandler(SecurityHandler<ProtectionPolicy>? handler) {
+    _securityHandler = handler;
+  }
+
   /// Associates the supplied encryption dictionary with the document trailer.
   void setEncryptionDictionary(PDEncryption encryption) {
     _encryption = encryption;
+    _securityHandler = encryption.securityHandler;
     final cosDocument = _document;
     final encryptionDict = encryption.cosObject;
     COSObject trailerObject;
