@@ -7,6 +7,15 @@ sempre coloque um comentario TODO no codigo para coisas portadas imcompletas ou 
 io ja esta implementado em C:\MyDartProjects\pdfbox_dart\lib\src\io
 fontbox ja esta implementado em C:\MyDartProjects\pdfbox_dart\lib\src\fontbox
 
+## ROI Pipeline Port Progress (2025-11-15)
+
+- Portado o adaptador `BlkImgDataSrcAdapter`, blocos `DataBlkByte`/`DataBlkShort` e agregador `ImgDataJoiner`, preparando as fontes de dados para composições multi componente.
+- Implementado o `ImgDataConverter` com conversão int↔float sem perda e suporte a ponto fixo.
+- Criados `MaxShiftSpec`, `RectROISpec`, gerador de máscara retangular e o `ROIDeScaler`, incluindo testes unitários para blocos int/float.
+- `HeaderInfo.populateRoiSpecs` agora injeta deslocamentos RGN nas specs do decoder para que o de-scaler receba os shifts corretos.
+- Iniciado o espelhamento do encoder ROI: adicionado `roi/encoder/` com `ROI`, `ROIMaskGenerator`, `SubbandROIMask`/`SubbandRectROIMask` e o `RectROIMaskGenerator` (versão maxshift), prontos para serem conectados ao `ROIScaler`.
+- Parser `parseRoiOptions` implementado em `roi/encoder/roi_option_parser.dart`, cobrindo sintaxe `R`/`C`/`A` com filtros de componentes (`c...`) e testes dedicados para manter a compatibilidade com o CLI do encoder.
+
 ## Pendencias atuais (2025-11-13)
 
 A maior parte do trabalho de portabilidade restante já está documentada em roteiro.md; aqui está um resumo para manter o foco:
@@ -26,6 +35,8 @@ Filtros e Imagens: Implemente os decodificadores pendentes (JPXDecode, CCITTFax)
 - Port iniciado do JJ2000: criado o módulo `lib/src/jj2000/j2k/util/` com `ParameterList`, logging (`MsgLogger`, `StreamMsgLogger`, `FacilityManager`) e utilitários de arrays, base para portar o decoder e liberar o JPXDecode.
 - Infra util do JJ2000 expandida: adicionados `MathUtil`, as interfaces de I/O (`EndianType`, `BinaryDataInput`, `BinaryDataOutput`, `RandomAccessIO`) e a implementação read-only `ISRandomAccessIO` (por enquanto lê tudo em memória; TODO suportar buffering incremental para streams grandes).
 - Manipulação de codestream portada: `CodestreamManipulator` reescreve tile-parts e headers PPM/PPT utilizando `BEBufferedRandomAccessFile`, preserva os marcadores SOP/EPH e mantém TODOs para integração com pipelines multi-thread e otimizações de buffer.
+- Pilha de síntese wavelet avançou: `InvWTFull` espelha a reconstrução completa do Java, `SynWTFilterSpec` gerencia filtros por tile/componente, os adaptadores `InvWT*` agora invalidam caches ao trocar o nível de resolução e há testes cobrindo `SynWTFilterSpec` e a reconstrução básica com um stub `CBlkWTDataSrcDec` em memória. TODO conectar aos leitores reais de code-block (`CBlkWTDataSrcDec`/`CodedCBlkDataSrcDec`) quando o pipeline de entropy decoder estiver portado.
+- Dequantização JJ2000 atualizada: `StdDequantizer` replica os cálculos de magnitude combinando guard bits, ganho de sub-banda e expoentes derivados, aceita blocos float/int e reaproveita buffers internos; novos testes em `test/jj2000/j2k/quantization/dequantizer/std_dequantizer_test.dart` garantem cobertura para tabelas de expoente expostas e fallback derivado LL.
 - Estruturas básicas do codestream: adicionados `CorruptedCodestreamException`, `ProgressionType`, metadados `CoordInfo`/`CBlkCoordInfo`/`PrecCoordInfo`/`PrecInfo` e o helper `image/Coord`, preparando o terreno para portar `HeaderInfo` e os leitores do codestream.
 - Código-fonte Java do JJ2000: usar `C:\MyDartProjects\pdfbox_dart\jj2000` como referência para os próximos portes (o diretório `pdfbox-java` será removido futuramente).
 - Próximos passos focados em JPX:

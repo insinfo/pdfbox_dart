@@ -1,6 +1,8 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import '../roi/max_shift_spec.dart';
+import '../roi/rect_roi_spec.dart';
 import '../wavelet/filter_types.dart';
 import 'markers.dart';
 import 'progression_type.dart';
@@ -40,6 +42,69 @@ class HeaderInfo {
   }
 
   int get numCOM => _comCount;
+
+  /// Applies ROI metadata stored in RGN markers to the provided specifications.
+  void populateRoiSpecs({
+    required MaxShiftSpec roiMaxShift,
+    RectROISpec? rectangularRois,
+  }) {
+    if (rgn.isEmpty) {
+      return;
+    }
+
+    rgn.forEach((key, info) {
+      if (info.srgn != Markers.srgnImplicit) {
+        return;
+      }
+      final shift = info.sprgn;
+      int? tileIndex;
+      int? componentIndex;
+
+      if (key == 'main') {
+        roiMaxShift.setDefault(shift);
+        return;
+      }
+
+      for (final token in key.split('_')) {
+        if (token.isEmpty) {
+          continue;
+        }
+        if (token.startsWith('t')) {
+          tileIndex = int.tryParse(token.substring(1));
+        } else if (token.startsWith('c')) {
+          componentIndex = int.tryParse(token.substring(1));
+        }
+      }
+
+      final tile = tileIndex;
+      final comp = componentIndex;
+      if (tile == null) {
+        if (comp == null) {
+          roiMaxShift.setDefault(shift);
+          if (rectangularRois != null) {
+            rectangularRois.defaultROI = null;
+          }
+        } else {
+          roiMaxShift.setCompDef(comp, shift);
+          if (rectangularRois != null) {
+            rectangularRois.setCompDef(comp, null);
+          }
+        }
+      } else {
+        if (comp == null) {
+          roiMaxShift.setTileDef(tile, shift);
+          if (rectangularRois != null) {
+            rectangularRois.setTileDef(tile, null);
+          }
+        } else {
+          roiMaxShift.setTileCompVal(tile, comp, shift);
+          if (rectangularRois != null) {
+            rectangularRois.setTileCompVal(tile, comp, null);
+          }
+        }
+      }
+    });
+  }
 
   String toStringMainHeader() {
     if (siz == null) {
