@@ -102,6 +102,34 @@ class PktHeaderBitReader {
     sync();
   }
 
+  /// Reads a 16-bit marker value, byte aligned, from the underlying source.
+  int readMarker() {
+    sync();
+    final high = _readByte();
+    final low = _readByte();
+    return (high << 8) | low;
+  }
+
+  /// Reads [length] raw bytes into [buffer] starting at [offset].
+  ///
+  /// This helper preserves alignment by discarding buffered bits before
+  /// performing the transfer.
+  void readBytes(Uint8List buffer, int offset, int length) {
+    if (length <= 0) {
+      return;
+    }
+    sync();
+    for (var i = 0; i < length; i++) {
+      buffer[offset + i] = _readByte();
+    }
+  }
+
+  bool get readingFromBuffer => _usingBuffer;
+
+  RandomAccessIO? get rawInput => _input;
+
+  Uint8List? get rawBuffer => _buffer;
+
   int _readByte() {
     if (_usingBuffer) {
       final source = _buffer;

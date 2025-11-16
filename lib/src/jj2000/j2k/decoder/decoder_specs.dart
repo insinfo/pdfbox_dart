@@ -1,14 +1,16 @@
+import '../entropy/cblk_size_spec.dart';
+import '../entropy/precinct_size_spec.dart';
 import '../image/comp_transf_spec.dart';
 import '../image/invcomptransf/inv_comp_transf.dart';
 import '../integer_spec.dart';
 import '../module_spec.dart';
+import '../quantization/dequantizer/std_dequantizer_params.dart';
 import '../quantization/guard_bits_spec.dart';
 import '../quantization/quant_step_size_spec.dart';
-import '../quantization/dequantizer/std_dequantizer_params.dart';
 import '../quantization/quant_type_spec.dart';
-import '../wavelet/synthesis/syn_wt_filter_spec.dart';
 import '../roi/max_shift_spec.dart';
 import '../roi/rect_roi_spec.dart';
+import '../wavelet/synthesis/syn_wt_filter_spec.dart';
 
 /// Aggregated decoder specifications required by the inverse wavelet stage.
 ///
@@ -26,6 +28,17 @@ class DecoderSpecs {
     required this.gbs,
     required this.rois,
     required this.cts,
+    required this.ecopts,
+    required this.pss,
+    required this.cblks,
+    required this.ers,
+    required this.nls,
+    required this.pos,
+    required this.pcs,
+    required this.sops,
+    required this.ephs,
+    required this.pphs,
+    required this.iccs,
     this.rectRois,
   });
 
@@ -47,6 +60,48 @@ class DecoderSpecs {
       ..setDefault(0);
     final cts = CompTransfSpec(numTiles, numComps, ModuleSpec.SPEC_TYPE_TILE)
       ..setDefault(InvCompTransf.none);
+    final ecopts = ModuleSpec<int>(
+      numTiles,
+      numComps,
+      ModuleSpec.SPEC_TYPE_TILE_COMP,
+    )..setDefault(0);
+    final pss = PrecinctSizeSpec(numTiles, numComps, ModuleSpec.SPEC_TYPE_TILE_COMP, dls);
+    final cblks = CBlkSizeSpec(numTiles, numComps, ModuleSpec.SPEC_TYPE_TILE_COMP)
+      ..setDefault(<int>[64, 64]);
+    final ers = ModuleSpec<bool>(
+      numTiles,
+      numComps,
+      ModuleSpec.SPEC_TYPE_TILE_COMP,
+    )..setDefault(false);
+    final nls = IntegerSpec(numTiles, numComps, ModuleSpec.SPEC_TYPE_TILE)
+      ..setDefault(1);
+    final pos = IntegerSpec(numTiles, numComps, ModuleSpec.SPEC_TYPE_TILE)
+      ..setDefault(0);
+    final pcs = ModuleSpec<List<List<int>>?>(
+      numTiles,
+      numComps,
+      ModuleSpec.SPEC_TYPE_TILE,
+    )..setDefault(null);
+    final sops = ModuleSpec<bool>(
+      numTiles,
+      numComps,
+      ModuleSpec.SPEC_TYPE_TILE,
+    )..setDefault(false);
+    final ephs = ModuleSpec<bool>(
+      numTiles,
+      numComps,
+      ModuleSpec.SPEC_TYPE_TILE,
+    )..setDefault(false);
+    final pphs = ModuleSpec<bool>(
+      numTiles,
+      numComps,
+      ModuleSpec.SPEC_TYPE_TILE,
+    )..setDefault(false);
+    final iccs = ModuleSpec<Object?>(
+      numTiles,
+      numComps,
+      ModuleSpec.SPEC_TYPE_TILE,
+    )..setDefault(null);
     return DecoderSpecs(
       dls: dls,
       wfs: wfs,
@@ -55,6 +110,17 @@ class DecoderSpecs {
       gbs: gbs,
       rois: rois,
       cts: cts,
+      ecopts: ecopts,
+      pss: pss,
+      cblks: cblks,
+      ers: ers,
+      nls: nls,
+      pos: pos,
+      pcs: pcs,
+      sops: sops,
+      ephs: ephs,
+      pphs: pphs,
+      iccs: iccs,
     );
   }
 
@@ -81,4 +147,37 @@ class DecoderSpecs {
 
   /// Component transform usage (`cts`).
   final CompTransfSpec cts;
+
+  /// Entropy coding options per tile/component (`ecopts`).
+  final ModuleSpec<int> ecopts;
+
+  /// Precinct partition sizes (`pss`).
+  final PrecinctSizeSpec pss;
+
+  /// Code-block size specifications (`cblks`).
+  final CBlkSizeSpec cblks;
+
+  /// Error resilience flags (`ers`).
+  final ModuleSpec<bool> ers;
+
+  /// Number of layers (`nls`).
+  final IntegerSpec nls;
+
+  /// Progression order (`pos`).
+  final IntegerSpec pos;
+
+  /// Progression order changes (`pcs`).
+  final ModuleSpec<List<List<int>>?> pcs;
+
+  /// SOP marker usage (`sops`).
+  final ModuleSpec<bool> sops;
+
+  /// EPH marker usage (`ephs`).
+  final ModuleSpec<bool> ephs;
+
+  /// Packed packet header usage (`pphs`).
+  final ModuleSpec<bool> pphs;
+
+  /// ICC profile specifications (`iccs`).
+  final ModuleSpec<Object?> iccs;
 }
