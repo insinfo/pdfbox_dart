@@ -22,22 +22,12 @@ class StreamMsgLogger implements MsgLogger {
 
   @override
   void printmsg(int severity, String message) {
-    switch (severity) {
-      case MsgLogger.log:
-        _printer.print(_out, 0, '[LOG]: '.length, '[LOG]: $message');
-        break;
-      case MsgLogger.info:
-        _printer.print(_out, 0, '[INFO]: '.length, '[INFO]: $message');
-        break;
-      case MsgLogger.warning:
-        _printer.print(_err, 0, '[WARNING]: '.length, '[WARNING]: $message');
-        break;
-      case MsgLogger.error:
-        _printer.print(_err, 0, '[ERROR]: '.length, '[ERROR]: $message');
-        break;
-      default:
-        throw ArgumentError('Severity $severity not valid.');
+    if (severity < MsgLogger.log || severity > MsgLogger.error) {
+      throw ArgumentError('Severity $severity not valid.');
     }
+    final label = MsgLogger.labelFor(severity);
+    final target = severity >= MsgLogger.warning ? _err : _out;
+    _printer.print(target, 0, '[$label]: '.length, '[$label]: $message');
   }
 
   @override

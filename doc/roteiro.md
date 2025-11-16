@@ -16,6 +16,29 @@ fontbox ja esta implementado em C:\MyDartProjects\pdfbox_dart\lib\src\fontbox
 - Iniciado o espelhamento do encoder ROI: adicionado `roi/encoder/` com `ROI`, `ROIMaskGenerator`, `SubbandROIMask`/`SubbandRectROIMask` e o `RectROIMaskGenerator` (versão maxshift), prontos para serem conectados ao `ROIScaler`.
 - Parser `parseRoiOptions` implementado em `roi/encoder/roi_option_parser.dart`, cobrindo sintaxe `R`/`C`/`A` com filtros de componentes (`c...`) e testes dedicados para manter a compatibilidade com o CLI do encoder.
 
+## JP2 Wrapper Port Progress (2025-11-16)
+
+- Portado `fileformat/file_format_boxes.dart` com a tabela de constantes dos boxes JP2, evitando consultas ao código Java durante o mapeamento dos identificadores.
+- Implementado `fileformat/file_format_reader.dart`, reproduzindo a varredura dos boxes obrigatórios (assinatura, File Type, JP2Header e Contiguous Codestream) e registrando offset/tamanho dos codestreams para uso do decoder.
+- Tratamento de fallback para codestream cru (primeiro marcador `SOC`) espelhado, com validação estrutural e logging via `FacilityManager` para boxes desconhecidos.
+- `dart analyze` volta a rodar limpo após a adição, garantindo que o módulo JJ2000 continua compilável.
+- TODO: consumir o novo `FileFormatReader` dentro do pipeline do decoder (instanciação em `Decoder.run()`), portar os métodos que efetivamente leem o conteúdo da JP2Header e expor metadados relevantes (ex.: cores, palette) assim que os módulos correspondentes forem portados.
+
+## Decoder Core Infrastructure (2025-11-16)
+
+- Adicionado `wavelet/wt_decomp_spec.dart`, espelhando a `WTDecompSpec` do JJ2000 para gerenciar o tipo/número de níveis de decomposição por componente.
+- Mantido o comportamento original que lança `NotImplementedError` para escopos tile/tile-comp específicos, documentando a limitação compartilhada enquanto o restante do pipeline não oferece suporte.
+- `dart analyze` permanece limpo após a introdução da nova classe, assegurando que as dependências existentes (`DecoderSpecs`, `BitstreamReaderAgent`) podem começar a consumi-la.
+- Suíte de testes `wt_decomp_spec_test.dart` cobre os caminhos básicos (defaults, cópia e exceções), garantindo que futuras refatorações preservem a API.
+- `HeaderDecoder.readMainHeader` agora lê o marcador SIZ real do codestream, preenche `HeaderInfo` com geometria da imagem, instancia `DecoderSpecs.basic` com o número correto de tiles/componentes e retrocede o stream para o primeiro `SOT`. O teste `header_decoder_main_header_test.dart` garante que a geometria (dimensões, tiles) e o reposicionamento do stream permaneçam estáveis.
+
+## Decoder Orchestration Stub (2025-11-16)
+
+- Portado `decoder/decoder.dart` com a estrutura mínima do `run()`: validação de parâmetros essenciais, detecção do contêiner JP2 via `FileFormatReader` e inicialização parcial do pipeline (`DecoderSpecs.basic`, `HeaderDecoder.placeholder`).
+- Novas conveniências utilitárias (`MsgLogger.labelFor`, `FacilityManager.runWithLogger`, `FileFormatReader.getCodestreamCount`) agilizam integração com CLIs e testes.
+- Testes `file_format_reader_test.dart` exercitam tanto codestream cru quanto JP2 minimalista, evitando regressões no leitor de wrapper.
+- `DecoderSpecs` passou a carregar um `WTDecompSpec` default para refletir o estado da árvore de decomposição, com método `WTDecompSpec.getCopy()` para clones seguros.
+
 ## Pendencias atuais (2025-11-13)
 
 A maior parte do trabalho de portabilidade restante já está documentada em roteiro.md; aqui está um resumo para manter o foco:

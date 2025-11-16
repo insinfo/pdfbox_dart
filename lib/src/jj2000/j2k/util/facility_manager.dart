@@ -26,6 +26,17 @@ class FacilityManager {
     return _loggers[currentZone] ?? _defaultLogger;
   }
 
+  /// Runs [action] while temporarily replacing the default message logger.
+  static T runWithLogger<T>(MsgLogger logger, T Function() action) {
+    final previous = _defaultLogger;
+    _defaultLogger = logger;
+    try {
+      return action();
+    } finally {
+      _defaultLogger = previous;
+    }
+  }
+
   static void registerProgressWatch(ProgressWatch watch, {Zone? zone}) {
     if (zone == null) {
       _defaultProgressWatch = watch;

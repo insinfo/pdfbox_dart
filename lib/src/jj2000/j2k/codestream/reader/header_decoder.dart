@@ -3,7 +3,11 @@ import 'dart:typed_data';
 
 import '../../decoder/decoder_specs.dart';
 import '../../image/coord.dart';
+import '../../io/random_access_io.dart';
+import '../../util/facility_manager.dart';
+import '../../util/msg_logger.dart';
 import '../header_info.dart';
+import '../markers.dart';
 
 class _TilePartInfo {
   int? length;
@@ -18,6 +22,98 @@ class _TilePartInfo {
 /// rest of the pipeline expects while leaving TODO markers where parsing
 /// logic must be restored.
 class HeaderDecoder {
+  /// Parses the main header of a JPEG 2000 codestream.
+  ///
+  /// The method assumes [input] is positioned at the beginning of a codestream
+  /// (i.e. the next word corresponds to the SOC marker) and stops right before
+  /// the first SOT marker. Only a subset of marker segments is handled for now
+  /// (SIZ for geometry, POC/PPM when present); the remaining segments are
+  /// skipped while preserving positional integrity so that downstream readers
+  /// can revisit them once their ports are completed.
+  static HeaderDecoder readMainHeader({
+    required RandomAccessIO input,
+    required HeaderInfo headerInfo,
+  }) {
+    final logger = FacilityManager.getMsgLogger();
+    final soc = input.readUnsignedShort();
+    if (soc != Markers.SOC) {
+      throw StateError('Codestream does not start with SOC marker');
+    }
+
+    HeaderDecoder? decoder;
+    var mainHeaderDone = false;
+
+    while (!mainHeaderDone) {
+      final positionBeforeMarker = input.getPos();
+      final marker = input.readUnsignedShort();
+
+      switch (marker) {
+        case Markers.SIZ:
+          final payload = _readMarkerPayload(input);
+          final siz = _parseSizMarker(payload, headerInfo);
+          final numTiles = siz.getNumTiles();
+          final numComps = siz.csiz;
+          final specs = DecoderSpecs.basic(numTiles, numComps);
+          decoder = HeaderDecoder(
+            decSpec: specs,
+            headerInfo: headerInfo,
+            numComps: numComps,
+            imgWidth: siz.xsiz - siz.x0siz,
+            imgHeight: siz.ysiz - siz.y0siz,
+            imgULX: siz.x0siz,
+            imgULY: siz.y0siz,
+            nomTileWidth: siz.xtsiz,
+            nomTileHeight: siz.ytsiz,
+            cbULX: 0,
+            cbULY: 0,
+            compSubsX: siz.xrsiz,
+            compSubsY: siz.yrsiz,
+            maxCompImgWidth: siz.getMaxCompWidth(),
+            maxCompImgHeight: siz.getMaxCompHeight(),
+            tilingOrigin: Coord(siz.xt0siz, siz.yt0siz),
+          );
+          break;
+        case Markers.POC:
+          final payload = _readMarkerPayload(input);
+          final target = decoder;
+          if (target == null) {
+            throw StateError('POC marker encountered before SIZ');
+          }
+          target.parsePocMarker(
+            payload,
+            isMainHeader: true,
+            tileIdx: 0,
+          );
+          break;
+        case Markers.PPM:
+          final payload = _readMarkerPayload(input);
+          final target = decoder;
+          if (target == null) {
+            throw StateError('PPM marker encountered before SIZ');
+          }
+          target.parsePpmMarker(payload);
+          break;
+        case Markers.SOT:
+          final target = decoder;
+          if (target == null) {
+            throw StateError('SOT marker encountered before SIZ');
+          }
+          input.seek(positionBeforeMarker);
+          mainHeaderDone = true;
+          break;
+        default:
+          _skipUnknownMarker(input, marker, logger);
+          break;
+      }
+    }
+
+    final result = decoder;
+    if (result == null) {
+      throw StateError('Main header parsing did not produce a HeaderDecoder');
+    }
+    return result;
+  }
+
   HeaderDecoder({
     required this.decSpec,
     required this.headerInfo,
@@ -545,5 +641,79 @@ class HeaderDecoder {
         }
       }
     });
+  }
+
+  static Uint8List _readMarkerPayload(RandomAccessIO input) {
+    final length = input.readUnsignedShort();
+    if (length < 2) {
+      throw StateError('Invalid marker segment length: $length');
+    }
+    final buffer = Uint8List(length);
+    buffer[0] = (length >> 8) & 0xff;
+    buffer[1] = length & 0xff;
+    if (length > 2) {
+      input.readFully(buffer, 2, length - 2);
+    }
+    return buffer;
+  }
+
+  static HeaderInfoSIZ _parseSizMarker(Uint8List payload, HeaderInfo headerInfo) {
+    final view = ByteData.view(payload.buffer, payload.offsetInBytes, payload.lengthInBytes);
+    final length = view.getUint16(0);
+    if (length < 38) {
+      throw StateError('SIZ marker too short: $length bytes');
+    }
+
+    final siz = headerInfo.getNewSIZ()
+      ..lsiz = length
+      ..rsiz = view.getUint16(2)
+      ..xsiz = view.getUint32(4)
+      ..ysiz = view.getUint32(8)
+      ..x0siz = view.getUint32(12)
+      ..y0siz = view.getUint32(16)
+      ..xtsiz = view.getUint32(20)
+      ..ytsiz = view.getUint32(24)
+      ..xt0siz = view.getUint32(28)
+      ..yt0siz = view.getUint32(32)
+      ..csiz = view.getUint16(36);
+
+    final components = siz.csiz;
+    if (length != 38 + components * 3) {
+      throw StateError('SIZ marker length does not match component count');
+    }
+
+    siz.ssiz = List<int>.filled(components, 0, growable: false);
+    siz.xrsiz = List<int>.filled(components, 0, growable: false);
+    siz.yrsiz = List<int>.filled(components, 0, growable: false);
+
+    var offset = 38;
+    for (var i = 0; i < components; i++) {
+      final ssiz = view.getUint8(offset++);
+      final xrsiz = view.getUint8(offset++);
+      final yrsiz = view.getUint8(offset++);
+      if (xrsiz == 0 || yrsiz == 0) {
+        throw StateError('SIZ marker contains zero subsampling factor for component $i');
+      }
+      siz.ssiz[i] = ssiz;
+      siz.xrsiz[i] = xrsiz;
+      siz.yrsiz[i] = yrsiz;
+    }
+
+    headerInfo.siz = siz;
+    return siz;
+  }
+
+  static void _skipUnknownMarker(RandomAccessIO input, int marker, MsgLogger logger) {
+    final length = input.readUnsignedShort();
+    if (length < 2) {
+      throw StateError('Invalid marker segment length for 0x${marker.toRadixString(16)}');
+    }
+    if (length > 2) {
+      input.seek(input.getPos() + length - 2);
+    }
+    logger.printmsg(
+      MsgLogger.log,
+      'Skipping marker 0x${marker.toRadixString(16)} (${length - 2} bytes)',
+    );
   }
 }

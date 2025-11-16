@@ -11,6 +11,7 @@ import '../quantization/quant_type_spec.dart';
 import '../roi/max_shift_spec.dart';
 import '../roi/rect_roi_spec.dart';
 import '../wavelet/synthesis/syn_wt_filter_spec.dart';
+import '../wavelet/wt_decomp_spec.dart';
 
 /// Aggregated decoder specifications required by the inverse wavelet stage.
 ///
@@ -39,6 +40,7 @@ class DecoderSpecs {
     required this.ephs,
     required this.pphs,
     required this.iccs,
+    required this.wts,
     this.rectRois,
   });
 
@@ -121,6 +123,7 @@ class DecoderSpecs {
       ephs: ephs,
       pphs: pphs,
       iccs: iccs,
+      wts: WTDecompSpec(numComps, WTDecompSpec.wtDecompDyadic, 0),
     );
   }
 
@@ -180,4 +183,7 @@ class DecoderSpecs {
 
   /// ICC profile specifications (`iccs`).
   final ModuleSpec<Object?> iccs;
+
+  /// Wavelet tree decomposition specification (`wts`).
+  final WTDecompSpec wts;
 }
