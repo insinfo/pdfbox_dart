@@ -35,7 +35,7 @@ abstract class BufferedRandomAccessFile implements RandomAccessIO {
   static const int _defaultBufferSize = 512;
 
   late final RandomAccessFile _file;
-  late final Uint8List _byteBuffer;
+  late Uint8List _byteBuffer;
   late final bool _isReadOnly;
   late final String _fileName;
 

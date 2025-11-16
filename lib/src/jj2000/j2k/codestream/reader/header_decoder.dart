@@ -3,16 +3,33 @@ import 'dart:typed_data';
 
 import '../../decoder/decoder_specs.dart';
 import '../../image/coord.dart';
+import '../../image/invcomptransf/inv_comp_transf.dart';
 import '../../io/random_access_io.dart';
+import '../../quantization/dequantizer/std_dequantizer_params.dart';
 import '../../util/facility_manager.dart';
 import '../../util/msg_logger.dart';
 import '../header_info.dart';
 import '../markers.dart';
+import '../../wavelet/filter_types.dart';
 
 class _TilePartInfo {
   int? length;
+  int? dataOffset;
+  int? bodyLength;
   Uint8List? packedHeaders;
   final Map<int, Uint8List> pptSegments = <int, Uint8List>{};
+}
+
+class _QuantizationParseResult {
+  _QuantizationParseResult({
+    required this.params,
+    required this.segmentValues,
+    required this.offset,
+  });
+
+  final StdDequantizerParams params;
+  final List<List<int>> segmentValues;
+  final int offset;
 }
 
 /// Partial port of JJ2000's `HeaderDecoder`.
@@ -85,6 +102,54 @@ class HeaderDecoder {
             tileIdx: 0,
           );
           break;
+        case Markers.COD:
+          final payload = _readMarkerPayload(input);
+          final target = decoder;
+          if (target == null) {
+            throw StateError('COD marker encountered before SIZ');
+          }
+          target.parseCodMarker(
+            payload,
+            isMainHeader: true,
+            tileIdx: 0,
+          );
+          break;
+        case Markers.COC:
+          final payload = _readMarkerPayload(input);
+          final target = decoder;
+          if (target == null) {
+            throw StateError('COC marker encountered before SIZ');
+          }
+          target.parseCocMarker(
+            payload,
+            isMainHeader: true,
+            tileIdx: 0,
+          );
+          break;
+        case Markers.QCD:
+          final payload = _readMarkerPayload(input);
+          final target = decoder;
+          if (target == null) {
+            throw StateError('QCD marker encountered before SIZ');
+          }
+          target.parseQcdMarker(
+            payload,
+            isMainHeader: true,
+            tileIdx: 0,
+          );
+          break;
+        case Markers.QCC:
+          final payload = _readMarkerPayload(input);
+          final target = decoder;
+          if (target == null) {
+            throw StateError('QCC marker encountered before SIZ');
+          }
+          target.parseQccMarker(
+            payload,
+            isMainHeader: true,
+            tileIdx: 0,
+          );
+          break;
         case Markers.PPM:
           final payload = _readMarkerPayload(input);
           final target = decoder;
@@ -131,10 +196,11 @@ class HeaderDecoder {
     required this.maxCompImgWidth,
     required this.maxCompImgHeight,
     required Coord tilingOrigin,
-    this.precinctPartitionFlag = false,
+    bool precinctPartitionUsed = false,
   })  : compSubsX = List<int>.unmodifiable(compSubsX),
         compSubsY = List<int>.unmodifiable(compSubsY),
-        tilingOrigin = Coord.copy(tilingOrigin);
+        tilingOrigin = Coord.copy(tilingOrigin),
+        precinctPartitionFlag = precinctPartitionUsed;
 
   /// Convenience constructor for tests or provisional call sites.
   ///
@@ -177,7 +243,7 @@ class HeaderDecoder {
   final int maxCompImgWidth;
   final int maxCompImgHeight;
   final Coord tilingOrigin;
-  final bool precinctPartitionFlag;
+  bool precinctPartitionFlag;
   final DecoderSpecs decSpec;
 
   /// Number of tile-parts per tile. Populated by the codestream reader.
@@ -217,6 +283,588 @@ class HeaderDecoder {
   }
 
   bool precinctPartitionUsed() => precinctPartitionFlag;
+
+  int _currentTile = -1;
+
+  int get currentTile => _currentTile;
+
+  void beginTile(int tileIdx) {
+    _currentTile = tileIdx;
+  }
+
+  void parseCodMarker(
+    Uint8List markerPayload, {
+    required bool isMainHeader,
+    required int tileIdx,
+  }) {
+    final view = ByteData.view(
+      markerPayload.buffer,
+      markerPayload.offsetInBytes,
+      markerPayload.lengthInBytes,
+    );
+
+    final length = view.getUint16(0);
+    if (length < 12) {
+      throw StateError('COD marker too short: $length bytes');
+    }
+
+    var offset = 2;
+    final scod = view.getUint8(offset++);
+    final sgcodPo = view.getUint8(offset++);
+    final sgcodNl = view.getUint16(offset);
+    offset += 2;
+    final sgcodMct = view.getUint8(offset++);
+    final spcodNdl = view.getUint8(offset++);
+    final spcodCw = view.getUint8(offset++);
+    final spcodCh = view.getUint8(offset++);
+    final spcodCs = view.getUint8(offset++);
+    final spcodT = view.getUint8(offset++);
+
+    List<int>? precinctSpec;
+    if ((scod & Markers.SCOX_PRECINCT_PARTITION) != 0) {
+      precinctSpec = <int>[];
+      final expected = spcodNdl + 1;
+      for (var i = 0; i < expected; i++) {
+        if (offset >= markerPayload.length) {
+          throw StateError('COD marker precinct data truncated');
+        }
+        precinctSpec.add(view.getUint8(offset++));
+      }
+    }
+
+    final key = isMainHeader ? 'main' : 't$tileIdx';
+    final cod = headerInfo.getNewCOD()
+      ..lcod = length
+      ..scod = scod
+      ..sgcodPo = sgcodPo
+      ..sgcodNl = sgcodNl
+      ..sgcodMct = sgcodMct
+      ..spcodNdl = spcodNdl
+      ..spcodCw = spcodCw
+      ..spcodCh = spcodCh
+      ..spcodCs = spcodCs
+      ..spcodT = <int>[spcodT]
+      ..spcodPs = precinctSpec;
+    headerInfo.cod[key] = cod;
+
+    final cblkSize = List<int>.unmodifiable(<int>[1 << (spcodCw + 2), 1 << (spcodCh + 2)]);
+
+    if (isMainHeader) {
+      decSpec.nls.setDefault(sgcodNl);
+      decSpec.pos.setDefault(sgcodPo);
+      decSpec.dls.setDefault(spcodNdl);
+      decSpec.cblks.setDefault(cblkSize);
+      decSpec.ecopts.setDefault(spcodCs);
+      decSpec.sops.setDefault((scod & Markers.SCOX_USE_SOP) != 0);
+      decSpec.ephs.setDefault((scod & Markers.SCOX_USE_EPH) != 0);
+    } else {
+      decSpec.nls.setTileDef(tileIdx, sgcodNl);
+      decSpec.pos.setTileDef(tileIdx, sgcodPo);
+      decSpec.dls.setTileDef(tileIdx, spcodNdl);
+      decSpec.cblks.setTileDef(tileIdx, cblkSize);
+      decSpec.ecopts.setTileDef(tileIdx, spcodCs);
+      decSpec.sops.setTileDef(tileIdx, (scod & Markers.SCOX_USE_SOP) != 0);
+      decSpec.ephs.setTileDef(tileIdx, (scod & Markers.SCOX_USE_EPH) != 0);
+    }
+
+    precinctPartitionFlag = (scod & Markers.SCOX_PRECINCT_PARTITION) != 0;
+    if (precinctPartitionFlag && precinctSpec != null) {
+      final widths = <int>[];
+      final heights = <int>[];
+      for (final packed in precinctSpec) {
+        widths.add(1 << (packed & 0x0f));
+        heights.add(1 << ((packed >> 4) & 0x0f));
+      }
+      final precinctValue = List<List<int>>.unmodifiable(
+        <List<int>>[
+          List<int>.unmodifiable(widths),
+          List<int>.unmodifiable(heights),
+        ],
+      );
+      if (isMainHeader) {
+        decSpec.pss.setDefault(precinctValue);
+      } else {
+        decSpec.pss.setTileDef(tileIdx, precinctValue);
+      }
+    }
+
+    final componentTransform = _selectComponentTransform(sgcodMct, spcodT);
+    if (isMainHeader) {
+      decSpec.cts.setDefault(componentTransform);
+    } else {
+      decSpec.cts.setTileDef(tileIdx, componentTransform);
+    }
+  }
+
+  void parseTilePartHeader(
+    RandomAccessIO input, {
+    required HeaderInfoSOT sot,
+  }) {
+    beginTile(sot.isot);
+
+    var headerDone = false;
+    while (!headerDone) {
+      final marker = input.readUnsignedShort();
+      switch (marker) {
+        case Markers.COD:
+          parseCodMarker(
+            _readMarkerPayload(input),
+            isMainHeader: false,
+            tileIdx: sot.isot,
+          );
+          break;
+        case Markers.COC:
+          parseCocMarker(
+            _readMarkerPayload(input),
+            isMainHeader: false,
+            tileIdx: sot.isot,
+          );
+          break;
+        case Markers.QCD:
+          parseQcdMarker(
+            _readMarkerPayload(input),
+            isMainHeader: false,
+            tileIdx: sot.isot,
+          );
+          break;
+        case Markers.QCC:
+          parseQccMarker(
+            _readMarkerPayload(input),
+            isMainHeader: false,
+            tileIdx: sot.isot,
+          );
+          break;
+        case Markers.POC:
+          parsePocMarker(
+            _readMarkerPayload(input),
+            isMainHeader: false,
+            tileIdx: sot.isot,
+            tilePartIdx: sot.tpsot,
+          );
+          break;
+        case Markers.PPT:
+          parsePptMarker(
+            _readMarkerPayload(input),
+            tileIdx: sot.isot,
+            tilePartIdx: sot.tpsot,
+          );
+          break;
+        case Markers.SOD:
+          headerDone = true;
+          input.seek(input.getPos() - 2);
+          break;
+        case Markers.EOC:
+          headerDone = true;
+          input.seek(input.getPos() - 2);
+          break;
+        default:
+          _skipUnknownMarker(input, marker, FacilityManager.getMsgLogger());
+          break;
+      }
+    }
+  }
+
+  HeaderInfoSOT parseNextTilePart(
+    RandomAccessIO input, {
+    bool registerTileOrder = true,
+  }) {
+    while (true) {
+      if (input.getPos() + 2 > input.length()) {
+        throw StateError('Unexpected end of codestream while searching for tile-part header');
+      }
+      final marker = input.readUnsignedShort();
+      switch (marker) {
+        case Markers.SOT:
+          final sotStart = input.getPos() - 2;
+          final payload = _readMarkerPayload(input);
+          final view = ByteData.view(
+            payload.buffer,
+            payload.offsetInBytes,
+            payload.lengthInBytes,
+          );
+          final tileIdx = view.getUint16(2);
+          final tilePartIdx = view.getUint8(8);
+
+          parseSotMarker(payload);
+          if (registerTileOrder) {
+            setTileOfTileParts(tileIdx);
+          }
+
+          final sotKey = 't${tileIdx}_tp$tilePartIdx';
+          final sot = headerInfo.sot[sotKey];
+          if (sot == null) {
+            throw StateError('Parsed SOT for tile=$tileIdx part=$tilePartIdx but metadata missing');
+          }
+
+          parseTilePartHeader(input, sot: sot);
+
+          if (input.getPos() + 2 > input.length()) {
+            throw StateError('Unexpected end of codestream while expecting SOD marker');
+          }
+          final sodMarker = input.readUnsignedShort();
+          if (sodMarker != Markers.SOD) {
+            throw StateError(
+              'Expected SOD marker after tile-part header, found 0x${sodMarker.toRadixString(16)}',
+            );
+          }
+
+          final dataOffset = input.getPos();
+          registerTilePartDataOffset(sot.isot, sot.tpsot, dataOffset);
+          if (sot.psot != 0) {
+            final headerBytes = dataOffset - sotStart;
+            final bodyLength = sot.psot - headerBytes;
+            registerTilePartBodyLength(sot.isot, sot.tpsot, bodyLength);
+          }
+
+          return sot;
+        case Markers.EOC:
+          throw StateError('Reached end of codestream before encountering tile-part header');
+        default:
+          _skipUnknownMarker(input, marker, FacilityManager.getMsgLogger());
+          break;
+      }
+    }
+  }
+
+  void parseCocMarker(
+    Uint8List markerPayload, {
+    required bool isMainHeader,
+    required int tileIdx,
+  }) {
+    final view = ByteData.view(
+      markerPayload.buffer,
+      markerPayload.offsetInBytes,
+      markerPayload.lengthInBytes,
+    );
+
+    final length = view.getUint16(0);
+    if (length < 6) {
+      throw StateError('COC marker too short: $length bytes');
+    }
+    if (length > markerPayload.length) {
+      throw StateError('COC marker length exceeds payload size');
+    }
+
+    var offset = 2;
+    final component = numComps < 257
+        ? view.getUint8(offset++)
+        : view.getUint16(offset);
+    if (numComps >= 257) {
+      offset += 2;
+    }
+    if (component < 0 || component >= numComps) {
+      throw StateError('COC marker references invalid component $component');
+    }
+
+    final scoc = view.getUint8(offset++);
+    final spcocNdl = view.getUint8(offset++);
+    final spcocCw = view.getUint8(offset++);
+    final spcocCh = view.getUint8(offset++);
+    final spcocCs = view.getUint8(offset++);
+    if (offset >= length) {
+      throw StateError('COC marker missing transform specification');
+    }
+    final spcocT = view.getUint8(offset++);
+
+    List<int>? precinctSpec;
+    final usesPrecinctPartition = (scoc & Markers.SCOX_PRECINCT_PARTITION) != 0;
+    if (usesPrecinctPartition) {
+      precinctSpec = <int>[];
+      final expected = spcocNdl + 1;
+      for (var i = 0; i < expected; i++) {
+        if (offset >= markerPayload.length) {
+          throw StateError('COC marker precinct data truncated');
+        }
+        precinctSpec.add(view.getUint8(offset++));
+      }
+    }
+
+    if (offset != length) {
+      throw StateError('Unexpected padding bytes at end of COC marker');
+    }
+
+    final key = isMainHeader ? 'main_c$component' : 't${tileIdx}_c$component';
+    final coc = headerInfo.getNewCOC()
+      ..lcoc = length
+      ..ccoc = component
+      ..scoc = scoc
+      ..spcocNdl = spcocNdl
+      ..spcocCw = spcocCw
+      ..spcocCh = spcocCh
+      ..spcocCs = spcocCs
+      ..spcocT = <int>[spcocT]
+      ..spcocPs = precinctSpec;
+    headerInfo.coc[key] = coc;
+
+    final cblkSizes = <int>[1 << (spcocCw + 2), 1 << (spcocCh + 2)];
+    if (isMainHeader) {
+      decSpec.cblks.setCompDef(component, List<int>.unmodifiable(cblkSizes));
+      decSpec.dls.setCompDef(component, spcocNdl);
+      decSpec.ecopts.setCompDef(component, spcocCs);
+    } else {
+      decSpec.cblks.setTileCompVal(tileIdx, component, List<int>.unmodifiable(cblkSizes));
+      decSpec.dls.setTileCompVal(tileIdx, component, spcocNdl);
+      decSpec.ecopts.setTileCompVal(tileIdx, component, spcocCs);
+    }
+
+    if (usesPrecinctPartition && precinctSpec != null) {
+      final widths = <int>[];
+      final heights = <int>[];
+      for (final packed in precinctSpec) {
+        widths.add(1 << (packed & 0x0f));
+        heights.add(1 << ((packed >> 4) & 0x0f));
+      }
+      final precinctValue = List<List<int>>.unmodifiable(
+        <List<int>>[
+          List<int>.unmodifiable(widths),
+          List<int>.unmodifiable(heights),
+        ],
+      );
+      if (isMainHeader) {
+        decSpec.pss.setCompDef(component, precinctValue);
+      } else {
+        decSpec.pss.setTileCompVal(tileIdx, component, precinctValue);
+      }
+      precinctPartitionFlag = true;
+    }
+  }
+
+  void parseQcdMarker(
+    Uint8List markerPayload, {
+    required bool isMainHeader,
+    required int tileIdx,
+  }) {
+    final view = ByteData.view(
+      markerPayload.buffer,
+      markerPayload.offsetInBytes,
+      markerPayload.lengthInBytes,
+    );
+
+    final length = view.getUint16(0);
+    if (length < 3) {
+      throw StateError('QCD marker too short: $length bytes');
+    }
+    if (length > markerPayload.length) {
+      throw StateError('QCD marker length exceeds payload size');
+    }
+
+    var offset = 2;
+    final sqcd = view.getUint8(offset++);
+    final guardBits = (sqcd >> Markers.SQCX_GB_SHIFT) & Markers.SQCX_GB_MSK;
+    final qType = sqcd & ~(Markers.SQCX_GB_MSK << Markers.SQCX_GB_SHIFT);
+
+    final result = _parseQuantizationTables(
+      view: view,
+      offset: offset,
+      limit: length,
+      qType: qType,
+    );
+    offset = result.offset;
+    if (offset != length) {
+      throw StateError('Unexpected padding bytes at end of QCD marker');
+    }
+
+    final qcd = headerInfo.getNewQCD()
+      ..lqcd = length
+      ..sqcd = sqcd
+      ..spqcd = result.segmentValues;
+
+    final key = isMainHeader ? 'main' : 't$tileIdx';
+    headerInfo.qcd[key] = qcd;
+
+    final label = _quantizationTypeLabel(qType);
+    if (isMainHeader) {
+      decSpec.qts.setDefault(label);
+      decSpec.qsss.setDefault(result.params);
+      decSpec.gbs.setDefault(guardBits);
+    } else {
+      decSpec.qts.setTileDef(tileIdx, label);
+      decSpec.qsss.setTileDef(tileIdx, result.params);
+      decSpec.gbs.setTileDef(tileIdx, guardBits);
+    }
+  }
+
+  void parseQccMarker(
+    Uint8List markerPayload, {
+    required bool isMainHeader,
+    required int tileIdx,
+  }) {
+    final view = ByteData.view(
+      markerPayload.buffer,
+      markerPayload.offsetInBytes,
+      markerPayload.lengthInBytes,
+    );
+
+    final length = view.getUint16(0);
+    if (length < 4) {
+      throw StateError('QCC marker too short: $length bytes');
+    }
+    if (length > markerPayload.length) {
+      throw StateError('QCC marker length exceeds payload size');
+    }
+
+    var offset = 2;
+    final component = numComps < 257
+        ? view.getUint8(offset++)
+        : view.getUint16(offset);
+    if (numComps >= 257) {
+      offset += 2;
+    }
+    if (component < 0 || component >= numComps) {
+      throw StateError('QCC marker references invalid component $component');
+    }
+
+    final sqcc = view.getUint8(offset++);
+    final guardBits = (sqcc >> Markers.SQCX_GB_SHIFT) & Markers.SQCX_GB_MSK;
+    final qType = sqcc & ~(Markers.SQCX_GB_MSK << Markers.SQCX_GB_SHIFT);
+
+    final result = _parseQuantizationTables(
+      view: view,
+      offset: offset,
+      limit: length,
+      qType: qType,
+    );
+    offset = result.offset;
+    if (offset != length) {
+      throw StateError('Unexpected padding bytes at end of QCC marker');
+    }
+
+    final qcc = headerInfo.getNewQCC()
+      ..lqcc = length
+      ..cqcc = component
+      ..sqcc = sqcc
+      ..spqcc = result.segmentValues;
+
+    final key = isMainHeader ? 'main_c$component' : 't${tileIdx}_c$component';
+    headerInfo.qcc[key] = qcc;
+
+    final label = _quantizationTypeLabel(qType);
+    if (isMainHeader) {
+      decSpec.qts.setCompDef(component, label);
+      decSpec.qsss.setCompDef(component, result.params);
+      decSpec.gbs.setCompDef(component, guardBits);
+    } else {
+      decSpec.qts.setTileCompVal(tileIdx, component, label);
+      decSpec.qsss.setTileCompVal(tileIdx, component, result.params);
+      decSpec.gbs.setTileCompVal(tileIdx, component, guardBits);
+    }
+  }
+
+  int _selectComponentTransform(int sgcodMct, int spcodT) {
+    if (sgcodMct == 0) {
+      return InvCompTransf.none;
+    }
+    return spcodT == FilterTypes.W5X3 ? InvCompTransf.invRct : InvCompTransf.invIct;
+  }
+
+  _QuantizationParseResult _parseQuantizationTables({
+    required ByteData view,
+    required int offset,
+    required int limit,
+    required int qType,
+  }) {
+    if (offset > limit) {
+      throw StateError('Invalid offset while parsing quantization tables');
+    }
+
+    final bytesPerEntry = qType == Markers.SQCX_NO_QUANTIZATION ? 1 : 2;
+    final available = limit - offset;
+    if (available < bytesPerEntry) {
+      throw StateError('Quantization marker missing step size entries');
+    }
+    if (available % bytesPerEntry != 0) {
+      throw StateError('Quantization marker has misaligned step size data');
+    }
+
+    final totalEntries = available ~/ bytesPerEntry;
+    if (totalEntries == 0) {
+      throw StateError('Quantization marker must contain at least one entry');
+    }
+    if (qType == Markers.SQCX_SCALAR_DERIVED && totalEntries != 1) {
+      throw StateError('Derived quantization expects a single step size entry');
+    }
+
+    final maxrl = totalEntries == 1 ? 0 : (totalEntries - 1) ~/ 3;
+    if (qType != Markers.SQCX_SCALAR_DERIVED) {
+      final expected = 1 + maxrl * 3;
+      if (expected != totalEntries) {
+        throw StateError(
+          'Quantization marker encodes $totalEntries entries but expected $expected',
+        );
+      }
+    }
+
+    final expTable = List<List<int>>.generate(
+      maxrl + 1,
+      (_) => List<int>.filled(4, 0, growable: false),
+      growable: false,
+    );
+    final segmentValues = List<List<int>>.generate(
+      maxrl + 1,
+      (_) => List<int>.filled(4, 0, growable: false),
+      growable: false,
+    );
+    List<List<double>>? steps;
+    if (qType != Markers.SQCX_NO_QUANTIZATION) {
+      steps = List<List<double>>.generate(
+        maxrl + 1,
+        (_) => List<double>.filled(4, 0.0, growable: false),
+        growable: false,
+      );
+    }
+
+    var current = offset;
+    for (var rl = 0; rl <= maxrl; rl++) {
+      final startBand = rl == 0 ? 0 : 1;
+      final endBand = rl == 0 ? 0 : 3;
+      for (var band = startBand; band <= endBand; band++) {
+        if (qType == Markers.SQCX_NO_QUANTIZATION) {
+          if (current >= limit) {
+            throw StateError('Unexpected end of data while parsing QCD/QCC');
+          }
+          final raw = view.getUint8(current++);
+          segmentValues[rl][band] = raw;
+          expTable[rl][band] =
+              (raw >> Markers.SQCX_EXP_SHIFT) & Markers.SQCX_EXP_MASK;
+        } else {
+          if (current + 2 > limit) {
+            throw StateError('Unexpected end of data while parsing QCD/QCC');
+          }
+          final raw = view.getUint16(current);
+          current += 2;
+          segmentValues[rl][band] = raw;
+          final exponent = (raw >> 11) & 0x1f;
+          expTable[rl][band] = exponent;
+          final mantissa = raw & 0x07ff;
+          final denominator = 1 << exponent;
+          final step = (1.0 + mantissa / 2048.0) / denominator;
+          steps![rl][band] = step;
+        }
+      }
+    }
+
+    return _QuantizationParseResult(
+      params: StdDequantizerParams(
+        exp: expTable,
+        nStep: steps,
+      ),
+      segmentValues: segmentValues,
+      offset: current,
+    );
+  }
+
+  String _quantizationTypeLabel(int qType) {
+    switch (qType) {
+      case Markers.SQCX_NO_QUANTIZATION:
+        return 'reversible';
+      case Markers.SQCX_SCALAR_DERIVED:
+        return 'derived';
+      case Markers.SQCX_SCALAR_EXPOUNDED:
+        return 'expounded';
+      default:
+        throw StateError('Unsupported quantization type: $qType');
+    }
+  }
 
   // TODO(jj2000): Port the full header parsing logic, populating DecoderSpecs
   // and HeaderInfo from a RandomAccessIO source.
@@ -388,6 +1036,24 @@ class HeaderDecoder {
     _packedHeadersDirty = true;
   }
 
+  void registerTilePartDataOffset(int tileIdx, int tilePartIdx, int offset) {
+    if (tileIdx < 0 || tilePartIdx < 0) {
+      throw ArgumentError('Tile index and tile-part index must be non-negative');
+    }
+    final tileMap = _tilePartInfo.putIfAbsent(tileIdx, () => <int, _TilePartInfo>{});
+    final info = tileMap.putIfAbsent(tilePartIdx, () => _TilePartInfo());
+    info.dataOffset = offset;
+  }
+
+  void registerTilePartBodyLength(int tileIdx, int tilePartIdx, int bodyLength) {
+    if (tileIdx < 0 || tilePartIdx < 0) {
+      throw ArgumentError('Tile index and tile-part index must be non-negative');
+    }
+    final tileMap = _tilePartInfo.putIfAbsent(tileIdx, () => <int, _TilePartInfo>{});
+    final info = tileMap.putIfAbsent(tilePartIdx, () => _TilePartInfo());
+    info.bodyLength = math.max(0, bodyLength);
+  }
+
   int? getTileTotalLength(int tileIdx) {
     final tileMap = _tilePartInfo[tileIdx];
     if (tileMap == null || tileMap.isEmpty) {
@@ -414,6 +1080,63 @@ class HeaderDecoder {
     final lengths = <int>[];
     for (final entry in ordered) {
       final length = entry.value.length;
+      if (length == null) {
+        return null;
+      }
+      lengths.add(length);
+    }
+    return lengths;
+  }
+
+  int? getTilePartDataOffset(int tileIdx, int tilePartIdx) {
+    final tileMap = _tilePartInfo[tileIdx];
+    if (tileMap == null) {
+      return null;
+    }
+    return tileMap[tilePartIdx]?.dataOffset;
+  }
+
+  List<int>? getTilePartDataOffsets(int tileIdx) {
+    final tileMap = _tilePartInfo[tileIdx];
+    if (tileMap == null || tileMap.isEmpty) {
+      return null;
+    }
+    final ordered = tileMap.entries.toList()
+      ..sort((a, b) => a.key.compareTo(b.key));
+    final offsets = <int>[];
+    for (final entry in ordered) {
+      final offset = entry.value.dataOffset;
+      if (offset == null) {
+        return null;
+      }
+      offsets.add(offset);
+    }
+    return offsets;
+  }
+
+  int? getTilePartBodyLength(int tileIdx, int tilePartIdx) {
+    final tileMap = _tilePartInfo[tileIdx];
+    if (tileMap == null) {
+      return null;
+    }
+    final info = tileMap[tilePartIdx];
+    if (info == null) {
+      return null;
+    }
+    return info.bodyLength ?? info.length;
+  }
+
+  List<int>? getTilePartBodyLengths(int tileIdx) {
+    final tileMap = _tilePartInfo[tileIdx];
+    if (tileMap == null || tileMap.isEmpty) {
+      return null;
+    }
+    final ordered = tileMap.entries.toList()
+      ..sort((a, b) => a.key.compareTo(b.key));
+    final lengths = <int>[];
+    for (final entry in ordered) {
+      final info = entry.value;
+      final length = info.bodyLength ?? info.length;
       if (length == null) {
         return null;
       }

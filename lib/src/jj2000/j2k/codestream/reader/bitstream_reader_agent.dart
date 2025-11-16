@@ -1,6 +1,8 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:meta/meta.dart';
+
 import '../../codestream/header_info.dart';
 import '../../codestream/markers.dart';
 import '../../codestream/prec_info.dart';

@@ -3,9 +3,13 @@ import 'dart:typed_data';
 import 'package:test/test.dart';
 
 import 'package:pdfbox_dart/src/jj2000/j2k/codestream/header_info.dart';
+import 'package:pdfbox_dart/src/jj2000/j2k/codestream/markers.dart';
 import 'package:pdfbox_dart/src/jj2000/j2k/codestream/reader/header_decoder.dart';
 import 'package:pdfbox_dart/src/jj2000/j2k/decoder/decoder_specs.dart';
 import 'package:pdfbox_dart/src/jj2000/j2k/image/coord.dart';
+import 'package:pdfbox_dart/src/jj2000/j2k/util/is_random_access_io.dart';
+
+import '../test_utils.dart';
 
 void main() {
   group('HeaderDecoder.parsePocMarker', () {
@@ -227,5 +231,414 @@ void main() {
       expect(packed, equals(Uint8List.fromList(<int>[0x01, 0x02, 0x03])));
       expect(specs.pphs.getTileDef(0), isTrue);
     });
+
+    test('parseTilePartHeader applies tile-scoped overrides', () {
+      final specs = DecoderSpecs.basic(2, 2);
+      final info = HeaderInfo();
+      final decoder = HeaderDecoder.placeholder(
+        decSpec: specs,
+        headerInfo: info,
+        numComps: 2,
+      );
+
+      final mainCod = buildCodMarkerPayload(
+        scod: 0x00,
+        sgcodPo: 0x00,
+        sgcodNl: 1,
+        sgcodMct: 0x00,
+        spcodNdl: 2,
+        spcodCw: 0x04,
+        spcodCh: 0x04,
+        spcodCs: 0x00,
+        spcodT: 0x01,
+      );
+      decoder.parseCodMarker(mainCod, isMainHeader: true, tileIdx: 0);
+
+      final mainSqcd = (2 << Markers.SQCX_GB_SHIFT) | Markers.SQCX_NO_QUANTIZATION;
+      final mainQcd = buildQcdMarkerPayload(
+        sqcd: mainSqcd,
+        stepBytes: <int>[
+          5 << Markers.SQCX_EXP_SHIFT,
+          4 << Markers.SQCX_EXP_SHIFT,
+          4 << Markers.SQCX_EXP_SHIFT,
+          4 << Markers.SQCX_EXP_SHIFT,
+          3 << Markers.SQCX_EXP_SHIFT,
+          3 << Markers.SQCX_EXP_SHIFT,
+          3 << Markers.SQCX_EXP_SHIFT,
+        ],
+      );
+      decoder.parseQcdMarker(mainQcd, isMainHeader: true, tileIdx: 0);
+
+      final sotPayload = Uint8List.fromList(<int>[
+        0x00,
+        0x0A,
+        0x00,
+        0x01,
+        0x00,
+        0x00,
+        0x00,
+        0x40,
+        0x00,
+        0x01,
+      ]);
+      decoder.parseSotMarker(sotPayload);
+      final sot = info.sot['t1_tp0'];
+      expect(sot, isNotNull);
+
+      final tileCod = buildCodMarkerPayload(
+        scod: Markers.SCOX_PRECINCT_PARTITION,
+        sgcodPo: 0x00,
+        sgcodNl: 2,
+        sgcodMct: 0x00,
+        spcodNdl: 3,
+        spcodCw: 0x03,
+        spcodCh: 0x03,
+        spcodCs: 0x01,
+        spcodT: 0x01,
+        precincts: <int>[0x00, 0x11, 0x22, 0x33],
+      );
+      final tileCoc = buildCocMarkerPayload(
+        component: 1,
+        scoc: 0x00,
+        spcocNdl: 4,
+        spcocCw: 0x02,
+        spcocCh: 0x02,
+        spcocCs: 0x03,
+        spcocT: 0x01,
+      );
+      final tileSqcd = (3 << Markers.SQCX_GB_SHIFT) | Markers.SQCX_SCALAR_DERIVED;
+      final tileQcd = buildQcdMarkerPayload(
+        sqcd: tileSqcd,
+        stepBytes: uint16List(<int>[0x6400]),
+      );
+      final tileSqcc = (4 << Markers.SQCX_GB_SHIFT) | Markers.SQCX_SCALAR_EXPOUNDED;
+      final tileQcc = buildQccMarkerPayload(
+        component: 1,
+        sqcc: tileSqcc,
+        stepBytes: uint16List(<int>[0xA000, 0x9400, 0x9400, 0x9400]),
+      );
+
+      final builder = BytesBuilder();
+      addMarkerSegment(builder, Markers.COD, tileCod);
+      addMarkerSegment(builder, Markers.COC, tileCoc);
+      addMarkerSegment(builder, Markers.QCD, tileQcd);
+      addMarkerSegment(builder, Markers.QCC, tileQcc);
+      addMarker(builder, Markers.SOD);
+
+      final tileHeaderData = builder.toBytes();
+      final io = ISRandomAccessIO(tileHeaderData);
+
+      decoder.parseTilePartHeader(io, sot: sot!);
+
+      expect(decoder.currentTile, equals(1));
+      expect(decoder.precinctPartitionUsed(), isTrue);
+      expect(specs.nls.getTileDef(1), equals(2));
+      expect(specs.dls.getTileDef(1), equals(3));
+      expect(specs.cblks.getTileDef(1), equals(<int>[32, 32]));
+      expect(specs.ecopts.getTileDef(1), equals(0x01));
+
+      final precincts = specs.pss.getTileDef(1);
+      expect(precincts, isNotNull);
+      expect(precincts![0], equals(<int>[1, 2, 4, 8]));
+      expect(precincts[1], equals(<int>[1, 2, 4, 8]));
+
+      expect(specs.qts.getTileDef(1), equals('derived'));
+      expect(specs.gbs.getTileDef(1), equals(3));
+      final tileQcdParams = specs.qsss.getTileDef(1);
+      expect(tileQcdParams, isNotNull);
+      expect(tileQcdParams!.exp[0][0], equals(12));
+
+      final tileCompCblk = specs.cblks.getTileCompVal(1, 1);
+      expect(tileCompCblk, equals(<int>[16, 16]));
+      expect(specs.dls.getTileCompVal(1, 1), equals(4));
+      expect(specs.ecopts.getTileCompVal(1, 1), equals(0x03));
+      expect(specs.qts.getTileCompVal(1, 1), equals('expounded'));
+      expect(specs.gbs.getTileCompVal(1, 1), equals(4));
+      final tileCompParams = specs.qsss.getTileCompVal(1, 1);
+      expect(tileCompParams, isNotNull);
+      expect(tileCompParams!.exp[0][0], equals(20));
+      expect(tileCompParams.exp[1][1], equals(18));
+
+      final tileCodInfo = info.cod['t1'];
+      expect(tileCodInfo, isNotNull);
+      expect(tileCodInfo!.spcodNdl, equals(3));
+      expect(tileCodInfo.spcodCw, equals(3));
+      expect(tileCodInfo.spcodCh, equals(3));
+      expect(tileCodInfo.spcodPs, equals(<int>[0x00, 0x11, 0x22, 0x33]));
+
+      final tileCocInfo = info.coc['t1_c1'];
+      expect(tileCocInfo, isNotNull);
+      expect(tileCocInfo!.spcocNdl, equals(4));
+      expect(tileCocInfo.spcocCw, equals(2));
+      expect(tileCocInfo.spcocCh, equals(2));
+      expect(tileCocInfo.spcocCs, equals(0x03));
+
+      final tileQcdInfo = info.qcd['t1'];
+      expect(tileQcdInfo, isNotNull);
+      expect(tileQcdInfo!.sqcd, equals(tileSqcd));
+
+      final tileQccInfo = info.qcc['t1_c1'];
+      expect(tileQccInfo, isNotNull);
+      expect(tileQccInfo!.sqcc, equals(tileSqcc));
+
+      expect(io.getPos(), equals(tileHeaderData.length - 2));
+      expect(io.readUnsignedShort(), equals(Markers.SOD));
+    });
+  });
+
+  group('HeaderDecoder.parseNextTilePart', () {
+    test('reads stream and applies overrides', () {
+      final mainCod = buildCodMarkerPayload(
+        scod: 0x00,
+        sgcodPo: 0x00,
+        sgcodNl: 1,
+        sgcodMct: 0x00,
+        spcodNdl: 2,
+        spcodCw: 0x04,
+        spcodCh: 0x04,
+        spcodCs: 0x00,
+        spcodT: 0x01,
+      );
+      final mainSqcd = (2 << Markers.SQCX_GB_SHIFT) | Markers.SQCX_NO_QUANTIZATION;
+      final mainQcd = buildQcdMarkerPayload(
+        sqcd: mainSqcd,
+        stepBytes: <int>[
+          5 << Markers.SQCX_EXP_SHIFT,
+          4 << Markers.SQCX_EXP_SHIFT,
+          4 << Markers.SQCX_EXP_SHIFT,
+          4 << Markers.SQCX_EXP_SHIFT,
+          3 << Markers.SQCX_EXP_SHIFT,
+          3 << Markers.SQCX_EXP_SHIFT,
+          3 << Markers.SQCX_EXP_SHIFT,
+        ],
+      );
+
+      final tileCod = buildCodMarkerPayload(
+        scod: Markers.SCOX_PRECINCT_PARTITION,
+        sgcodPo: 0x00,
+        sgcodNl: 2,
+        sgcodMct: 0x00,
+        spcodNdl: 3,
+        spcodCw: 0x03,
+        spcodCh: 0x03,
+        spcodCs: 0x01,
+        spcodT: 0x01,
+        precincts: <int>[0x00, 0x11, 0x22, 0x33],
+      );
+      final tileCoc = buildCocMarkerPayload(
+        component: 1,
+        scoc: 0x00,
+        spcocNdl: 4,
+        spcocCw: 0x02,
+        spcocCh: 0x02,
+        spcocCs: 0x03,
+        spcocT: 0x01,
+      );
+      final tileSqcd = (3 << Markers.SQCX_GB_SHIFT) | Markers.SQCX_SCALAR_DERIVED;
+      final tileQcd = buildQcdMarkerPayload(
+        sqcd: tileSqcd,
+        stepBytes: uint16List(<int>[0x6400]),
+      );
+      final tileSqcc = (4 << Markers.SQCX_GB_SHIFT) | Markers.SQCX_SCALAR_EXPOUNDED;
+      final tileQcc = buildQccMarkerPayload(
+        component: 1,
+        sqcc: tileSqcc,
+        stepBytes: uint16List(<int>[0xA000, 0x9400, 0x9400, 0x9400]),
+      );
+
+      final builder = BytesBuilder();
+      addMarker(builder, Markers.SOC);
+      addMarkerSegment(
+        builder,
+        Markers.SIZ,
+        buildSizMarkerPayload(
+          xsize: 128,
+          ysize: 96,
+          tileWidth: 64,
+          tileHeight: 48,
+          numComps: 2,
+          subsamplingX: const <int>[1, 1],
+          subsamplingY: const <int>[1, 1],
+          bitDepths: const <int>[0x07, 0x07],
+        ),
+      );
+      addMarkerSegment(builder, Markers.COD, mainCod);
+      addMarkerSegment(builder, Markers.QCD, mainQcd);
+
+      addMarker(builder, Markers.SOT);
+      builder.add(
+        buildSotMarkerPayload(
+          tileIdx: 0,
+          tilePartIdx: 0,
+          tilePartLength: 0,
+          numTileParts: 1,
+        ),
+      );
+      addMarkerSegment(builder, Markers.COD, tileCod);
+      addMarkerSegment(builder, Markers.COC, tileCoc);
+      addMarkerSegment(builder, Markers.QCD, tileQcd);
+      addMarkerSegment(builder, Markers.QCC, tileQcc);
+      addMarker(builder, Markers.SOD);
+      addMarker(builder, Markers.EOC);
+
+      final data = builder.toBytes();
+      final io = ISRandomAccessIO(data);
+      final headerInfo = HeaderInfo();
+
+      final decoder = HeaderDecoder.readMainHeader(
+        input: io,
+        headerInfo: headerInfo,
+      );
+
+      expect(io.getPos(), lessThan(data.length));
+      expect(io.readUnsignedShort(), equals(Markers.SOT));
+      io.seek(io.getPos() - 2);
+
+      final sot = decoder.parseNextTilePart(io);
+
+      expect(sot.isot, equals(0));
+      expect(decoder.currentTile, equals(0));
+      expect(decoder.precinctPartitionUsed(), isTrue);
+
+      final specs = decoder.decSpec;
+      expect(specs.nls.getTileDef(0), equals(2));
+      expect(specs.dls.getTileDef(0), equals(3));
+      expect(specs.cblks.getTileDef(0), equals(<int>[32, 32]));
+      expect(specs.ecopts.getTileDef(0), equals(0x01));
+
+      final precincts = specs.pss.getTileDef(0);
+      expect(precincts, isNotNull);
+      expect(precincts![0], equals(<int>[1, 2, 4, 8]));
+      expect(precincts[1], equals(<int>[1, 2, 4, 8]));
+
+      expect(specs.qts.getTileDef(0), equals('derived'));
+      expect(specs.gbs.getTileDef(0), equals(3));
+      final tileQcdParams = specs.qsss.getTileDef(0);
+      expect(tileQcdParams, isNotNull);
+      expect(tileQcdParams!.exp[0][0], equals(12));
+
+      final tileCompCblk = specs.cblks.getTileCompVal(0, 1);
+      expect(tileCompCblk, equals(<int>[16, 16]));
+      expect(specs.dls.getTileCompVal(0, 1), equals(4));
+      expect(specs.ecopts.getTileCompVal(0, 1), equals(0x03));
+      expect(specs.qts.getTileCompVal(0, 1), equals('expounded'));
+      expect(specs.gbs.getTileCompVal(0, 1), equals(4));
+      final tileCompParams = specs.qsss.getTileCompVal(0, 1);
+      expect(tileCompParams, isNotNull);
+      expect(tileCompParams!.exp[0][0], equals(20));
+      expect(tileCompParams.exp[1][1], equals(18));
+
+      final nextMarker = io.readUnsignedShort();
+      expect(nextMarker, equals(Markers.EOC));
+      io.close();
+    });
+
+    test('tracks tile order and Psot lengths across tiles', () {
+      final mainCod = buildCodMarkerPayload(
+        scod: 0x00,
+        sgcodPo: 0x00,
+        sgcodNl: 0,
+        sgcodMct: 0x00,
+        spcodNdl: 1,
+        spcodCw: 0x03,
+        spcodCh: 0x03,
+        spcodCs: 0x00,
+        spcodT: 0x01,
+      );
+      final builder = BytesBuilder();
+      addMarker(builder, Markers.SOC);
+      addMarkerSegment(
+        builder,
+        Markers.SIZ,
+        buildSizMarkerPayload(
+          xsize: 128,
+          ysize: 96,
+          tileWidth: 64,
+          tileHeight: 48,
+          numComps: 1,
+          subsamplingX: const <int>[1],
+          subsamplingY: const <int>[1],
+          bitDepths: const <int>[0x07],
+        ),
+      );
+      addMarkerSegment(builder, Markers.COD, mainCod);
+
+      final tilePart00 = buildTilePart(tileIdx: 0, tilePartIdx: 0, numTileParts: 2, bodyLength: 6);
+      final tilePart01 = buildTilePart(tileIdx: 0, tilePartIdx: 1, numTileParts: 2, bodyLength: 3);
+      final tilePart10 = buildTilePart(tileIdx: 1, tilePartIdx: 0, numTileParts: 1, bodyLength: 4);
+
+      builder
+        ..add(tilePart00.bytes)
+        ..add(tilePart01.bytes)
+        ..add(tilePart10.bytes);
+      addMarker(builder, Markers.EOC);
+
+      final data = builder.toBytes();
+      final io = ISRandomAccessIO(data);
+      final headerInfo = HeaderInfo();
+      final decoder = HeaderDecoder.readMainHeader(input: io, headerInfo: headerInfo);
+
+      final observedTiles = <int>[];
+      final observedTileParts = <(int tile, int part)>[];
+      final observedOffsets = <int>[];
+      final observedBodyLengths = <int>[];
+      while (true) {
+        final start = io.getPos();
+        try {
+          final sot = decoder.parseNextTilePart(io);
+          observedTiles.add(sot.isot);
+          observedTileParts.add((sot.isot, sot.tpsot));
+          final psot = sot.psot;
+          expect(psot, isPositive, reason: 'Psot should expose tile-part length');
+          final dataStart = io.getPos();
+          observedOffsets.add(dataStart);
+          final headerBytes = dataStart - start;
+          final bodyLength = psot == 0 ? 0 : psot - headerBytes;
+          observedBodyLengths.add(bodyLength);
+          final expectedEnd = start + psot;
+          expect(expectedEnd, lessThanOrEqualTo(data.length));
+          io.seek(expectedEnd);
+        } on StateError catch (error) {
+          final message = error.message;
+          if (message.contains('Reached end of codestream before encountering tile-part header')) {
+            break;
+          }
+          rethrow;
+        }
+      }
+
+      expect(observedTiles, equals(<int>[0, 0, 1]));
+      expect(decoder.nTileParts[0], equals(2));
+      expect(decoder.nTileParts[1], equals(1));
+      expect(decoder.getTilePartLengths(0), equals(<int>[tilePart00.psot, tilePart01.psot]));
+      expect(decoder.getTileTotalLength(0), equals(tilePart00.psot + tilePart01.psot));
+      expect(decoder.getTilePartLengths(1), equals(<int>[tilePart10.psot]));
+      expect(decoder.getTileTotalLength(1), equals(tilePart10.psot));
+
+      final tile0Offsets = <int>[];
+      final tile1Offsets = <int>[];
+      final tile0Bodies = <int>[];
+      final tile1Bodies = <int>[];
+      for (var i = 0; i < observedTileParts.length; i++) {
+        final entry = observedTileParts[i];
+        if (entry.$1 == 0) {
+          tile0Offsets.add(observedOffsets[i]);
+          tile0Bodies.add(observedBodyLengths[i]);
+        } else if (entry.$1 == 1) {
+          tile1Offsets.add(observedOffsets[i]);
+           tile1Bodies.add(observedBodyLengths[i]);
+        }
+      }
+
+      expect(decoder.getTilePartDataOffsets(0), equals(tile0Offsets));
+      expect(decoder.getTilePartBodyLengths(0), equals(tile0Bodies));
+      expect(tile0Bodies, equals(<int>[tilePart00.bodyLength, tilePart01.bodyLength]));
+      expect(decoder.getTilePartBodyLengths(1), equals(tile1Bodies));
+      expect(tile1Bodies, equals(<int>[tilePart10.bodyLength]));
+      expect(decoder.getTilePartDataOffsets(1), equals(tile1Offsets));
+
+      io.close();
+    });
   });
 }
+

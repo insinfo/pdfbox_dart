@@ -231,6 +231,11 @@ class PktDecoder {
     return grid;
   }
 
+  void syncHeaderReader() {
+    _headerReader.sync();
+    _packedHeaderReader?.sync();
+  }
+
   PrecInfo getPrecInfo(int component, int resolution, int precinct) {
     if (component < 0 || component >= _precinctInfo.length) {
       throw ArgumentError('Component index out of range: $component');
@@ -560,20 +565,46 @@ class PktDecoder {
         }
 
         blockInfo.off[layer] = currentOffset;
-        currentOffset += blockInfo.len[layer];
-        try {
-          ehs.seek(currentOffset);
-        } on EOFException {
-          _handleBodyRollback(subbandBlocks, subband, coordIdx.y, coordIdx.x, blockInfo, layer);
-          rethrow;
+        final payloadLength = blockInfo.len[layer];
+        currentOffset += payloadLength;
+
+        final shouldReadPayload =
+            payloadLength > 0 && !(isTruncMode && (stopReading || payloadLength > remainingBytesPerTile[tileIdx]));
+
+        Uint8List? payload;
+        if (payloadLength == 0) {
+          payload = Uint8List(0);
+          try {
+            ehs.seek(currentOffset);
+          } on EOFException {
+            _handleBodyRollback(subbandBlocks, subband, coordIdx.y, coordIdx.x, blockInfo, layer);
+            rethrow;
+          }
+        } else if (shouldReadPayload) {
+          payload = Uint8List(payloadLength);
+          try {
+            ehs.readFully(payload, 0, payloadLength);
+          } on EOFException {
+            payload = null;
+            _handleBodyRollback(subbandBlocks, subband, coordIdx.y, coordIdx.x, blockInfo, layer);
+            rethrow;
+          }
+        } else {
+          try {
+            ehs.seek(currentOffset);
+          } on EOFException {
+            _handleBodyRollback(subbandBlocks, subband, coordIdx.y, coordIdx.x, blockInfo, layer);
+            rethrow;
+          }
         }
+        blockInfo.body[layer] = payload;
 
         if (isTruncMode) {
-          if (stopReading || blockInfo.len[layer] > remainingBytesPerTile[tileIdx]) {
+          if (stopReading || payloadLength > remainingBytesPerTile[tileIdx]) {
             _handleBodyRollback(subbandBlocks, subband, coordIdx.y, coordIdx.x, blockInfo, layer);
             stopReading = true;
           } else {
-            remainingBytesPerTile[tileIdx] -= blockInfo.len[layer];
+            remainingBytesPerTile[tileIdx] -= payloadLength;
           }
         }
 
@@ -688,6 +719,7 @@ class PktDecoder {
     info.ntp[layer] = 0;
     info.pktIdx[layer] = -1;
     info.segLen[layer] = null;
+    info.body[layer] = null;
   }
 
   void _handleBodyRollback(
@@ -745,6 +777,24 @@ class PktDecoder {
       return;
     }
     row[x] = null;
+  }
+
+  @visibleForTesting
+  void debugSetIncludedCodeBlocks(int subband, List<CBlkCoordInfo> blocks) {
+    if (subband < 0 || subband >= _includedCodeBlocks.length) {
+      throw ArgumentError('Subband index out of range: $subband');
+    }
+    final target = _includedCodeBlocks[subband];
+    target
+      ..clear()
+      ..addAll(blocks);
+  }
+
+  @visibleForTesting
+  void debugInitializeForPacketBody({required int numLayers, int tileIdx = 0}) {
+    _numLayers = numLayers;
+    _currentTileIdx = tileIdx;
+    _includedCodeBlocks = List<List<CBlkCoordInfo>>.generate(4, (_) => <CBlkCoordInfo>[]);
   }
 
   void _readEphMarker(PktHeaderBitReader reader) {

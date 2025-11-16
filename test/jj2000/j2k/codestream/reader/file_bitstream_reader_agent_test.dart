@@ -78,6 +78,10 @@ void main() {
       headerDecoder.parseSotMarker(
         Uint8List.fromList(<int>[0x00, 0x0A, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1E, 0x01, 0x02]),
       );
+      headerDecoder.registerTilePartDataOffset(0, 0, 16);
+      headerDecoder.registerTilePartBodyLength(0, 0, 20);
+      headerDecoder.registerTilePartDataOffset(0, 1, 64);
+      headerDecoder.registerTilePartBodyLength(0, 1, 28);
 
       final input = ISRandomAccessIO(Uint8List(128));
       final parameters = ParameterList()
@@ -117,6 +121,7 @@ void main() {
 
       // Ensure tile budgets observed during decoding.
       agent.setTile(0, 0);
+      expect(input.getPos(), equals(64));
 
       agent.debugClearPacketSimulation();
       input.close();

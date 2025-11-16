@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 /// Stores per-layer code-block metadata extracted from the codestream.
 class CBlkInfo {
   CBlkInfo(this.ulx, this.uly, this.w, this.h, int numLayers)
@@ -5,7 +7,8 @@ class CBlkInfo {
         len = List<int>.filled(numLayers, 0),
         ntp = List<int>.filled(numLayers, 0),
         segLen = List<List<int>?>.filled(numLayers, null),
-        pktIdx = List<int>.filled(numLayers, -1);
+        pktIdx = List<int>.filled(numLayers, -1),
+        body = List<Uint8List?>.filled(numLayers, null);
 
   final int ulx;
   final int uly;
@@ -18,6 +21,7 @@ class CBlkInfo {
   final List<int> ntp;
   final List<List<int>?> segLen;
   final List<int> pktIdx;
+  final List<Uint8List?> body;
   int ctp = 0;
 
   void addNTP(int layer, int newTruncationPoints) {
@@ -42,6 +46,10 @@ class CBlkInfo {
           buffer.write('$value ');
         }
         buffer.write('}');
+      }
+      final payload = body[i];
+      if (payload != null) {
+        buffer.write(' bytes=${payload.length}');
       }
       buffer.writeln();
     }

@@ -103,13 +103,77 @@ class Decoder implements Runnable {
         input: file,
         headerInfo: hi,
       );
-      decSpec = headerDecoder!.decSpec;
+      final decoder = headerDecoder!;
+      decSpec = decoder.decSpec;
 
       _logger.printmsg(
         MsgLogger.info,
-        'Parsed codestream main header: ${headerDecoder!.getNumComps()} component(s), '
-        '${headerDecoder!.getImgWidth()}x${headerDecoder!.getImgHeight()} image.',
+        'Parsed codestream main header: ${decoder.getNumComps()} component(s), '
+        '${decoder.getImgWidth()}x${decoder.getImgHeight()} image.',
       );
+
+      var tilePartCount = 0;
+      final tilePartPerTile = <int, int>{};
+
+      while (true) {
+        final start = file.getPos();
+        try {
+          final sot = decoder.parseNextTilePart(file);
+          tilePartCount++;
+          tilePartPerTile[sot.isot] = (tilePartPerTile[sot.isot] ?? 0) + 1;
+
+          final psot = sot.psot;
+          if (psot == 0) {
+            _logger.printmsg(
+              MsgLogger.warning,
+              'Tile-part length unknown (Psot=0) for tile=${sot.isot} part=${sot.tpsot}; '
+              'stopping tile scan after headers.',
+            );
+            break;
+          }
+
+          final expectedEnd = start + psot;
+          if (expectedEnd < file.getPos()) {
+            _logger.printmsg(
+              MsgLogger.warning,
+              'Tile-part length shorter than parsed header for tile=${sot.isot} part=${sot.tpsot}; '
+              'aborting tile scan.',
+            );
+            break;
+          }
+          if (expectedEnd > file.length()) {
+            _logger.printmsg(
+              MsgLogger.warning,
+              'Tile-part length exceeds codestream bounds for tile=${sot.isot} part=${sot.tpsot}; '
+              'stopping at end of stream.',
+            );
+            file.seek(file.length());
+            break;
+          }
+
+          file.seek(expectedEnd);
+        } on StateError catch (error) {
+          final message = error.message;
+          if (message.contains('Reached end of codestream before encountering tile-part header')) {
+            break;
+          }
+          rethrow;
+        }
+      }
+
+      if (tilePartCount == 0) {
+        _logger.printmsg(MsgLogger.info, 'No tile-part headers encountered.');
+      } else {
+        final summaries = tilePartPerTile.entries.toList()
+          ..sort((a, b) => a.key.compareTo(b.key));
+        for (final entry in summaries) {
+          _logger.printmsg(
+            MsgLogger.info,
+            'Tile ${entry.key} has ${entry.value} tile-part header(s).',
+          );
+        }
+        _logger.printmsg(MsgLogger.info, 'Parsed $tilePartCount tile-part header(s).');
+      }
     } finally {
       file.close();
     }

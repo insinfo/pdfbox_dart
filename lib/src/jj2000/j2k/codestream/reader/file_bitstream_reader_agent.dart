@@ -343,12 +343,25 @@ class FileBitstreamReaderAgent extends BitstreamReaderAgent {
         continue;
       }
 
-      _input.seek(requested.off[layer]);
       final data = result.data;
       if (data == null) {
         throw StateError('Allocated code-block buffer missing for tile $tileIndex');
       }
-      _input.readFully(data, dataIndex + 1, layerLength);
+      final payload = requested.body[layer];
+      if (payload != null) {
+        if (payload.length != layerLength) {
+          throw StateError(
+            'Stored packet body length mismatch for tile $tileIndex layer ${layer + 1}: '
+            'expected $layerLength, found ${payload.length}',
+          );
+        }
+        if (payload.isNotEmpty) {
+          data.setRange(dataIndex + 1, dataIndex + 1 + payload.length, payload);
+        }
+      } else {
+        _input.seek(requested.off[layer]);
+        _input.readFully(data, dataIndex + 1, layerLength);
+      }
       dataIndex += layerLength;
 
       if (terminatedSegments == 1 || tsLengths == null) {
@@ -452,9 +465,15 @@ class FileBitstreamReaderAgent extends BitstreamReaderAgent {
     final remainingBytes = List<int>.filled(listSize > 0 ? listSize : 1, 0x7fffffff, growable: false);
     final tileBudget = hd.getTileTotalLength(tileIdx);
     final tilePartLengths = hd.getTilePartLengths(tileIdx);
+    final tilePartBodyLengths = hd.getTilePartBodyLengths(tileIdx);
+    final tilePartOffsets = hd.getTilePartDataOffsets(tileIdx);
 
     final budgets = <int>[];
-    if (tilePartLengths != null && tilePartLengths.isNotEmpty) {
+    if (tilePartBodyLengths != null && tilePartBodyLengths.isNotEmpty) {
+      for (final length in tilePartBodyLengths) {
+        budgets.add(_normalizeTilePartBudget(length));
+      }
+    } else if (tilePartLengths != null && tilePartLengths.isNotEmpty) {
       for (final length in tilePartLengths) {
         budgets.add(_normalizeTilePartBudget(length));
       }
@@ -464,6 +483,10 @@ class FileBitstreamReaderAgent extends BitstreamReaderAgent {
 
     if (budgets.isEmpty) {
       budgets.add(0x7fffffff);
+    }
+
+    if (tilePartOffsets != null && tilePartOffsets.isNotEmpty) {
+      _input.seek(tilePartOffsets.first);
     }
 
     remainingBytes[tileIdx] = budgets.first;
@@ -478,6 +501,7 @@ class FileBitstreamReaderAgent extends BitstreamReaderAgent {
     );
 
     cbI = grid;
+    _pktDecoder.syncHeaderReader();
 
     final maxResolutionsInTile = maxLevels.isEmpty ? 0 : maxLevels.reduce(math.max) + 1;
     final precinctGrid = _buildPrecinctGridCache(maxLevels, maxResolutionsInTile);
@@ -508,6 +532,10 @@ class FileBitstreamReaderAgent extends BitstreamReaderAgent {
         if (exhausted && tilePartIdx + 1 < budgets.length) {
           tilePartIdx++;
           remainingBytes[tileIdx] = budgets[tilePartIdx];
+          if (tilePartOffsets != null && tilePartIdx < tilePartOffsets.length) {
+            _input.seek(tilePartOffsets[tilePartIdx]);
+          }
+          _pktDecoder.syncHeaderReader();
           continue;
         }
         break;
