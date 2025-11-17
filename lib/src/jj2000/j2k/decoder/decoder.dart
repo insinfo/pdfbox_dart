@@ -21,6 +21,7 @@ import '../image/invcomptransf/inv_component_transformer.dart';
 import '../image/invcomptransf/inv_comp_transf.dart';
 import '../image/output/composite_img_writer.dart';
 import '../image/output/img_writer.dart';
+import '../image/output/img_writer_bmp.dart';
 import '../image/output/img_writer_pgm.dart';
 import '../image/output/img_writer_pgx.dart';
 import '../image/output/img_writer_ppm.dart';
@@ -428,8 +429,21 @@ class Decoder implements Runnable {
       return CompositeImgWriter(writers);
     }
 
+    if (lower.endsWith('.bmp')) {
+      if (source.getNumComps() == 0) {
+        throw StateError('Decoded image has no components to export.');
+      }
+      if (source.getNumComps() == 1 || source.getNumComps() >= 3) {
+        return ImgWriterBmp.fromPath(outputPath, source);
+      }
+      throw StateError(
+        'BMP output requires one component (grayscale) or at least three components; '
+        'decoder produced ${source.getNumComps()}.',
+      );
+    }
+
     throw UnsupportedError(
-      'Output format for "$outputPath" is not supported yet. Only .ppm exports are implemented.',
+      'Output format for "$outputPath" is not supported yet. Supported extensions: .ppm, .pgm, .pgx, .bmp.',
     );
   }
 
