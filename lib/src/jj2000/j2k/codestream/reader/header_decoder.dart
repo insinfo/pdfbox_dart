@@ -2,12 +2,20 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import '../../decoder/decoder_specs.dart';
+import '../../entropy/decoder/coded_cblk_data_src_dec.dart';
+import '../../entropy/decoder/entropy_decoder.dart';
+import '../../entropy/decoder/std_entropy_decoder.dart';
 import '../../image/coord.dart';
 import '../../image/invcomptransf/inv_comp_transf.dart';
 import '../../io/random_access_io.dart';
+import '../../quantization/dequantizer/std_dequantizer.dart';
 import '../../quantization/dequantizer/std_dequantizer_params.dart';
+import '../../quantization/dequantizer/cblk_quant_data_src_dec.dart';
+import '../../roi/roi_de_scaler.dart';
 import '../../util/facility_manager.dart';
 import '../../util/msg_logger.dart';
+import '../../util/parameter_list.dart';
+import '../../util/string_format_exception.dart';
 import '../header_info.dart';
 import '../markers.dart';
 import '../../wavelet/filter_types.dart';
@@ -1364,6 +1372,97 @@ class HeaderDecoder {
         }
       }
     });
+  }
+
+  StdEntropyDecoder createEntropyDecoder(
+    CodedCBlkDataSrcDec source,
+    ParameterList parameters,
+  ) {
+    parameters.checkListSingle(
+      EntropyDecoder.optionPrefix.codeUnitAt(0),
+      ParameterList.toNameArray(EntropyDecoder.parameterInfo),
+    );
+
+    final doErrorDetection = _parseBooleanOption(parameters, 'Cer', true);
+    final verboseToggle = _parseBooleanOption(parameters, 'Cverber', true);
+    final verbose = doErrorDetection && verboseToggle;
+    final mQuit = _parseMqQuit(parameters);
+
+    return StdEntropyDecoder(
+      source,
+      decSpec,
+      doErrorDetection,
+      verbose,
+      mQuit,
+    );
+  }
+
+  ROIDeScaler createROIDeScaler(
+    CBlkQuantDataSrcDec source,
+    ParameterList parameters,
+  ) {
+    return ROIDeScaler.createInstance(source, parameters, decSpec);
+  }
+
+  StdDequantizer createDequantizer(
+    CBlkQuantDataSrcDec source,
+    List<int> rangeBits,
+  ) {
+    if (rangeBits.length != numComps) {
+      throw ArgumentError(
+        'Range bit array must contain $numComps entries (found ${rangeBits.length})',
+      );
+    }
+    return StdDequantizer(source, rangeBits, decSpec);
+  }
+
+  bool isOriginalSigned(int component) {
+    final siz = headerInfo.siz;
+    if (siz == null) {
+      throw StateError('SIZ marker has not been parsed yet');
+    }
+    return siz.isOrigSigned(component);
+  }
+
+  int getOriginalBitDepth(int component) {
+    final siz = headerInfo.siz;
+    if (siz == null) {
+      throw StateError('SIZ marker has not been parsed yet');
+    }
+    return siz.getOrigBitDepth(component);
+  }
+
+  static bool _parseBooleanOption(
+    ParameterList parameters,
+    String name,
+    bool defaultValue,
+  ) {
+    final raw = parameters.getParameter(name);
+    if (raw == null) {
+      return defaultValue;
+    }
+    if (raw == 'on') {
+      return true;
+    }
+    if (raw == 'off') {
+      return false;
+    }
+    throw StringFormatException("Invalid value for '$name': $raw");
+  }
+
+  static int _parseMqQuit(ParameterList parameters) {
+    final raw = parameters.getParameter('m_quit');
+    if (raw == null || raw.isEmpty) {
+      return -1;
+    }
+    final value = int.tryParse(raw);
+    if (value == null) {
+      throw StringFormatException("Invalid integer for 'm_quit': $raw");
+    }
+    if (value == 0 || value < -1) {
+      throw StringFormatException("'m_quit' must be -1 or a positive integer (found $value)");
+    }
+    return value;
   }
 
   static Uint8List _readMarkerPayload(RandomAccessIO input) {

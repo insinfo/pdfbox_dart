@@ -25,7 +25,8 @@ void main() {
         spcodCs: 0x00,
         spcodT: 0x01,
       );
-      final mainSqcd = (2 << Markers.SQCX_GB_SHIFT) | Markers.SQCX_NO_QUANTIZATION;
+      final mainSqcd =
+          (2 << Markers.SQCX_GB_SHIFT) | Markers.SQCX_NO_QUANTIZATION;
       final mainQcd = buildQcdMarkerPayload(
         sqcd: mainSqcd,
         stepBytes: <int>[
@@ -58,8 +59,10 @@ void main() {
       addMarkerSegment(builder, Markers.COD, mainCod);
       addMarkerSegment(builder, Markers.QCD, mainQcd);
 
-      final tilePart0 = buildTilePart(tileIdx: 0, tilePartIdx: 0, numTileParts: 1, bodyLength: 5);
-      final tilePart1 = buildTilePart(tileIdx: 1, tilePartIdx: 0, numTileParts: 1, bodyLength: 7);
+      final tilePart0 = buildTilePart(
+          tileIdx: 0, tilePartIdx: 0, numTileParts: 1, bodyLength: 5);
+      final tilePart1 = buildTilePart(
+          tileIdx: 1, tilePartIdx: 0, numTileParts: 1, bodyLength: 7);
 
       builder
         ..add(tilePart0.bytes)
@@ -94,14 +97,28 @@ void main() {
       expect(headerDecoder.nTileParts.length, greaterThanOrEqualTo(2));
       expect(headerDecoder.nTileParts[0], equals(1));
       expect(headerDecoder.nTileParts[1], equals(1));
-      expect(headerDecoder.getTilePartLengths(0), equals(<int>[tilePart0.psot]));
-      expect(headerDecoder.getTilePartLengths(1), equals(<int>[tilePart1.psot]));
-      expect(headerDecoder.getTilePartBodyLengths(0), equals(<int>[tilePart0.bodyLength]));
-      expect(headerDecoder.getTilePartBodyLengths(1), equals(<int>[tilePart1.bodyLength]));
+      expect(
+          headerDecoder.getTilePartLengths(0), equals(<int>[tilePart0.psot]));
+      expect(
+          headerDecoder.getTilePartLengths(1), equals(<int>[tilePart1.psot]));
+      expect(headerDecoder.getTilePartBodyLengths(0),
+          equals(<int>[tilePart0.bodyLength]));
+      expect(headerDecoder.getTilePartBodyLengths(1),
+          equals(<int>[tilePart1.bodyLength]));
       expect(headerDecoder.getTilePartDataOffsets(0), isNotNull);
       expect(headerDecoder.getTilePartDataOffsets(0)!.length, equals(1));
       expect(headerDecoder.getTilePartDataOffsets(1), isNotNull);
       expect(headerDecoder.getTilePartDataOffsets(1)!.length, equals(1));
+
+      expect(decoder.bitstreamReader, isNotNull);
+      expect(decoder.entropyDecoder, isNotNull);
+      expect(decoder.dequantizer, isNotNull);
+      expect(decoder.inverseWT, isNotNull);
+      expect(decoder.imageDataConverter, isNotNull);
+      expect(decoder.componentTransformer, isNull);
+      expect(decoder.imageDataSource, isNotNull);
+
+      decoder.dispose();
     });
   });
 }

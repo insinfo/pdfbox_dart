@@ -42,6 +42,8 @@ fontbox ja esta implementado em C:\MyDartProjects\pdfbox_dart\lib\src\fontbox
 - `Decoder.run()` agora consome os tile-parts via `HeaderDecoder.parseNextTilePart`, contabiliza `Psot` por tile quando disponível, preserva offsets pós-`SOD`/comprimentos de payload e reposiciona o stream para o próximo header; `test/jj2000/j2k/decoder/decoder_test.dart` garante o sequenciamento, offsets e as contagens agregadas.
 - Helpers para codestream sintético consolidaram-se em `test/jj2000/j2k/codestream/test_utils.dart`, reduzindo duplicação entre os testes de header e decoder.
 - `FileBitstreamReaderAgent` passou a consumir os offsets/comprimentos registrados pelo `HeaderDecoder`, reinicializando o `PktDecoder` a cada tile-part e atualizando o ponteiro do codestream conforme os orçamentos (`Psot`) são esgotados. O teste `file_bitstream_reader_agent_test.dart` valida a troca de tile-part e o reaproveitamento dos cabeçalhos empacotados.
+- `HeaderDecoder` agora oferece `createEntropyDecoder()`, aplicando a mesma validação de parâmetros `C*` do JJ2000, propagando `Cer`/`Cverber`, interpretando `m_quit` e devolvendo uma instância configurada de `StdEntropyDecoder` pronta para consumir os code-blocks cacheados.
+- `Decoder.run()` passou a isolar os parâmetros `B*`/`C*`, instanciar um `FileBitstreamReaderAgent` via `BitstreamReaderAgent.createInstance` e conectar o entropy decoder criado pelo `HeaderDecoder`, garantindo que o pipeline chegue até `StdEntropyDecoder`; o teste `decoder_test.dart` agora verifica a presença desses componentes e chama `Decoder.dispose()` para liberar o stream.
 
 ## Pendencias atuais (2025-11-13)
 

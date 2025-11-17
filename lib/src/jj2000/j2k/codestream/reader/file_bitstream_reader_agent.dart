@@ -47,6 +47,7 @@ class FileBitstreamReaderAgent extends BitstreamReaderAgent {
     final maxCodeBlocks = maxCbParam == null ? -1 : int.tryParse(maxCbParam) ?? -1;
     _pktDecoder = pktDecoderFactory?.call(this) ??
         PktDecoder(decoderSpecs, header, input, this, isTruncMode, maxCodeBlocks);
+      _initialiseTargetResolution();
   }
 
   final RandomAccessIO _input;
@@ -58,6 +59,35 @@ class FileBitstreamReaderAgent extends BitstreamReaderAgent {
 
   _CodeBlockGrid? cbI;
   int lQuit = -1;
+
+  void _initialiseTargetResolution() {
+    final minAvailable = decSpec.dls.getMin();
+    final resParam = _parameters.getParameter('res');
+    if (resParam == null) {
+      targetRes = minAvailable;
+      return;
+    }
+
+    final parsed = int.tryParse(resParam);
+    if (parsed == null) {
+      throw ArgumentError(
+        "Invalid resolution level index ('-res' option) $resParam",
+      );
+    }
+    if (parsed < 0) {
+      throw ArgumentError('Resolution level index cannot be negative: $parsed');
+    }
+    if (parsed > minAvailable) {
+      FacilityManager.getMsgLogger().printmsg(
+        MsgLogger.warning,
+        'Specified resolution level ($parsed) exceeds the available maximum ($minAvailable); clamping to $minAvailable.',
+      );
+      targetRes = minAvailable;
+      return;
+    }
+
+    targetRes = parsed;
+  }
 
   bool Function(
     int layer,

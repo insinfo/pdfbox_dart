@@ -7,10 +7,12 @@ import 'package:pdfbox_dart/src/jj2000/j2k/image/coord.dart';
 import 'package:pdfbox_dart/src/jj2000/j2k/image/data_blk.dart';
 import 'package:pdfbox_dart/src/jj2000/j2k/image/data_blk_float.dart';
 import 'package:pdfbox_dart/src/jj2000/j2k/image/data_blk_int.dart';
+import 'package:pdfbox_dart/src/jj2000/j2k/quantization/dequantizer/cblk_quant_data_src_dec.dart';
 import 'package:pdfbox_dart/src/jj2000/j2k/roi/max_shift_spec.dart';
 import 'package:pdfbox_dart/src/jj2000/j2k/roi/rect_roi_spec.dart';
 import 'package:pdfbox_dart/src/jj2000/j2k/roi/rectangular_roi.dart';
 import 'package:pdfbox_dart/src/jj2000/j2k/roi/roi_de_scaler.dart';
+import 'package:pdfbox_dart/src/jj2000/j2k/wavelet/synthesis/subband_syn.dart';
 
 void main() {
   group('ROIDeScaler', () {
@@ -25,7 +27,8 @@ void main() {
         ..scanw = 4
         ..setDataInt(List<int>.from(data, growable: false));
 
-      final source = _SingleBlockSource(block);
+      final quantSource = _SingleBlockQuantSource(block);
+      final sampleSource = _SingleBlockComponentSource(block);
       final maxShift = MaxShiftSpec(1, 1)
         ..setDefault(0)
         ..setTileCompVal(0, 0, 2);
@@ -36,17 +39,34 @@ void main() {
           RectangularROI(x0: 0, y0: 0, width: 2, height: 4),
         );
 
-      final scaler = ROIDeScaler(source, maxShift, rectSpec: rectSpec);
+      final scaler = ROIDeScaler(
+        quantSource,
+        maxShift,
+        rectSpec: rectSpec,
+        sampleSource: sampleSource,
+      );
       final result = scaler.getCompData(block, 0) as DataBlkInt;
       final values = result.getDataInt()!;
 
       expect(
         values,
         equals(<int>[
-          0, 1, 0, 0,
-          4, 5, 1, 1,
-          8, 9, 2, 2,
-          12, 13, 3, 3,
+          0,
+          1,
+          0,
+          0,
+          4,
+          5,
+          1,
+          1,
+          8,
+          9,
+          2,
+          2,
+          12,
+          13,
+          3,
+          3,
         ]),
       );
     });
@@ -64,7 +84,8 @@ void main() {
         ..scanw = 4
         ..setDataFloat(Float32List.fromList(data));
 
-      final source = _SingleBlockSource(block);
+      final quantSource = _SingleBlockQuantSource(block);
+      final sampleSource = _SingleBlockComponentSource(block);
       final maxShift = MaxShiftSpec(1, 1)
         ..setDefault(0)
         ..setTileCompVal(0, 0, 1);
@@ -75,25 +96,178 @@ void main() {
           RectangularROI(x0: 0, y0: 0, width: 1, height: 4),
         );
 
-      final scaler = ROIDeScaler(source, maxShift, rectSpec: rectSpec);
+      final scaler = ROIDeScaler(
+        quantSource,
+        maxShift,
+        rectSpec: rectSpec,
+        sampleSource: sampleSource,
+      );
       final result = scaler.getCompData(block, 0) as DataBlkFloat;
       final values = result.getDataFloat()!;
 
       expect(
         values,
         orderedEquals(<double>[
-          0.0, 0.5, 1.0, 1.5,
-          4.0, 2.5, 3.0, 3.5,
-          8.0, 4.5, 5.0, 5.5,
-          12.0, 6.5, 7.0, 7.5,
+          0.0,
+          0.5,
+          1.0,
+          1.5,
+          4.0,
+          2.5,
+          3.0,
+          3.5,
+          8.0,
+          4.5,
+          5.0,
+          5.5,
+          12.0,
+          6.5,
+          7.0,
+          7.5,
         ]),
       );
     });
   });
 }
 
-class _SingleBlockSource implements BlkImgDataSrc {
-  _SingleBlockSource(this.block)
+class _SingleBlockQuantSource extends CBlkQuantDataSrcDec {
+  _SingleBlockQuantSource(this.block)
+      : width = block.w,
+        height = block.h;
+
+  final DataBlk block;
+  final int width;
+  final int height;
+  final SubbandSyn _subband = SubbandSyn()..magBits = 5;
+
+  @override
+  int getCbULX() => 0;
+
+  @override
+  int getCbULY() => 0;
+
+  @override
+  DataBlk getCodeBlock(
+    int component,
+    int verticalCodeBlockIndex,
+    int horizontalCodeBlockIndex,
+    SubbandSyn subband,
+    DataBlk? reuse,
+  ) =>
+      block;
+
+  @override
+  DataBlk getInternCodeBlock(
+    int component,
+    int verticalCodeBlockIndex,
+    int horizontalCodeBlockIndex,
+    SubbandSyn subband,
+    DataBlk? reuse,
+  ) =>
+      block;
+
+  @override
+  int getTileWidth(int resLevel) => width;
+
+  @override
+  int getTileHeight(int resLevel) => height;
+
+  @override
+  int getNomTileWidth() => width;
+
+  @override
+  int getNomTileHeight() => height;
+
+  @override
+  int getImgWidth(int resLevel) => width;
+
+  @override
+  int getImgHeight(int resLevel) => height;
+
+  @override
+  int getNumComps() => 1;
+
+  @override
+  int getCompSubsX(int component) => 1;
+
+  @override
+  int getCompSubsY(int component) => 1;
+
+  @override
+  int getTileCompWidth(int tile, int component, int resLevel) => width;
+
+  @override
+  int getTileCompHeight(int tile, int component, int resLevel) => height;
+
+  @override
+  int getCompImgWidth(int component, int resLevel) => width;
+
+  @override
+  int getCompImgHeight(int component, int resLevel) => height;
+
+  @override
+  int getNomRangeBits(int component) => 8;
+
+  @override
+  void setTile(int x, int y) {
+    if (x != 0 || y != 0) {
+      throw ArgumentError('Only tile (0,0) is available in test source');
+    }
+  }
+
+  @override
+  void nextTile() {
+    throw StateError('No additional tiles in test source');
+  }
+
+  @override
+  Coord getTile(Coord? reuse) {
+    final coord = reuse ?? Coord();
+    coord
+      ..x = 0
+      ..y = 0;
+    return coord;
+  }
+
+  @override
+  int getTileIdx() => 0;
+
+  @override
+  int getTilePartULX() => 0;
+
+  @override
+  int getTilePartULY() => 0;
+
+  @override
+  int getResULX(int component, int resLevel) => 0;
+
+  @override
+  int getResULY(int component, int resLevel) => 0;
+
+  @override
+  int getImgULX(int resLevel) => 0;
+
+  @override
+  int getImgULY(int resLevel) => 0;
+
+  @override
+  Coord getNumTiles(Coord? reuse) {
+    final coord = reuse ?? Coord();
+    coord
+      ..x = 1
+      ..y = 1;
+    return coord;
+  }
+
+  @override
+  int getNumTilesTotal() => 1;
+
+  @override
+  SubbandSyn getSynSubbandTree(int tile, int component) => _subband;
+}
+
+class _SingleBlockComponentSource implements BlkImgDataSrc {
+  _SingleBlockComponentSource(this.block)
       : width = block.w,
         height = block.h;
 
