@@ -15,6 +15,9 @@ import '../util/msg_logger.dart';
 import '../util/parameter_list.dart';
 import '../util/string_format_exception.dart';
 import '../wavelet/synthesis/inverse_wt.dart';
+import '../wavelet/synthesis/syn_wt_filter_float_lift9x7.dart';
+import '../wavelet/synthesis/syn_wt_filter_int_lift5x3.dart';
+import '../wavelet/synthesis/syn_wt_filter.dart';
 import '../image/blk_img_data_src.dart';
 import '../image/img_data_converter.dart';
 import '../image/invcomptransf/inv_component_transformer.dart';
@@ -326,6 +329,8 @@ class Decoder implements Runnable {
         'Instantiated inverse component transform ($label).',
       );
     }
+
+    _ensureWaveletFilters();
   }
 
   void _executeOutputStage() {
@@ -466,6 +471,50 @@ class Decoder implements Runnable {
       return false;
     }
     return headerDecoder!.isOriginalSigned(component);
+  }
+
+  void _ensureWaveletFilters() {
+    final specs = decSpec;
+    if (specs == null) {
+      return;
+    }
+
+    final filtersSpec = specs.wfs;
+    final tiles = filtersSpec.nTiles;
+    final components = filtersSpec.nComp;
+
+    for (var tile = 0; tile < tiles; tile++) {
+      for (var component = 0; component < components; component++) {
+        var filters = filtersSpec.getTileCompVal(tile, component);
+        if (filters != null) {
+          continue;
+        }
+
+        final levels = specs.dls.getTileCompVal(tile, component) ?? 0;
+        final reversible = specs.qts.isReversible(tile, component);
+        filters = _createDefaultFilters(levels, reversible);
+        filtersSpec.setTileCompVal(tile, component, filters);
+      }
+    }
+  }
+
+  List<List<SynWTFilter>> _createDefaultFilters(int decompositionLevels, bool reversible) {
+    final levelCount = decompositionLevels <= 0 ? 0 : decompositionLevels;
+    if (levelCount == 0) {
+      return <List<SynWTFilter>>[
+        List<SynWTFilter>.empty(growable: false),
+        List<SynWTFilter>.empty(growable: false),
+      ];
+    }
+
+    SynWTFilter _factory() =>
+        reversible ? SynWTFilterIntLift5x3() : SynWTFilterFloatLift9x7();
+
+    final horizontal =
+        List<SynWTFilter>.generate(levelCount, (_) => _factory(), growable: false);
+    final vertical =
+        List<SynWTFilter>.generate(levelCount, (_) => _factory(), growable: false);
+    return <List<SynWTFilter>>[horizontal, vertical];
   }
   ParameterList _subsetParametersByPrefix(ParameterList source, String prefix) {
     ParameterList? filteredDefaults;

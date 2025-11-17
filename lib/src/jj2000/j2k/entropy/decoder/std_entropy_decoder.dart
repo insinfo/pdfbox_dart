@@ -100,6 +100,7 @@ class StdEntropyDecoder extends EntropyDecoder {
   static const int _scShiftR2 = _scShiftR1 + _stateSep;
   static const int _scSpredShift = 31;
   static const int _mrMask = (1 << 9) - 1;
+  static int _debugCounter = 0;
 
   StdEntropyDecoder(
     CodedCBlkDataSrcDec src,
@@ -210,6 +211,16 @@ class StdEntropyDecoder extends EntropyDecoder {
     final tsLengths = currentBlock.tsLengths;
     final initialSegmentLength =
       tsLengths == null || tsLengths.isEmpty ? currentBlock.dl : _segmentLength(tsLengths, 0);
+
+    if (_debugCounter < 3) {
+      _debugCounter++;
+      final dataLength = data.length;
+      final segments = tsLengths == null ? 'null' : tsLengths.join(',');
+      print(
+        'StdEntropyDecoder debug: dl=${currentBlock.dl}, dataLen=$dataLength, '
+        'initialSegment=$initialSegmentLength, tsLengths=$segments',
+      );
+    }
 
     if (_mq == null) {
       _mqInput = ByteInputBuffer.view(data, 0, initialSegmentLength);

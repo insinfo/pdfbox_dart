@@ -22,7 +22,9 @@ class ByteInputBuffer {
   void setByteArray(Uint8List? buffer, int offset, int length) {
     if (buffer == null) {
       if (length < 0 || _count + length > _buffer.length) {
-        throw ArgumentError('Invalid length $length for existing buffer');
+        throw ArgumentError(
+          'Invalid length $length for existing buffer (count=$_count, bufferLength=${_buffer.length})',
+        );
       }
       if (offset < 0) {
         _pos = _count;
