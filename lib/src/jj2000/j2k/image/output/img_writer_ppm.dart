@@ -179,6 +179,7 @@ class ImgWriterPpm extends ImgWriter {
 
         var sourceIndex = block.offset + regionWidth - 1;
         var targetIndex = 3 * regionWidth - 1 + channel - 2;
+        var debugRemaining = _debugLines > 0 ? debugSamples : 0;
         while (targetIndex >= 0) {
           var sample = fracBits == 0
               ? data[sourceIndex] + shift
@@ -189,9 +190,27 @@ class ImgWriterPpm extends ImgWriter {
             sample = maxValue;
           }
           _buffer![targetIndex] = sample;
+          if (debugRemaining > 0) {
+            _debugTuple[channel][debugSamples - debugRemaining] = sample;
+          }
           targetIndex -= 3;
           sourceIndex--;
+          if (debugRemaining > 0 && targetIndex < 0) {
+            debugRemaining = 0;
+          }
         }
+        if (debugRemaining > 0) {
+          debugRemaining = 0;
+        }
+      }
+
+      if (_debugLines > 0) {
+        final tuples = <String>[];
+        for (var i = 0; i < debugSamples; i++) {
+          tuples.add('(${_debugTuple[0][i]},${_debugTuple[1][i]},${_debugTuple[2][i]})');
+        }
+        print('PPM writer debug line $_debugLines: ${tuples.join(' ')}');
+        _debugLines--;
       }
 
       final imageRow = uly + tOffy + line;
@@ -209,4 +228,9 @@ class ImgWriterPpm extends ImgWriter {
     _file!.writeFromSync(header);
     _pixelDataOffset = header.length;
   }
+
+  static const int debugSamples = 4;
+  static int _debugLines = 2;
+  static final List<List<int>> _debugTuple =
+      List<List<int>>.generate(3, (_) => List<int>.filled(debugSamples, 0));
 }

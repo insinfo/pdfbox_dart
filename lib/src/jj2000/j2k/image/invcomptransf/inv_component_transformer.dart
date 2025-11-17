@@ -16,6 +16,8 @@ class InvCompTransfImgDataSrc extends ImgDataAdapter implements BlkImgDataSrc {
   )   : _source = source,
         super(source);
 
+  static final List<int> _componentDebugCountdown = <int>[5, 5, 5];
+
   final BlkImgDataSrc _source;
   final CompTransfSpec compTransfSpec;
 
@@ -59,7 +61,11 @@ class InvCompTransfImgDataSrc extends ImgDataAdapter implements BlkImgDataSrc {
 
   DataBlk _maybeTransform(DataBlk block, int component, bool intern) {
     final tileIdx = getTileIdx();
-    final transform = compTransfSpec.getSpec(tileIdx, 0) ?? InvCompTransf.none;
+    final transform = compTransfSpec.getSpec(tileIdx, component) ?? InvCompTransf.none;
+    if (_componentDebugCountdown[component] > 0) {
+      _componentDebugCountdown[component]--;
+      print('InvCompTransf: tile=$tileIdx component=$component transform=$transform');
+    }
     if (transform == InvCompTransf.none ||
         _numComponents < 3 ||
         component >= 3) {
@@ -145,6 +151,11 @@ class InvCompTransfImgDataSrc extends ImgDataAdapter implements BlkImgDataSrc {
         final int g = yVal - ((cbVal + crVal) >> 2);
         final int r = crVal + g;
         final int b = cbVal + g;
+
+        if (_componentDebugCountdown[component] > 0) {
+          _componentDebugCountdown[component]--;
+          print('RCT debug c=$component y=$yVal cb=$cbVal cr=$crVal -> r=$r g=$g b=$b');
+        }
 
         buffer[destIndex++] = isR ? r : (isG ? g : b);
 

@@ -226,7 +226,7 @@ class StdEntropyDecoder extends EntropyDecoder {
       _mqInput = ByteInputBuffer.view(data, 0, initialSegmentLength);
       _mq = MQDecoder(_mqInput!, _numContexts, _mqInit);
     } else {
-      _mq!.nextSegment(null, -1, initialSegmentLength);
+      _mq!.nextSegment(data, 0, initialSegmentLength);
       _mq!.resetCtxts();
     }
 

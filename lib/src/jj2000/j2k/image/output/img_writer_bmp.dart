@@ -221,6 +221,11 @@ class ImgWriterBmp extends ImgWriter {
     final greenFixed = _fixedPoint[1];
     final blueFixed = _fixedPoint[2];
 
+    if (_debugFixedPointPrinted < 1) {
+      _debugFixedPointPrinted++;
+      print('BMP writer fixed-point: R=$redFixed G=$greenFixed B=$blueFixed');
+    }
+
     final redLevel = _levelShift[0];
     final greenLevel = _levelShift[1];
     final blueLevel = _levelShift[2];
@@ -237,6 +242,8 @@ class ImgWriterBmp extends ImgWriter {
     var gIndex = greenOffset;
     var bIndex = blueOffset;
     var target = 0;
+    const int debugSamples = 4;
+    var debugRemaining = _debugLines > 0 ? debugSamples : 0;
     for (var x = 0; x < regionWidth; x++) {
       var red = redFixed == 0
           ? redData[rIndex] + redLevel
@@ -268,6 +275,18 @@ class ImgWriterBmp extends ImgWriter {
       }
       blue = blueDown == 0 ? blue : (blue >> blueDown);
 
+      if (debugRemaining > 0) {
+        _debugRemainingBuffer ??= <String>[];
+        _debugRemainingBuffer!.add('($red,$green,$blue)');
+        debugRemaining--;
+        if (debugRemaining == 0) {
+          print('BMP writer debug line ${_debugLines}: '
+              '${_debugRemainingBuffer!.join(' ')}');
+          _debugRemainingBuffer!.clear();
+          _debugLines--;
+        }
+      }
+
       _buffer![target] = blue;
       _buffer![target + 1] = green;
       _buffer![target + 2] = red;
@@ -278,6 +297,10 @@ class ImgWriterBmp extends ImgWriter {
       bIndex++;
     }
   }
+
+  static int _debugLines = 2;
+  static List<String>? _debugRemainingBuffer;
+  static int _debugFixedPointPrinted = 0;
 
   @override
   void flush() {
