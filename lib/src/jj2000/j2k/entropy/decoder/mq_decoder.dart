@@ -230,6 +230,10 @@ class MQDecoder {
   int _interval = 0;
   int _lastByte = 0;
   bool _markerFound = false;
+  String? _traceLabel;
+  int _traceLimit = 0;
+  List<int>? _traceData;
+  bool _traceTruncated = false;
 
   /// Fast path that decodes [n] symbols from [context] assuming a long run of
   /// most-probable symbols. Returns true if all decoded symbols are identical
@@ -435,7 +439,9 @@ class MQDecoder {
 
     if ((_codeRegister >>> 16) < _interval) {
       if (_interval >= 0x8000) {
-        return _mps[context];
+        final decision = _mps[context];
+        _recordTrace(context, decision);
+        return decision;
       }
       var localInterval = _interval;
       var localCode = _codeRegister;
@@ -475,6 +481,7 @@ class MQDecoder {
       _interval = localInterval;
       _codeRegister = localCode;
       _codeBits = localBits;
+      _recordTrace(context, decision);
       return decision;
     }
 
@@ -518,7 +525,69 @@ class MQDecoder {
     _interval = localInterval;
     _codeRegister = localCode;
     _codeBits = localBits;
+    _recordTrace(context, decision);
     return decision;
+  }
+
+  void startTrace(String label, int limit) {
+    if (limit <= 0) {
+      _traceLabel = null;
+      _traceLimit = 0;
+      _traceData = null;
+      return;
+    }
+    _traceLabel = label;
+    _traceLimit = limit;
+    _traceData = <int>[];
+    _traceTruncated = false;
+  }
+
+  String? drainTrace() {
+    final data = _traceData;
+    if (data == null) {
+      _traceLabel = null;
+      _traceLimit = 0;
+      _traceTruncated = false;
+      return null;
+    }
+    final label = _traceLabel ?? '';
+    if (data.isEmpty) {
+      _traceLabel = null;
+      _traceLimit = 0;
+      _traceData = null;
+      _traceTruncated = false;
+      return 'label=$label count=0';
+    }
+    final buffer = StringBuffer()
+      ..write('label=$label count=${data.length ~/ 2} truncated=$_traceTruncated entries=');
+    for (var i = 0; i < data.length; i += 2) {
+      if (i > 0) {
+        buffer.write(' ');
+      }
+      buffer
+        ..write('[')
+        ..write(data[i])
+        ..write(':')
+        ..write(data[i + 1])
+        ..write(']');
+    }
+    _traceLabel = null;
+    _traceLimit = 0;
+    _traceData = null;
+    _traceTruncated = false;
+    return buffer.toString();
+  }
+
+  void _recordTrace(int context, int decision) {
+    final data = _traceData;
+    if (data == null) {
+      return;
+    }
+    if (data.length >= _traceLimit * 2) {
+      _traceTruncated = true;
+      return;
+    }
+    data..add(context)..add(decision & 1);
   }
 
   /// Validates predictable termination (Annex D.4.2). Returns true when an

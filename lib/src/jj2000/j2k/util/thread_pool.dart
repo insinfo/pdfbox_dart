@@ -87,6 +87,9 @@ class ThreadPool {
   ]) {
     final task = _PendingTask(target, lock, notifyAll);
     if (async) {
+      if (_active >= _poolSize) {
+        return false;
+      }
       _queue.add(task);
       _drain();
       return true;
@@ -99,17 +102,13 @@ class ThreadPool {
   void checkTargetErrors() {
     final error = _targetError;
     if (error != null) {
-      _targetError = null;
       final stack = _targetErrorStack ?? StackTrace.current;
-      _targetErrorStack = null;
       Error.throwWithStackTrace(error, stack);
     }
 
     final exception = _targetRuntimeException;
     if (exception != null) {
       final stack = _targetRuntimeStack ?? StackTrace.current;
-      _targetRuntimeException = null;
-      _targetRuntimeStack = null;
       Error.throwWithStackTrace(exception, stack);
     }
   }

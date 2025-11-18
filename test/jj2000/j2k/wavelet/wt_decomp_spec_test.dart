@@ -5,29 +5,26 @@ import 'package:pdfbox_dart/src/jj2000/j2k/wavelet/wt_decomp_spec.dart';
 
 void main() {
   group('WTDecompSpec', () {
-    test('defaults to dyadic decomposition', () {
-      final spec = WTDecompSpec(2, WTDecompSpec.wtDecompDyadic, 5);
+    test('returns main defaults for all components', () {
+      final spec = WTDecompSpec(3, WTDecompSpec.wtDecompDyadic, 5);
       expect(spec.getMainDefDecompType(), WTDecompSpec.wtDecompDyadic);
       expect(spec.getMainDefLevels(), 5);
-      expect(spec.getDecSpecType(0), WTDecompSpec.decSpecMainDef);
-      expect(spec.getDecompType(1), WTDecompSpec.wtDecompDyadic);
-      expect(spec.getLevels(1), 5);
+      for (var comp = 0; comp < 3; comp++) {
+        expect(spec.getDecSpecType(comp), WTDecompSpec.decSpecMainDef);
+        expect(spec.getDecompType(comp), WTDecompSpec.wtDecompDyadic);
+        expect(spec.getLevels(comp), 5);
+      }
     });
 
-    test('component override is not implemented', () {
-      final spec = WTDecompSpec(1, WTDecompSpec.wtDecompDyadic, 3);
+    test('component override raises but stores override state', () {
+      final spec = WTDecompSpec(2, WTDecompSpec.wtDecompDyadic, 4);
       expect(
-        () => spec.setMainCompDefDecompType(0, WTDecompSpec.wtDecompPacket, 2),
+        () => spec.setMainCompDefDecompType(1, WTDecompSpec.wtDecompPacket, 2),
         throwsA(isA<NotImplementedError>()),
       );
-    });
-
-    test('copy preserves configuration', () {
-      final spec = WTDecompSpec(1, WTDecompSpec.wtDecompDyadic, 4);
-      final copy = spec.getCopy();
-      expect(copy.getMainDefDecompType(), spec.getMainDefDecompType());
-      expect(copy.getMainDefLevels(), spec.getMainDefLevels());
-      expect(copy.getDecSpecType(0), spec.getDecSpecType(0));
+      expect(spec.getDecSpecType(1), WTDecompSpec.decSpecCompDef);
+      expect(spec.getDecompType(1), WTDecompSpec.wtDecompPacket);
+      expect(spec.getLevels(1), 2);
     });
   });
 }

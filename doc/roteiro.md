@@ -7,6 +7,13 @@ sempre coloque um comentario TODO no codigo para coisas portadas imcompletas ou 
 io ja esta implementado em C:\MyDartProjects\pdfbox_dart\lib\src\io
 fontbox ja esta implementado em C:\MyDartProjects\pdfbox_dart\lib\src\fontbox
 
+URLs de projetos de referencia jpeg 2000
+https://github.com/iszak/jpeg2000
+https://github.com/GrokImageCompression/grok
+https://github.com/cureos/csj2k
+https://github.com/aous72/OpenJPH/tree/master/tests
+https://github.com/uclouvain/openjpeg
+
 ## ROI Pipeline Port Progress (2025-11-15)
 
 - Portado o adaptador `BlkImgDataSrcAdapter`, blocos `DataBlkByte`/`DataBlkShort` e agregador `ImgDataJoiner`, preparando as fontes de dados para composições multi componente.

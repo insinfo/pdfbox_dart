@@ -80,13 +80,14 @@ class Decoder implements Runnable {
 
   /// Optional inverse component transform stage (ICT/RCT).
   InvCompTransfImgDataSrc? componentTransformer;
+  ImgDataConverter? writerDataConverter;
 
   /// Active codestream handle retained for downstream stages.
   RandomAccessIO? _codestream;
 
   /// Provides the current image data source after all instantiated stages.
-  BlkImgDataSrc? get imageDataSource =>
-      componentTransformer ?? imageDataConverter ?? inverseWT;
+    BlkImgDataSrc? get imageDataSource =>
+      writerDataConverter ?? componentTransformer ?? imageDataConverter ?? inverseWT;
 
   /// Static option descriptors used by command-line front ends.
   static const List<List<String>> pinfo = <List<String>>[
@@ -320,13 +321,30 @@ class Decoder implements Runnable {
         imageDataConverter!,
         decSpec!.cts,
       );
-        final transform = decSpec!.cts.getSpec(0, 0) ?? InvCompTransf.none;
+      final transform = decSpec!.cts.getSpec(0, 0) ?? InvCompTransf.none;
       final label = transform == InvCompTransf.invRct
           ? 'RCT'
           : (transform == InvCompTransf.invIct ? 'ICT' : 'custom');
       _logger.printmsg(
         MsgLogger.info,
         'Instantiated inverse component transform ($label).',
+      );
+    }
+
+    BlkImgDataSrc? pipelineSource;
+    if (componentTransformer != null) {
+      pipelineSource = componentTransformer;
+    } else if (imageDataConverter != null) {
+      pipelineSource = imageDataConverter;
+    } else if (inverseWT != null) {
+      pipelineSource = inverseWT;
+    }
+
+    if (pipelineSource != null) {
+      writerDataConverter = ImgDataConverter(pipelineSource, 0);
+      _logger.printmsg(
+        MsgLogger.info,
+        'Instantiated writer data converter (ensuring integer samples).',
       );
     }
 

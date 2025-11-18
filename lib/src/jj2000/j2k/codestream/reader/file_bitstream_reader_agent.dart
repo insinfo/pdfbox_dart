@@ -28,6 +28,8 @@ class _ProgressionSegment {
 /// Porting that logic is non-trivial; for now this class only wires the
 /// constructor parameters and marks the pending work.
 class FileBitstreamReaderAgent extends BitstreamReaderAgent {
+  static final Map<int, int> _debugCblkPreviewCounts = <int, int>{};
+
   FileBitstreamReaderAgent(
     HeaderDecoder header,
     RandomAccessIO input,
@@ -282,6 +284,21 @@ class FileBitstreamReaderAgent extends BitstreamReaderAgent {
         ..ulx = 0
         ..uly = 0;
       return result;
+    }
+
+    if (component > 0 && layersRequested > 0) {
+      final previewCount = _debugCblkPreviewCounts.putIfAbsent(component, () => 0);
+      if (previewCount < 6) {
+        _debugCblkPreviewCounts[component] = previewCount + 1;
+        final displayCount = math.min(layersRequested, requested.ntp.length);
+        final ntpSummary = requested.ntp.take(displayCount).join(',');
+        final lenSummary = requested.len.take(displayCount).join(',');
+        print(
+          'FileBitstreamReaderAgent cblk meta: tile=$tileIndex comp=$component res=$resolution '
+          'band=$subbandIdx m=$verticalCodeBlockIndex n=$horizontalCodeBlockIndex '
+          'len=[$lenSummary] ntp=[$ntpSummary] msbSkipped=${requested.msbSkipped}',
+        );
+      }
     }
 
     result

@@ -28,6 +28,12 @@ class StdDequantizer extends Dequantizer {
   final QuantStepSizeSpec qsss;
   final GuardBitsSpec gbs;
   DataBlkInt? _intBuffer;
+  static int _dequantDebug = 40;
+  static final Set<String> _floatPreviewKeys = <String>{};
+  static final Set<String> _rawPreviewKeys = <String>{};
+  static const int _floatPreviewLimit = 32;
+  static const int _signMask = 0x80000000;
+  static const int _magnitudeMask = 0x7fffffff;
 
   @override
   int getFixedPoint(int component) => 0;
@@ -217,22 +223,40 @@ class StdDequantizer extends Dequantizer {
 
     final shiftBits = 31 - subband.magBits;
 
+    if (_dequantDebug > 0) {
+      _dequantDebug--;
+      print(
+        'StdDequantizer: comp=$component res=${subband.resLvl} band=${subband.sbandIdx} '
+        'magBits=${subband.magBits} shift=$shiftBits reversible=$reversible len=${data.length}',
+      );
+      final sampleCount = math.min(4, data.length);
+      final preview = <int>[];
+      for (var idx = 0; idx < sampleCount; idx++) {
+        preview.add(data[idx]);
+      }
+      print('StdDequantizer raw sample preview: ${preview.join(', ')}');
+    }
+
     if (reversible) {
       for (var i = data.length - 1; i >= 0; i--) {
-        final temp = data[i];
-        data[i] = temp >= 0
-            ? temp >> shiftBits
-            : -((temp & 0x7fffffff) >> shiftBits);
+        final temp = data[i] & 0xffffffff;
+        final magnitude = temp & _magnitudeMask;
+        if ((temp & _signMask) == 0) {
+          data[i] = magnitude >> shiftBits;
+        } else {
+          data[i] = -(magnitude >> shiftBits);
+        }
       }
       return;
     }
 
     final step = _computeStep(params, derived, subband, component, shiftBits);
     for (var i = data.length - 1; i >= 0; i--) {
-      final temp = data[i];
-      final value = temp >= 0
-          ? temp * step
-          : -(temp & 0x7fffffff) * step;
+      final temp = data[i] & 0xffffffff;
+      final magnitude = temp & _magnitudeMask;
+      final value = (temp & _signMask) == 0
+          ? magnitude * step
+          : -magnitude * step;
       data[i] = value.toInt();
     }
   }
@@ -251,6 +275,17 @@ class StdDequantizer extends Dequantizer {
       throw StateError('Unable to access wavelet data buffers');
     }
 
+    final rawKey = 'raw-c=$component-r=${subband.resLvl}-b=${subband.sbandIdx}';
+    if (_rawPreviewKeys.length < _floatPreviewLimit &&
+        _rawPreviewKeys.add(rawKey)) {
+      final preview = <int>[];
+      for (var idx = 0; idx < math.min(4, quantized.w * quantized.h); idx++) {
+        preview.add(inData[idx]);
+      }
+      print('StdDequantizer raw coeffs [unique]: comp=$component '
+          'res=${subband.resLvl} band=${subband.sbandIdx} values=${preview.join(', ')}');
+    }
+
     final step = _computeStep(
       params,
       derived,
@@ -264,14 +299,45 @@ class StdDequantizer extends Dequantizer {
     final inOffset = quantized.offset;
     final inScanw = quantized.scanw;
 
+    if (_dequantDebug > 0) {
+      final preview = <double>[];
+      for (var idx = 0; idx < math.min(4, width * height); idx++) {
+        final temp = inData[idx] & 0xffffffff;
+        final magnitude = temp & _magnitudeMask;
+        final double value = (temp & _signMask) == 0
+            ? magnitude * step
+            : -magnitude * step;
+        preview.add(value);
+      }
+      print('StdDequantizer float preview: comp=$component res=${subband.resLvl} '
+          'band=${subband.sbandIdx} values=${preview.map((v) => v.toStringAsFixed(6)).join(', ')}');
+      _dequantDebug--;
+    } else if (_floatPreviewKeys.length < _floatPreviewLimit) {
+      final key = 'c=$component-r=${subband.resLvl}-b=${subband.sbandIdx}';
+      if (_floatPreviewKeys.add(key)) {
+        final preview = <double>[];
+        for (var idx = 0; idx < math.min(4, width * height); idx++) {
+          final temp = inData[idx] & 0xffffffff;
+          final magnitude = temp & _magnitudeMask;
+          final double value = (temp & _signMask) == 0
+              ? magnitude * step
+              : -magnitude * step;
+          preview.add(value);
+        }
+        print('StdDequantizer float preview [unique]: comp=$component res=${subband.resLvl} '
+            'band=${subband.sbandIdx} values=${preview.map((v) => v.toStringAsFixed(6)).join(', ')}');
+      }
+    }
+
     for (var row = 0; row < height; row++) {
       final inBase = inOffset + row * inScanw;
       final outBase = row * width;
       for (var col = 0; col < width; col++) {
-        final temp = inData[inBase + col];
-        final double value = temp >= 0
-            ? temp * step
-            : -(temp & 0x7fffffff) * step;
+        final temp = inData[inBase + col] & 0xffffffff;
+        final magnitude = temp & _magnitudeMask;
+        final double value = (temp & _signMask) == 0
+            ? magnitude * step
+            : -magnitude * step;
         outData[outBase + col] = value;
       }
     }

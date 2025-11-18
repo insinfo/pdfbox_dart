@@ -153,6 +153,12 @@ class InvCompTransfImgDataSrc extends ImgDataAdapter implements BlkImgDataSrc {
         final int b = cbVal + g;
 
         if (_componentDebugCountdown[component] > 0) {
+          if (_componentDebugCountdown[component] == 5) {
+            print(
+              'RCT geometry c=$component y.off=${y.offset} y.scan=${y.scanw} '
+              'cb.off=${cb.offset} cb.scan=${cb.scanw} cr.off=${cr.offset} cr.scan=${cr.scanw}',
+            );
+          }
           _componentDebugCountdown[component]--;
           print('RCT debug c=$component y=$yVal cb=$cbVal cr=$crVal -> r=$r g=$g b=$b');
         }
@@ -241,6 +247,21 @@ class InvCompTransfImgDataSrc extends ImgDataAdapter implements BlkImgDataSrc {
           yVal - _ictGreenCbFactor * cbVal - _ictGreenCrFactor * crVal;
         final double b =
           yVal + _ictBlueCbFactor * cbVal + _ictBlueCrFactor * crVal;
+
+        if (_componentDebugCountdown[component] > 0) {
+          if (_componentDebugCountdown[component] == 5) {
+            print(
+              'ICT geometry c=$component y.off=${y.offset} y.scan=${y.scanw} '
+              'cb.off=${cb.offset} cb.scan=${cb.scanw} cr.off=${cr.offset} cr.scan=${cr.scanw}',
+            );
+          }
+          _componentDebugCountdown[component]--;
+          print(
+            'ICT debug c=$component y=${yVal.toStringAsFixed(3)} '
+            'cb=${cbVal.toStringAsFixed(3)} cr=${crVal.toStringAsFixed(3)} '
+            '-> r=${r.toStringAsFixed(3)} g=${g.toStringAsFixed(3)} b=${b.toStringAsFixed(3)}',
+          );
+        }
 
         buffer[destIndex++] = isR ? r : (isG ? g : b);
 

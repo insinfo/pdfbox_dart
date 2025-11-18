@@ -8,18 +8,53 @@ class NativeServices {
 
   static const String sharedLibraryName = 'ucar/jpeg/jj2000';
 
+  static int _libState = _libStateNotLoaded;
+  static const int _libStateNotLoaded = 0;
+  static const int _libStateLoaded = 1;
+  static const int _libStateNotFound = 2;
+
   static bool loadLibrary() {
-    // TODO(jj2000): Wire up native concurrency controls if/when the decoder
-    // moves to isolates or FFI-backed workers.
+    if (_libState == _libStateLoaded) {
+      return true;
+    }
+    _libState = _libStateNotFound;
     return false;
   }
 
   static void setThreadConcurrency(int level) {
+    _checkLibrary();
     if (level < 0) {
       throw ArgumentError.value(level, 'level', 'Concurrency must be >= 0');
     }
     // No-op: Dart does not expose a direct analogue for pthread concurrency.
   }
 
-  static int getThreadConcurrency() => 0;
+  static int getThreadConcurrency() {
+    _checkLibrary();
+    return 0;
+  }
+
+  static void _checkLibrary() {
+    if (_libState == _libStateLoaded) {
+      return;
+    }
+    if (_libState == _libStateNotLoaded) {
+      if (loadLibrary()) {
+        return;
+      }
+    }
+    throw UnsatisfiedLinkError(
+      'NativeServices: native shared library could not be loaded',
+    );
+  }
+}
+
+/// Mirrors Java's UnsatisfiedLinkError for parity in tests.
+class UnsatisfiedLinkError extends Error {
+  UnsatisfiedLinkError(this.message);
+
+  final String message;
+
+  @override
+  String toString() => 'UnsatisfiedLinkError: $message';
 }

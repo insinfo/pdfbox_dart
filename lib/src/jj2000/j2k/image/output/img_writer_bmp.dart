@@ -55,6 +55,16 @@ class ImgWriterBmp extends ImgWriter {
     for (var i = 0; i < componentCount; i++) {
       final component = _components[i];
       final rangeBits = source.getNomRangeBits(component);
+      if (_debugNomRangePrinted < 1) {
+        _debugNomRangePrinted++;
+        final buffer = StringBuffer('BMP writer nominal range bits:');
+        for (var j = 0; j < componentCount; j++) {
+          final compIdx = _components[j];
+          final bits = source.getNomRangeBits(compIdx);
+          buffer.write(' c$compIdx=$bits');
+        }
+        print(buffer.toString());
+      }
       if (rangeBits <= 0) {
         throw ArgumentError('Component $component has invalid bit depth.');
       }
@@ -301,6 +311,7 @@ class ImgWriterBmp extends ImgWriter {
   static int _debugLines = 2;
   static List<String>? _debugRemainingBuffer;
   static int _debugFixedPointPrinted = 0;
+  static int _debugNomRangePrinted = 0;
 
   @override
   void flush() {

@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:typed_data';
+import 'dart:math' as math;
 
 import 'package:test/test.dart';
 
@@ -121,4 +122,185 @@ void main() {
       decoder.dispose();
     });
   });
+
+  group('Decoder rainbowbars integration', () {
+    test('produces non-black BMP output for rainbowbars codestream', () {
+      final input = File('rainbowbars-color.jp2');
+      expect(input.existsSync(), isTrue,
+          reason: 'rainbowbars-color.jp2 must be present in repository root');
+
+      final tempDir = Directory.systemTemp.createTempSync('rainbowbars_decode_');
+      addTearDown(() => tempDir.deleteSync(recursive: true));
+      final outputPath = '${tempDir.path}/rainbowbars.bmp';
+
+      final params = ParameterList()
+        ..put('i', input.path)
+        ..put('o', outputPath)
+        ..put('verbose', 'off')
+        ..put('debug', 'on');
+
+      final stdoutBuffer = StringBuffer();
+      final stderrBuffer = StringBuffer();
+      final logger = StreamMsgLogger(stdoutBuffer, stderrBuffer);
+
+      final decoder = FacilityManager.runWithLogger(logger, () {
+        final d = Decoder(params);
+        d.run();
+        return d;
+      });
+
+      final diagnosticLog = StringBuffer()
+        ..writeln('STDOUT:\n${stdoutBuffer.toString()}')
+        ..writeln('STDERR:\n${stderrBuffer.toString()}');
+
+      expect(decoder.exitCode, equals(0), reason: diagnosticLog.toString());
+
+      final outputFile = File(outputPath);
+      expect(outputFile.existsSync(), isTrue, reason: 'BMP file not created');
+      final bmpBytes = outputFile.readAsBytesSync();
+      expect(bmpBytes.length, greaterThan(54));
+
+      // Skip 54-byte header; inspect first hundred pixels for diversity.
+      final pixelData = bmpBytes.sublist(54, math.min(bmpBytes.length, 54 + 300));
+      final uniqueValues = pixelData.toSet();
+      expect(uniqueValues.length, greaterThan(3),
+          reason: 'Pixel data appears uniform; decoder log:\n$diagnosticLog');
+    });
+  });
+
+  group('Decoder rainbowbars color fidelity', () {
+    test('produces chroma-rich PPM output', () {
+      final input = File('rainbowbars-color.jp2');
+      expect(input.existsSync(), isTrue,
+          reason: 'rainbowbars-color.jp2 must be present in repository root');
+
+      final tempDir = Directory.systemTemp.createTempSync('rainbowbars_ppm_');
+      addTearDown(() => tempDir.deleteSync(recursive: true));
+      final outputPath = '${tempDir.path}/rainbowbars.ppm';
+
+      final params = ParameterList()
+        ..put('i', input.path)
+        ..put('o', outputPath)
+        ..put('verbose', 'off')
+        ..put('debug', 'on');
+
+      final stdoutBuffer = StringBuffer();
+      final stderrBuffer = StringBuffer();
+      final logger = StreamMsgLogger(stdoutBuffer, stderrBuffer);
+
+      final decoder = FacilityManager.runWithLogger(logger, () {
+        final d = Decoder(params);
+        d.run();
+        return d;
+      });
+
+      final diagnosticLog = StringBuffer()
+        ..writeln('STDOUT:\n${stdoutBuffer.toString()}')
+        ..writeln('STDERR:\n${stderrBuffer.toString()}');
+
+      expect(decoder.exitCode, equals(0), reason: diagnosticLog.toString());
+
+      final ppmBytes = File(outputPath).readAsBytesSync();
+      final probe = _PpmProbe.parse(ppmBytes);
+      expect(probe.pixelCount, greaterThan(0));
+      expect(probe.uniqueChannelValues.length, greaterThan(3));
+      expect(probe.hasChrominance, isTrue,
+          reason: 'No chroma variation detected; decoder log:\n$diagnosticLog');
+    }, skip: 'Chroma components currently decode as grayscale; investigate entropy stage.');
+  });
+}
+
+class _PpmProbe {
+  const _PpmProbe({
+    required this.width,
+    required this.height,
+    required this.maxVal,
+    required this.pixelCount,
+    required this.uniqueChannelValues,
+    required this.hasChrominance,
+  });
+
+  final int width;
+  final int height;
+  final int maxVal;
+  final int pixelCount;
+  final Set<int> uniqueChannelValues;
+  final bool hasChrominance;
+
+  static _PpmProbe parse(Uint8List data) {
+    final tokens = <String>[];
+    final buffer = StringBuffer();
+    var index = 0;
+    while (tokens.length < 4 && index < data.length) {
+      final ch = data[index++];
+      if (ch == 0x23) {
+        while (index < data.length && data[index++] != 0x0A) {
+          // Skip comment line.
+        }
+        continue;
+      }
+      if (_isWhitespace(ch)) {
+        if (buffer.isNotEmpty) {
+          tokens.add(buffer.toString());
+          buffer.clear();
+        }
+      } else {
+        buffer.writeCharCode(ch);
+      }
+    }
+    if (buffer.isNotEmpty && tokens.length < 4) {
+      tokens.add(buffer.toString());
+    }
+    if (tokens.length < 4) {
+      throw ArgumentError('Incomplete PPM header');
+    }
+    if (tokens.first != 'P6') {
+      throw ArgumentError('Unsupported PPM magic: ${tokens.first}');
+    }
+
+    final width = int.parse(tokens[1]);
+    final height = int.parse(tokens[2]);
+    final maxVal = int.parse(tokens[3]);
+
+    while (index < data.length && _isWhitespace(data[index])) {
+      index++;
+    }
+
+    final remaining = data.length - index;
+    final pixelCount = remaining ~/ 3;
+    final unique = <int>{};
+    var hasChrominance = false;
+    final inspect = math.min(pixelCount, 512);
+    for (var i = 0; i < inspect; i++) {
+      final base = index + i * 3;
+      if (base + 2 >= data.length) {
+        break;
+      }
+      final r = data[base];
+      final g = data[base + 1];
+      final b = data[base + 2];
+      unique..add(r)..add(g)..add(b);
+      if (r != g || g != b) {
+        hasChrominance = true;
+      }
+    }
+
+    return _PpmProbe(
+      width: width,
+      height: height,
+      maxVal: maxVal,
+      pixelCount: pixelCount,
+      uniqueChannelValues: unique,
+      hasChrominance: hasChrominance,
+    );
+  }
+
+  static bool _isWhitespace(int byte) {
+    return byte == 0x20 || // space
+        byte == 0x09 || // tab
+        byte == 0x0A || // line feed
+        byte == 0x0B ||
+        byte == 0x0C ||
+        byte == 0x0D; // carriage return
+  }
 }

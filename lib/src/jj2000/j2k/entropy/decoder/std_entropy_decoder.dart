@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import '../../decoder/decoder_specs.dart';
 import '../../image/data_blk.dart';
 import '../../image/data_blk_int.dart';
@@ -101,6 +103,17 @@ class StdEntropyDecoder extends EntropyDecoder {
   static const int _scSpredShift = 31;
   static const int _mrMask = (1 << 9) - 1;
   static int _debugCounter = 0;
+  static final Map<int, int> _blockMetaCounts = <int, int>{};
+  static const int _blockMetaPerComponent = 12;
+  static final Map<int, int> _payloadPreviewCounts = <int, int>{};
+  static const int _payloadPreviewPerComponent = 4;
+  static final Map<int, int> _coeffPreviewCounts = <int, int>{};
+  static const int _coeffPreviewPerComponent = 4;
+  static final Map<int, int> _optionPreviewCounts = <int, int>{};
+  static const int _optionPreviewLimit = 4;
+  static final Map<int, int> _mqTraceCounts = <int, int>{};
+  static const int _mqTracePerComponent = 4;
+  static const int _mqTraceSymbolLimit = 256;
 
   StdEntropyDecoder(
     CodedCBlkDataSrcDec src,
@@ -164,6 +177,17 @@ class StdEntropyDecoder extends EntropyDecoder {
       throw StateError('Entropy source returned null code-block');
     }
 
+    final currentCount = _blockMetaCounts.putIfAbsent(component, () => 0);
+    if (currentCount < _blockMetaPerComponent) {
+      _blockMetaCounts[component] = currentCount + 1;
+      print(
+        'StdEntropyDecoder block meta: tile=$tileIndex comp=$component res=${subband.resLvl} '
+        'band=${subband.sbandIdx} m=$verticalCodeBlockIndex n=$horizontalCodeBlockIndex '
+        'dl=${currentBlock.dl} nl=${currentBlock.nl} nTrunc=${currentBlock.nTrunc} '
+        'skipMSBP=${currentBlock.skipMSBP}',
+      );
+    }
+
     int start = 0;
     if (_doTiming) {
       start = DateTime.now().millisecondsSinceEpoch;
@@ -171,6 +195,18 @@ class StdEntropyDecoder extends EntropyDecoder {
 
     final opt = decoderSpecs.ecopts.getTileCompVal(tileIndex, component);
     _options = opt ?? 0;
+
+    if (component > 0) {
+      final optionCount = _optionPreviewCounts.putIfAbsent(component, () => 0);
+      if (optionCount < _optionPreviewLimit) {
+        _optionPreviewCounts[component] = optionCount + 1;
+        print(
+          'StdEntropyDecoder options: tile=$tileIndex comp=$component value=$_options '
+          '(bypass=${(_options & StdEntropyCoderOptions.OPT_BYPASS) != 0} '
+          'term=${(_options & StdEntropyCoderOptions.OPT_TERM_PASS) != 0})',
+        );
+      }
+    }
 
     ArrayUtil.intArraySet(state, 0);
 
@@ -206,6 +242,20 @@ class StdEntropyDecoder extends EntropyDecoder {
     final data = currentBlock.data;
     if (data == null) {
       throw StateError('Decoded code-block payload is missing');
+    }
+
+    final payloadCount = _payloadPreviewCounts.putIfAbsent(component, () => 0);
+    if (payloadCount < _payloadPreviewPerComponent) {
+      _payloadPreviewCounts[component] = payloadCount + 1;
+      final sampleCount = data.isEmpty ? 0 : math.min(16, data.length);
+      final preview = <int>[];
+      for (var idx = 0; idx < sampleCount; idx++) {
+        preview.add(data[idx]);
+      }
+      print(
+        'StdEntropyDecoder payload preview: comp=$component res=${subband.resLvl} '
+        'band=${subband.sbandIdx} bytes=${data.length} head=${preview.join(',')}',
+      );
     }
 
     final tsLengths = currentBlock.tsLengths;
@@ -245,6 +295,18 @@ class StdEntropyDecoder extends EntropyDecoder {
     }
 
     var segmentIndex = 0;
+    var traceActive = false;
+    if (component > 0 && subband.resLvl == 0 && subband.sbandIdx == 0) {
+      final traceCount = _mqTraceCounts.putIfAbsent(component, () => 0);
+      if (traceCount < _mqTracePerComponent) {
+        _mqTraceCounts[component] = traceCount + 1;
+        final label = 'tile=$tileIndex comp=$component res=${subband.resLvl} '
+            'band=${subband.sbandIdx} m=$verticalCodeBlockIndex '
+            'n=$horizontalCodeBlockIndex bp=$curBitPlane';
+        _mq!.startTrace(label, _mqTraceSymbolLimit);
+        traceActive = true;
+      }
+    }
 
     if (curBitPlane >= 0 && npasses > 0) {
       final isTerminated = (_options & StdEntropyCoderOptions.OPT_TERM_PASS) != 0 ||
@@ -370,9 +432,31 @@ class StdEntropyDecoder extends EntropyDecoder {
       _conceal(outBlk, curBitPlane);
     }
 
+    if (traceActive) {
+      final traceSummary = _mq!.drainTrace();
+      if (traceSummary != null) {
+        print('StdEntropyDecoder MQ trace: $traceSummary');
+      }
+    }
+
     if (_doTiming) {
       final stop = DateTime.now().millisecondsSinceEpoch;
       _timings![component] += stop - start;
+    }
+
+    final coeffCount = _coeffPreviewCounts.putIfAbsent(component, () => 0);
+    if (coeffCount < _coeffPreviewPerComponent) {
+      _coeffPreviewCounts[component] = coeffCount + 1;
+      final preview = <int>[];
+      final dataPreview = outData;
+      final sampleCount = math.min(8, dataPreview.length);
+      for (var idx = 0; idx < sampleCount; idx++) {
+        preview.add(dataPreview[idx]);
+      }
+      print(
+        'StdEntropyDecoder coeff preview: comp=$component res=${subband.resLvl} '
+        'band=${subband.sbandIdx} values=${preview.join(',')}',
+      );
     }
 
     return outBlk;
@@ -992,8 +1076,11 @@ class StdEntropyDecoder extends EntropyDecoder {
         var j = sj;
         var csj = state[j];
         var broken = false;
-        if (csj == 0 && state[j + sscanw] == 0 && stripeHeight == StdEntropyCoderOptions.STRIPE_HEIGHT) {
-          if (mq.decodeSymbol(_rlcContext) != 0) {
+        if ((csj == 0) &&
+          (state[j + sscanw] == 0) &&
+          stripeHeight == StdEntropyCoderOptions.STRIPE_HEIGHT) {
+          final rlcFlag = mq.decodeSymbol(_rlcContext);
+          if (rlcFlag != 0) {
             var rlclen = mq.decodeSymbol(_uniformContext) << 1;
             rlclen |= mq.decodeSymbol(_uniformContext);
             var k = sk + rlclen * dscanw;
@@ -1063,8 +1150,6 @@ class StdEntropyDecoder extends EntropyDecoder {
               csj = state[j];
               broken = true;
             }
-          } else {
-            continue;
           }
         }
         if (!broken) {
