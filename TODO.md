@@ -10,8 +10,7 @@ a versão java esta em C:\MyDartProjects\pdfbox_dart\jj2000
  o foco é implementar testes simultaneamente em java e dart afim de descobrir onde a versão dart esta errada
 e concertar a versão dart
 
-## Concluidos
-- [x] Decoder rainbowbars integration (Dart) - verificar BMP nao-preto.
+- [ ] Decoder rainbowbars integration (Dart) - verificar BMP nao-preto.
 
 ## Em Andamento
 - [ ] Levantar testes existentes em `jj2000/src/test` (Java).
@@ -20,6 +19,6 @@ e concertar a versão dart
 - [ ] Executar suites Dart relevantes via `dart test test/jj2000/`.
 - [ ] Registrar diferencas observadas entre saidas Java e Dart.
 - [ ] Abrir issues para divergencias nao resolvidas.
-- [ ] Investigar divergencia entre `rainbowbars.ppm` (Dart) e `rainbowbars-java.ppm` quando `instrument` esta ativo.
+- [ ] Investigar divergencia entre `rainbowbars.ppm` (Dart) e `rainbowbars-java.ppm` 
 
 ## Mapeamento Java -> Dart

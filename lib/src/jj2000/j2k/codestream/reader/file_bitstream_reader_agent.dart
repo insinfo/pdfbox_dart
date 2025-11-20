@@ -340,6 +340,16 @@ class FileBitstreamReaderAgent extends BitstreamReaderAgent {
       }
     }
 
+    if (DecoderInstrumentation.isEnabled()) {
+      final metaSummary = StringBuffer()
+        ..write('tile=$tileIndex comp=$component res=$resolution band=$subbandIdx ')
+        ..write('m=$verticalCodeBlockIndex n=$horizontalCodeBlockIndex ')
+        ..write('firstLayer=$firstLayer layersRequested=$layersRequested ')
+        ..write('dl=${result.dl} nl=${result.nl} ftpIdx=${result.ftpIdx} ')
+        ..write('nTrunc=${result.nTrunc} ntp=${requested.ntp} len=${requested.len}');
+      DecoderInstrumentation.log('FileBitstreamReaderAgent', metaSummary.toString());
+    }
+
     final options = decSpec.ecopts.getTileCompVal(tileIndex, component) ?? 0;
     var terminatedSegments = 1;
     if ((options & StdEntropyCoderOptions.OPT_TERM_PASS) != 0) {

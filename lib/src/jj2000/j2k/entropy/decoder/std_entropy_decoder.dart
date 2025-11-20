@@ -228,6 +228,9 @@ class StdEntropyDecoder extends EntropyDecoder {
     }
 
     if (currentBlock.nl <= 0 || currentBlock.nTrunc <= 0) {
+      if (_isInstrumentationEnabled()) {
+        _log('Skipping block m=$verticalCodeBlockIndex n=$horizontalCodeBlockIndex due to nl=${currentBlock.nl} nTrunc=${currentBlock.nTrunc}');
+      }
       return outBlk;
     }
 
@@ -239,6 +242,8 @@ class StdEntropyDecoder extends EntropyDecoder {
     if (_isInstrumentationEnabled()) {
       final preview = data.take(16).toList();
       _log('Payload preview: $preview');
+      _log('Block meta: m=$verticalCodeBlockIndex n=$horizontalCodeBlockIndex dl=${currentBlock.dl} '
+          'nl=${currentBlock.nl} ftpIdx=${currentBlock.ftpIdx} nTrunc=${currentBlock.nTrunc}');
     }
 
     final tsLengths = currentBlock.tsLengths;
@@ -281,6 +286,7 @@ class StdEntropyDecoder extends EntropyDecoder {
       final isTerminated = (_options & StdEntropyCoderOptions.OPT_TERM_PASS) != 0 ||
           ((_options & StdEntropyCoderOptions.OPT_BYPASS) != 0 &&
               (31 - StdEntropyCoderOptions.NUM_NON_BYPASS_MS_BP - currentBlock.skipMSBP) >= curBitPlane);
+      _logPass('cleanup-initial', curBitPlane, npasses, segmentIndex, tsLengths, initialSegmentLength);
       errorDetected = _cleanupPass(
         outBlk,
         _mq!,
@@ -289,6 +295,7 @@ class StdEntropyDecoder extends EntropyDecoder {
         zcLut,
         isTerminated,
       );
+      _logPassResult('cleanup-initial', curBitPlane, outBlk);
       npasses--;
       if (!errorDetected || !_doErrorDetection) {
         curBitPlane--;
@@ -300,7 +307,9 @@ class StdEntropyDecoder extends EntropyDecoder {
        
         if ((_options & StdEntropyCoderOptions.OPT_BYPASS) != 0 &&
             curBitPlane < 31 - StdEntropyCoderOptions.NUM_NON_BYPASS_MS_BP - currentBlock.skipMSBP) {
-          _bin!.setByteArray(null, -1, _segmentLength(tsLengths, ++segmentIndex));
+          final rawSigLength = _segmentLength(tsLengths, ++segmentIndex);
+          _logPass('raw-sig', curBitPlane, npasses, segmentIndex, tsLengths, rawSigLength);
+          _bin!.setByteArray(null, -1, rawSigLength);
           final isTerminated = (_options & StdEntropyCoderOptions.OPT_TERM_PASS) != 0;
           errorDetected = _rawSigProgPass(
             outBlk,
@@ -309,18 +318,23 @@ class StdEntropyDecoder extends EntropyDecoder {
             state,
             isTerminated,
           );
+          _logPassResult('raw-sig', curBitPlane, outBlk);
           npasses--;
           if (npasses <= 0 || (errorDetected && _doErrorDetection)) {
             break;
           }
 
           if ((_options & StdEntropyCoderOptions.OPT_TERM_PASS) != 0) {
-            _bin!.setByteArray(null, -1, _segmentLength(tsLengths, ++segmentIndex));
+            final rawMagTermLength = _segmentLength(tsLengths, ++segmentIndex);
+            _logPass('raw-mag-term', curBitPlane, npasses, segmentIndex, tsLengths, rawMagTermLength);
+            _bin!.setByteArray(null, -1, rawMagTermLength);
           }
 
           final isTerminatedMag = (_options & StdEntropyCoderOptions.OPT_TERM_PASS) != 0 ||
               ((_options & StdEntropyCoderOptions.OPT_BYPASS) != 0 &&
                   (31 - StdEntropyCoderOptions.NUM_NON_BYPASS_MS_BP - currentBlock.skipMSBP > curBitPlane));
+          final rawMagLength = _segmentLengthOrFallback(tsLengths, segmentIndex, currentBlock.dl);
+          _logPass('raw-mag', curBitPlane, npasses, segmentIndex, tsLengths, rawMagLength);
           errorDetected = _rawMagRefPass(
             outBlk,
             _bin!,
@@ -328,11 +342,16 @@ class StdEntropyDecoder extends EntropyDecoder {
             state,
             isTerminatedMag,
           );
+          _logPassResult('raw-mag', curBitPlane, outBlk);
         } else {
+          int? sigSegmentLength;
           if ((_options & StdEntropyCoderOptions.OPT_TERM_PASS) != 0) {
-            _mq!.nextSegment(null, -1, _segmentLength(tsLengths, ++segmentIndex));
+            sigSegmentLength = _segmentLength(tsLengths, ++segmentIndex);
+            _mq!.nextSegment(null, -1, sigSegmentLength);
           }
           final isTerminatedSig = (_options & StdEntropyCoderOptions.OPT_TERM_PASS) != 0;
+          final effectiveSigLength = sigSegmentLength ?? _segmentLengthOrFallback(tsLengths, segmentIndex, currentBlock.dl);
+          _logPass('sig', curBitPlane, npasses, segmentIndex, tsLengths, effectiveSigLength);
           errorDetected = _sigProgPass(
             outBlk,
             _mq!,
@@ -341,17 +360,22 @@ class StdEntropyDecoder extends EntropyDecoder {
             zcLut,
             isTerminatedSig,
           );
+          _logPassResult('sig', curBitPlane, outBlk);
           npasses--;
           if (npasses <= 0 || (errorDetected && _doErrorDetection)) {
             break;
           }
 
+          int? magSegmentLength;
           if ((_options & StdEntropyCoderOptions.OPT_TERM_PASS) != 0) {
-            _mq!.nextSegment(null, -1, _segmentLength(tsLengths, ++segmentIndex));
+            magSegmentLength = _segmentLength(tsLengths, ++segmentIndex);
+            _mq!.nextSegment(null, -1, magSegmentLength);
           }
           final isTerminatedMag = (_options & StdEntropyCoderOptions.OPT_TERM_PASS) != 0 ||
               ((_options & StdEntropyCoderOptions.OPT_BYPASS) != 0 &&
                   (31 - StdEntropyCoderOptions.NUM_NON_BYPASS_MS_BP - currentBlock.skipMSBP > curBitPlane));
+          final effectiveMagLength = magSegmentLength ?? _segmentLengthOrFallback(tsLengths, segmentIndex, currentBlock.dl);
+          _logPass('mag', curBitPlane, npasses, segmentIndex, tsLengths, effectiveMagLength);
           errorDetected = _magRefPass(
             outBlk,
             _mq!,
@@ -359,6 +383,7 @@ class StdEntropyDecoder extends EntropyDecoder {
             state,
             isTerminatedMag,
           );
+          _logPassResult('mag', curBitPlane, outBlk);
         }
 
         npasses--;
@@ -366,14 +391,18 @@ class StdEntropyDecoder extends EntropyDecoder {
           break;
         }
 
+        int? cleanupSegmentLength;
         if ((_options & StdEntropyCoderOptions.OPT_TERM_PASS) != 0 ||
           ((_options & StdEntropyCoderOptions.OPT_BYPASS) != 0 &&
             curBitPlane < 31 - StdEntropyCoderOptions.NUM_NON_BYPASS_MS_BP - currentBlock.skipMSBP)) {
-          _mq!.nextSegment(null, -1, _segmentLength(tsLengths, ++segmentIndex));
+          cleanupSegmentLength = _segmentLength(tsLengths, ++segmentIndex);
+          _mq!.nextSegment(null, -1, cleanupSegmentLength);
         }
         final isTerminatedCleanup = (_options & StdEntropyCoderOptions.OPT_TERM_PASS) != 0 ||
             ((_options & StdEntropyCoderOptions.OPT_BYPASS) != 0 &&
                 (31 - StdEntropyCoderOptions.NUM_NON_BYPASS_MS_BP - currentBlock.skipMSBP) >= curBitPlane);
+        final effectiveCleanupLength = cleanupSegmentLength ?? _segmentLengthOrFallback(tsLengths, segmentIndex, currentBlock.dl);
+        _logPass('cleanup', curBitPlane, npasses, segmentIndex, tsLengths, effectiveCleanupLength);
         errorDetected = _cleanupPass(
           outBlk,
           _mq!,
@@ -382,6 +411,7 @@ class StdEntropyDecoder extends EntropyDecoder {
           zcLut,
           isTerminatedCleanup,
         );
+        _logPassResult('cleanup', curBitPlane, outBlk);
         npasses--;
         if (errorDetected && _doErrorDetection) {
           break;
@@ -453,6 +483,61 @@ class StdEntropyDecoder extends EntropyDecoder {
       );
     }
     return lengths[index];
+  }
+
+  static int _segmentLengthOrFallback(List<int>? lengths, int index, int fallback) {
+    if (lengths == null || lengths.isEmpty) {
+      return fallback;
+    }
+    if (index < 0) {
+      return lengths.first;
+    }
+    if (index >= lengths.length) {
+      return lengths.last;
+    }
+    return lengths[index];
+  }
+
+  void _logPass(
+    String pass,
+    int bitPlane,
+    int remainingPasses,
+    int segmentIndex,
+    List<int>? tsLengths,
+    int fallbackLength,
+  ) {
+    if (!_isInstrumentationEnabled()) {
+      return;
+    }
+    final segLen = _segmentLengthOrFallback(tsLengths, segmentIndex, fallbackLength);
+    _log('Pass $pass bitPlane=$bitPlane remaining=$remainingPasses segmentIndex=$segmentIndex segmentLength=$segLen');
+  }
+
+  void _logPassResult(String pass, int bitPlane, DataBlkInt block) {
+    if (!_isInstrumentationEnabled()) {
+      return;
+    }
+    final data = block.data;
+    if (data == null || data.isEmpty) {
+      _log('Samples pass=$pass bitPlane=$bitPlane nonZero=0 min=0 max=0');
+      return;
+    }
+    var nonZero = 0;
+    var min = data[0];
+    var max = data[0];
+    for (var i = 0; i < data.length; i++) {
+      final value = data[i];
+      if (value != 0) {
+        nonZero++;
+      }
+      if (value < min) {
+        min = value;
+      }
+      if (value > max) {
+        max = value;
+      }
+    }
+    _log('Samples pass=$pass bitPlane=$bitPlane nonZero=$nonZero min=$min max=$max');
   }
 
   bool _sigProgPass(

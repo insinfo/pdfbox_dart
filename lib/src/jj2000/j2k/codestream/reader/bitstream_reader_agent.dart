@@ -17,6 +17,7 @@ import '../../io/exceptions.dart';
 import '../../module_spec.dart';
 import '../../quantization/dequantizer/std_dequantizer_params.dart';
 import '../../util/array_util.dart';
+import '../../util/decoder_instrumentation.dart';
 import '../../util/facility_manager.dart';
 import '../../util/math_util.dart';
 import '../../util/msg_logger.dart';
