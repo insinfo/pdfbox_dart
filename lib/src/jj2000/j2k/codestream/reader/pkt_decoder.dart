@@ -287,6 +287,8 @@ class PktDecoder {
     List<List<List<CBlkInfo?>?>?>? subbandBlocks,
     List<int> remainingBytesPerTile,
   ) {
+    print('PktDecoder: t=${src.getTileIdx()} c=$component r=$resolution p=$precinct l=$layer pktIdx=$_packetIndex offset=${ehs.getPos()}');
+
     final startOfHeader = ehs.getPos();
     if (startOfHeader >= ehs.length()) {
       return true;
@@ -321,6 +323,7 @@ class PktDecoder {
 
     // Empty packet: nothing to decode beyond the inclusion bit.
     if (reader.readBit() == 0) {
+      print('PktDecoder: Empty packet');
       for (var s = mins; s < maxs; s++) {
         _includedCodeBlocks[s].clear();
       }
@@ -336,6 +339,7 @@ class PktDecoder {
       }
 
       if (_ephUsed) {
+        print('PktDecoder: Reading EPH (empty packet)');
         _readEphMarker(reader);
       }
       return false;
@@ -406,6 +410,7 @@ class PktDecoder {
             if (blockInfo.ctp == 0) {
               blockInfo.pktIdx[layer] = _packetIndex;
               final inclusion = tagIncl.update(m, n, layer + 1, reader);
+              if (_packetIndex == 90) print('Pkt90: CB($m,$n) incl=$inclusion');
               if (inclusion > layer) {
                 continue;
               }
@@ -417,6 +422,7 @@ class PktDecoder {
                 threshold++;
               }
               blockInfo.msbSkipped = threshold - 2;
+              if (_packetIndex == 90) print('Pkt90: CB($m,$n) msb=${blockInfo.msbSkipped}');
               blockInfo.addNTP(layer, 0);
 
               _codeBlockCounter++;
@@ -457,8 +463,10 @@ class PktDecoder {
             }
 
             blockInfo.addNTP(layer, newTruncPoints);
+            if (_packetIndex == 90) print('Pkt90: CB($m,$n) ntp=$newTruncPoints');
             included.add(coord);
 
+            if (_packetIndex == 90) print('Pkt90: c=$component r=$resolution s=$subband CB($m,$n) lblock_before=${lblockRow[coordIdx.x]}');
             while (reader.readBit() == 1) {
               lblockRow[coordIdx.x]++;
             }
@@ -468,6 +476,7 @@ class PktDecoder {
 
             if (segmentCount == 1) {
               blockInfo.len[layer] = reader.readBits(baseLengthBits);
+              if (_packetIndex == 90) print('Pkt90: CB($m,$n) len=${blockInfo.len[layer]}');
               if (blockInfo.len[layer] > 32768) {
                 final tileIdx = src.getTileIdx();
                 print(
@@ -513,6 +522,7 @@ class PktDecoder {
                 );
                 blockInfo.len[layer] += finalValue;
                 lengths[cursor] = finalValue;
+                if (_packetIndex == 90) print('Pkt90: CB($m,$n) len=${blockInfo.len[layer]}');
                 if (blockInfo.len[layer] > 32768) {
                   final tileIdx = src.getTileIdx();
                   print(
@@ -551,6 +561,7 @@ class PktDecoder {
     }
 
     if (_ephUsed) {
+      print('PktDecoder: Reading EPH (full packet)');
       _readEphMarker(reader);
     }
 
@@ -827,6 +838,7 @@ class PktDecoder {
     reader.readBytes(buffer, 0, buffer.length);
     final value = ((buffer[0] & 0xff) << 8) | (buffer[1] & 0xff);
     if (value != Markers.EPH) {
+      print('PktDecoder: Expected EPH, found $value at pos ${ehs.getPos()}');
       throw StateError('Corrupted bitstream: expected EPH marker, found $value');
     }
   }

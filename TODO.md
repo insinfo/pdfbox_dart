@@ -19,6 +19,10 @@ e concertar a versão dart
 - [ ] Executar suites Dart relevantes via `dart test test/jj2000/`.
 - [ ] Registrar diferencas observadas entre saidas Java e Dart.
 - [ ] Abrir issues para divergencias nao resolvidas.
-- [ ] Investigar divergencia entre `rainbowbars.ppm` (Dart) e `rainbowbars-java.ppm` 
+- [ ] Investigar divergencia entre  (Dart) java
 
 ## Mapeamento Java -> Dart
+# como gerar imagens para testes do decoder
+magick -size 32x32 xc:black  -draw "fill red   rectangle 0,0   10,31"  -draw "fill green rectangle 11,0  21,31"  -draw "fill blue  rectangle 22,0  31,31" barras_rgb.bmp
+
+ magick barras_rgb.bmp barras_rgb.jp2

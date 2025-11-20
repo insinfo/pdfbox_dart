@@ -258,8 +258,11 @@ class StdEntropyDecoder extends EntropyDecoder {
       _mq!.resetCtxts();
     }
     
-    final traceLimit = _isInstrumentationEnabled() ? 512 : 20;
-    _mq!.startTrace('trace', traceLimit);
+    final traceLabel = 'tile=$tileIndex comp=$component res=${subband.resLvl} '
+      'band=${subband.sbandIdx} m=$verticalCodeBlockIndex '
+      'n=$horizontalCodeBlockIndex bp=${30 - currentBlock.skipMSBP}';
+    final traceLimit = _isInstrumentationEnabled() ? 256 : 0;
+    _mq!.startTrace(traceLabel, traceLimit);
 
     var errorDetected = false;
     if ((_options & StdEntropyCoderOptions.OPT_BYPASS) != 0) {
@@ -439,7 +442,7 @@ class StdEntropyDecoder extends EntropyDecoder {
 
     final traceDump = _mq!.drainTrace();
     if (traceDump != null && traceDump.isNotEmpty && _isInstrumentationEnabled()) {
-      _log(traceDump);
+      _log('MQ trace: $traceDump');
     }
 
     return outBlk;

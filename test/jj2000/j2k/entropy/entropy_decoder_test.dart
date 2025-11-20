@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:test/test.dart';
+import 'package:path/path.dart' as p;
 import 'package:pdfbox_dart/src/jj2000/j2k/codestream/header_info.dart';
 import 'package:pdfbox_dart/src/jj2000/j2k/codestream/reader/bitstream_reader_agent.dart';
 import 'package:pdfbox_dart/src/jj2000/j2k/codestream/reader/header_decoder.dart';
@@ -61,9 +62,12 @@ void main() {
   }
 
   test('EntropyDecoder coefficients parity with java', () {
-    final input = File('rainbowbars-color.jp2');
+    final inputOverride = Platform.environment['JJ2000_INPUT'];
+    final input = File(inputOverride ?? 'rainbowbars-color.jp2');
     expect(input.existsSync(), isTrue,
-        reason: 'rainbowbars-color.jp2 must be present in repository root');
+        reason: '${input.path} must be present in repository root');
+    final fixtureExpectations = _fixtureExpectations();
+    final expectedCoeffs = fixtureExpectations[p.basename(input.path)];
 
     final params = ParameterList();
     // Populate defaults
@@ -131,34 +135,6 @@ void main() {
     print('Subband: $sb');
     print('Subband geometry: ulx=${sb.ulx}, uly=${sb.uly}, w=${sb.w}, h=${sb.h}');
 
-    /// Expected coefficients from Java execution se não bater com a versão java é porque a versão dart esta com bug
-    final expectedCoeffs = {
-      '0,0': [
-        -2032795648, -2032795648, -2032795648, -2032795648, -2032795648,
-        -2032795648, -2032795648, -2032795648, -2032795648, -2032795648,
-        -2032795648, -2032795648, -2032795648, -2032795648, -2032795648,
-        -2032795648, -2032795648, -2032795648, -2032795648, -2032795648
-      ],
-      '0,1': [
-        208273408, 209321984, 209321984, 209321984, 209321984, 209321984,
-        209321984, 209321984, 209321984, 209321984, 209321984, 209321984,
-        209321984, 209321984, 209321984, 209321984, 209321984, 209321984,
-        209321984, 209321984
-      ],
-      '1,0': [
-        -2032795648, -2032795648, -2032795648, -2032795648, -2032795648,
-        -2032795648, -2032795648, -2032795648, -2032795648, -2032795648,
-        -2032795648, -2032795648, -2032795648, -2032795648, -2032795648,
-        -2032795648, -2032795648, -2032795648, -2032795648, -2032795648
-      ],
-      '1,1': [
-        208273408, 209321984, 209321984, 209321984, 209321984, 209321984,
-        209321984, 209321984, 209321984, 209321984, 209321984, 209321984,
-        209321984, 209321984, 209321984, 209321984, 209321984, 209321984,
-        209321984, 209321984
-      ]
-    };
-
     for (var m = 0; m < sb.numCb!.y; m++) {
       for (var n = 0; n < sb.numCb!.x; n++) {
         print('Decoding CodeBlock m=$m, n=$n');
@@ -173,7 +149,7 @@ void main() {
           final preview = data.take(math.min(data.length, 20)).join(', ');
           print('Coefficients: $preview');
 
-          final expected = expectedCoeffs['$m,$n'];
+          final expected = expectedCoeffs?['$m,$n'];
           if (expected != null) {
             final actual = data.take(expected.length).toList();
             print('Comparison (m=$m,n=$n) => actual=$actual expected=$expected');
@@ -194,4 +170,102 @@ void main() {
     print('BitPlane logs:\n$bitPlaneLines');
     print('[Instrumentation stderr]\n$stderrBuffer');
   });
+}
+
+Map<String, Map<String, List<int>>> _fixtureExpectations() {
+  return {
+    'rainbowbars-color.jp2': {
+      '0,0': [
+        -2032795648,
+        -2032795648,
+        -2032795648,
+        -2032795648,
+        -2032795648,
+        -2032795648,
+        -2032795648,
+        -2032795648,
+        -2032795648,
+        -2032795648,
+        -2032795648,
+        -2032795648,
+        -2032795648,
+        -2032795648,
+        -2032795648,
+        -2032795648,
+        -2032795648,
+        -2032795648,
+        -2032795648,
+        -2032795648,
+      ],
+      '0,1': [
+        208273408,
+        209321984,
+        209321984,
+        209321984,
+        209321984,
+        209321984,
+        209321984,
+        209321984,
+        209321984,
+        209321984,
+        209321984,
+        209321984,
+        209321984,
+        209321984,
+        209321984,
+        209321984,
+        209321984,
+        209321984,
+        209321984,
+        209321984,
+      ],
+      '1,0': [
+        -2032795648,
+        -2032795648,
+        -2032795648,
+        -2032795648,
+        -2032795648,
+        -2032795648,
+        -2032795648,
+        -2032795648,
+        -2032795648,
+        -2032795648,
+        -2032795648,
+        -2032795648,
+        -2032795648,
+        -2032795648,
+        -2032795648,
+        -2032795648,
+        -2032795648,
+        -2032795648,
+        -2032795648,
+        -2032795648,
+      ],
+      '1,1': [
+        208273408,
+        209321984,
+        209321984,
+        209321984,
+        209321984,
+        209321984,
+        209321984,
+        209321984,
+        209321984,
+        209321984,
+        209321984,
+        209321984,
+        209321984,
+        209321984,
+        209321984,
+        209321984,
+        209321984,
+        209321984,
+        209321984,
+        209321984,
+      ],
+    },
+    'icon32.jp2': {
+      '0,0': [-2086666240],
+    },
+  };
 }
