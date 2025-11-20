@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import '../../util/decoder_instrumentation.dart';
 import '../blk_img_data_src.dart';
 import '../comp_transf_spec.dart';
 import '../data_blk.dart';
@@ -10,6 +11,7 @@ import 'inv_comp_transf.dart';
 
 /// Applies inverse component transforms (ICT/RCT) to reconstructed samples.
 class InvCompTransfImgDataSrc extends ImgDataAdapter implements BlkImgDataSrc {
+  static const String _logSource = 'InvCompTransf';
   InvCompTransfImgDataSrc(
     BlkImgDataSrc source,
     this.compTransfSpec,
@@ -64,7 +66,7 @@ class InvCompTransfImgDataSrc extends ImgDataAdapter implements BlkImgDataSrc {
     final transform = compTransfSpec.getSpec(tileIdx, component) ?? InvCompTransf.none;
     if (_componentDebugCountdown[component] > 0) {
       _componentDebugCountdown[component]--;
-      print('InvCompTransf: tile=$tileIdx component=$component transform=$transform');
+      _log('InvCompTransf: tile=$tileIdx component=$component transform=$transform');
     }
     if (transform == InvCompTransf.none ||
         _numComponents < 3 ||
@@ -154,13 +156,13 @@ class InvCompTransfImgDataSrc extends ImgDataAdapter implements BlkImgDataSrc {
 
         if (_componentDebugCountdown[component] > 0) {
           if (_componentDebugCountdown[component] == 5) {
-            print(
+            _log(
               'RCT geometry c=$component y.off=${y.offset} y.scan=${y.scanw} '
               'cb.off=${cb.offset} cb.scan=${cb.scanw} cr.off=${cr.offset} cr.scan=${cr.scanw}',
             );
           }
           _componentDebugCountdown[component]--;
-          print('RCT debug c=$component y=$yVal cb=$cbVal cr=$crVal -> r=$r g=$g b=$b');
+          _log('RCT debug c=$component y=$yVal cb=$cbVal cr=$crVal -> r=$r g=$g b=$b');
         }
 
         buffer[destIndex++] = isR ? r : (isG ? g : b);
@@ -250,13 +252,13 @@ class InvCompTransfImgDataSrc extends ImgDataAdapter implements BlkImgDataSrc {
 
         if (_componentDebugCountdown[component] > 0) {
           if (_componentDebugCountdown[component] == 5) {
-            print(
+            _log(
               'ICT geometry c=$component y.off=${y.offset} y.scan=${y.scanw} '
               'cb.off=${cb.offset} cb.scan=${cb.scanw} cr.off=${cr.offset} cr.scan=${cr.scanw}',
             );
           }
           _componentDebugCountdown[component]--;
-          print(
+          _log(
             'ICT debug c=$component y=${yVal.toStringAsFixed(3)} '
             'cb=${cbVal.toStringAsFixed(3)} cr=${crVal.toStringAsFixed(3)} '
             '-> r=${r.toStringAsFixed(3)} g=${g.toStringAsFixed(3)} b=${b.toStringAsFixed(3)}',
@@ -321,5 +323,13 @@ class InvCompTransfImgDataSrc extends ImgDataAdapter implements BlkImgDataSrc {
     }
     _floatScratch[component] = result;
     return result;
+  }
+
+  static bool _isInstrumentationEnabled() => DecoderInstrumentation.isEnabled();
+
+  void _log(String message) {
+    if (_isInstrumentationEnabled()) {
+      DecoderInstrumentation.log(_logSource, message);
+    }
   }
 }

@@ -1,10 +1,10 @@
-import 'dart:math' as math;
-
 import '../../decoder/decoder_specs.dart';
 import '../../image/data_blk.dart';
 import '../../image/data_blk_int.dart';
 import '../../util/array_util.dart';
+import '../../util/decoder_instrumentation.dart';
 import '../../util/facility_manager.dart';
+import '../../util/int32_utils.dart';
 import '../../util/msg_logger.dart';
 import '../../wavelet/subband.dart';
 import '../../wavelet/synthesis/subband_syn.dart';
@@ -18,6 +18,8 @@ import 'mq_decoder.dart';
 
 /// JPEG 2000 entropy decoder mirroring the JJ2000 reference implementation.
 class StdEntropyDecoder extends EntropyDecoder {
+  static const String _logSource = 'StdEntropyDecoder';
+
   static const bool _doTiming = false;
 
   static const int _zcLutBits = 8;
@@ -102,18 +104,27 @@ class StdEntropyDecoder extends EntropyDecoder {
   static const int _scShiftR2 = _scShiftR1 + _stateSep;
   static const int _scSpredShift = 31;
   static const int _mrMask = (1 << 9) - 1;
-  static int _debugCounter = 0;
-  static final Map<int, int> _blockMetaCounts = <int, int>{};
-  static const int _blockMetaPerComponent = 12;
-  static final Map<int, int> _payloadPreviewCounts = <int, int>{};
-  static const int _payloadPreviewPerComponent = 4;
-  static final Map<int, int> _coeffPreviewCounts = <int, int>{};
-  static const int _coeffPreviewPerComponent = 4;
-  static final Map<int, int> _optionPreviewCounts = <int, int>{};
-  static const int _optionPreviewLimit = 4;
-  static final Map<int, int> _mqTraceCounts = <int, int>{};
-  static const int _mqTracePerComponent = 4;
-  static const int _mqTraceSymbolLimit = 256;
+
+  static int _int32(int value) => Int32Utils.asInt32(value);
+
+  static int _encodeSignSample(int sign, int setmask) =>
+      Int32Utils.encodeSignSample(sign, setmask);
+
+  static int _refineMagnitude(
+    int current,
+    int resetmask,
+    int symbol,
+    int bitPlane,
+    int setmask,
+  ) =>
+      Int32Utils.refineMagnitude(current, resetmask, symbol, bitPlane, setmask);
+
+  bool tracing = true;
+  void trace(String msg) {
+    if (tracing) {
+      _log('[TRACE] $msg');
+    }
+  }
 
   StdEntropyDecoder(
     CodedCBlkDataSrcDec src,
@@ -177,17 +188,6 @@ class StdEntropyDecoder extends EntropyDecoder {
       throw StateError('Entropy source returned null code-block');
     }
 
-    final currentCount = _blockMetaCounts.putIfAbsent(component, () => 0);
-    if (currentCount < _blockMetaPerComponent) {
-      _blockMetaCounts[component] = currentCount + 1;
-      print(
-        'StdEntropyDecoder block meta: tile=$tileIndex comp=$component res=${subband.resLvl} '
-        'band=${subband.sbandIdx} m=$verticalCodeBlockIndex n=$horizontalCodeBlockIndex '
-        'dl=${currentBlock.dl} nl=${currentBlock.nl} nTrunc=${currentBlock.nTrunc} '
-        'skipMSBP=${currentBlock.skipMSBP}',
-      );
-    }
-
     int start = 0;
     if (_doTiming) {
       start = DateTime.now().millisecondsSinceEpoch;
@@ -196,16 +196,8 @@ class StdEntropyDecoder extends EntropyDecoder {
     final opt = decoderSpecs.ecopts.getTileCompVal(tileIndex, component);
     _options = opt ?? 0;
 
-    if (component > 0) {
-      final optionCount = _optionPreviewCounts.putIfAbsent(component, () => 0);
-      if (optionCount < _optionPreviewLimit) {
-        _optionPreviewCounts[component] = optionCount + 1;
-        print(
-          'StdEntropyDecoder options: tile=$tileIndex comp=$component value=$_options '
-          '(bypass=${(_options & StdEntropyCoderOptions.OPT_BYPASS) != 0} '
-          'term=${(_options & StdEntropyCoderOptions.OPT_TERM_PASS) != 0})',
-        );
-      }
+    if (_isInstrumentationEnabled()) {
+      _log('Options: $_options');
     }
 
     ArrayUtil.intArraySet(state, 0);
@@ -244,33 +236,14 @@ class StdEntropyDecoder extends EntropyDecoder {
       throw StateError('Decoded code-block payload is missing');
     }
 
-    final payloadCount = _payloadPreviewCounts.putIfAbsent(component, () => 0);
-    if (payloadCount < _payloadPreviewPerComponent) {
-      _payloadPreviewCounts[component] = payloadCount + 1;
-      final sampleCount = data.isEmpty ? 0 : math.min(16, data.length);
-      final preview = <int>[];
-      for (var idx = 0; idx < sampleCount; idx++) {
-        preview.add(data[idx]);
-      }
-      print(
-        'StdEntropyDecoder payload preview: comp=$component res=${subband.resLvl} '
-        'band=${subband.sbandIdx} bytes=${data.length} head=${preview.join(',')}',
-      );
+    if (_isInstrumentationEnabled()) {
+      final preview = data.take(16).toList();
+      _log('Payload preview: $preview');
     }
 
     final tsLengths = currentBlock.tsLengths;
     final initialSegmentLength =
       tsLengths == null || tsLengths.isEmpty ? currentBlock.dl : _segmentLength(tsLengths, 0);
-
-    if (_debugCounter < 3) {
-      _debugCounter++;
-      final dataLength = data.length;
-      final segments = tsLengths == null ? 'null' : tsLengths.join(',');
-      print(
-        'StdEntropyDecoder debug: dl=${currentBlock.dl}, dataLen=$dataLength, '
-        'initialSegment=$initialSegmentLength, tsLengths=$segments',
-      );
-    }
 
     if (_mq == null) {
       _mqInput = ByteInputBuffer.view(data, 0, initialSegmentLength);
@@ -279,6 +252,9 @@ class StdEntropyDecoder extends EntropyDecoder {
       _mq!.nextSegment(data, 0, initialSegmentLength);
       _mq!.resetCtxts();
     }
+    
+    final traceLimit = _isInstrumentationEnabled() ? 512 : 20;
+    _mq!.startTrace('trace', traceLimit);
 
     var errorDetected = false;
     if ((_options & StdEntropyCoderOptions.OPT_BYPASS) != 0) {
@@ -290,23 +266,16 @@ class StdEntropyDecoder extends EntropyDecoder {
     var npasses = currentBlock.nTrunc;
     var curBitPlane = 30 - currentBlock.skipMSBP;
 
+    if (_isInstrumentationEnabled()) {
+      _log('BitPlane info: skipMSBP=${currentBlock.skipMSBP}, curBitPlane=$curBitPlane, '
+          'npasses=$npasses, w=${currentBlock.w}, h=${currentBlock.h}');
+    }
+
     if (_mQuit != -1 && (_mQuit * 3 - 2) < npasses) {
       npasses = _mQuit * 3 - 2;
     }
 
     var segmentIndex = 0;
-    var traceActive = false;
-    if (component > 0 && subband.resLvl == 0 && subband.sbandIdx == 0) {
-      final traceCount = _mqTraceCounts.putIfAbsent(component, () => 0);
-      if (traceCount < _mqTracePerComponent) {
-        _mqTraceCounts[component] = traceCount + 1;
-        final label = 'tile=$tileIndex comp=$component res=${subband.resLvl} '
-            'band=${subband.sbandIdx} m=$verticalCodeBlockIndex '
-            'n=$horizontalCodeBlockIndex bp=$curBitPlane';
-        _mq!.startTrace(label, _mqTraceSymbolLimit);
-        traceActive = true;
-      }
-    }
 
     if (curBitPlane >= 0 && npasses > 0) {
       final isTerminated = (_options & StdEntropyCoderOptions.OPT_TERM_PASS) != 0 ||
@@ -328,6 +297,7 @@ class StdEntropyDecoder extends EntropyDecoder {
 
     if (!errorDetected || !_doErrorDetection) {
       while (curBitPlane >= 0 && npasses > 0) {
+       
         if ((_options & StdEntropyCoderOptions.OPT_BYPASS) != 0 &&
             curBitPlane < 31 - StdEntropyCoderOptions.NUM_NON_BYPASS_MS_BP - currentBlock.skipMSBP) {
           _bin!.setByteArray(null, -1, _segmentLength(tsLengths, ++segmentIndex));
@@ -432,31 +402,14 @@ class StdEntropyDecoder extends EntropyDecoder {
       _conceal(outBlk, curBitPlane);
     }
 
-    if (traceActive) {
-      final traceSummary = _mq!.drainTrace();
-      if (traceSummary != null) {
-        print('StdEntropyDecoder MQ trace: $traceSummary');
-      }
-    }
-
     if (_doTiming) {
       final stop = DateTime.now().millisecondsSinceEpoch;
       _timings![component] += stop - start;
     }
 
-    final coeffCount = _coeffPreviewCounts.putIfAbsent(component, () => 0);
-    if (coeffCount < _coeffPreviewPerComponent) {
-      _coeffPreviewCounts[component] = coeffCount + 1;
-      final preview = <int>[];
-      final dataPreview = outData;
-      final sampleCount = math.min(8, dataPreview.length);
-      for (var idx = 0; idx < sampleCount; idx++) {
-        preview.add(dataPreview[idx]);
-      }
-      print(
-        'StdEntropyDecoder coeff preview: comp=$component res=${subband.resLvl} '
-        'band=${subband.sbandIdx} values=${preview.join(',')}',
-      );
+    final traceDump = _mq!.drainTrace();
+    if (traceDump != null && traceDump.isNotEmpty && _isInstrumentationEnabled()) {
+      _log(traceDump);
     }
 
     return outBlk;
@@ -515,7 +468,8 @@ class StdEntropyDecoder extends EntropyDecoder {
     final sscanw = cblk.w + 2;
     final jstep = sscanw * StdEntropyCoderOptions.STRIPE_HEIGHT ~/ 2 - cblk.w;
     final kstep = dscanw * StdEntropyCoderOptions.STRIPE_HEIGHT - cblk.w;
-    final setmask = (3 << bitPlane) >> 1;
+    final one = 1 << bitPlane;
+    final setmask = one | (one >> 1);
     final nstripes = (cblk.h + StdEntropyCoderOptions.STRIPE_HEIGHT - 1) ~/ StdEntropyCoderOptions.STRIPE_HEIGHT;
     final causal = (_options & StdEntropyCoderOptions.OPT_VERT_STR_CAUSAL) != 0;
 
@@ -537,11 +491,13 @@ class StdEntropyDecoder extends EntropyDecoder {
         if ((((~csj) & (csj << 2)) & _sigMaskR1R2) != 0) {
           var k = sk;
           if ((csj & (_stateSigR1 | _stateNzCtxtR1)) == _stateNzCtxtR1) {
-            if (mq.decodeSymbol(zcLut[csj & _zcMask]) != 0) {
+            int sym = mq.decodeSymbol(zcLut[csj & _zcMask]);
+           
+            if (sym != 0) {
               final ctxt = _scLut[(csj >>> _scShiftR1) & _scMask];
-              final sym = mq.decodeSymbol(ctxt & ((1 << _scShiftR1) - 1)) ^
-                  (ctxt >>> _scSpredShift);
-              data[k] = (sym << 31) | setmask;
+              var sym = mq.decodeSymbol(ctxt & ((1 << _scShiftR1) - 1));
+              sym ^= (ctxt >>> _scSpredShift);
+              data[k] = _encodeSignSample(sym, setmask);
               if (!causal) {
                 state[j + offUl] |= _stateNzCtxtR2 | _stateDdrR2;
                 state[j + offUr] |= _stateNzCtxtR2 | _stateDdlR2;
@@ -578,11 +534,13 @@ class StdEntropyDecoder extends EntropyDecoder {
           }
           if ((csj & (_stateSigR2 | _stateNzCtxtR2)) == _stateNzCtxtR2) {
             k += dscanw;
-            if (mq.decodeSymbol(zcLut[(csj >>> _stateSep) & _zcMask]) != 0) {
+            int sym = mq.decodeSymbol(zcLut[(csj >>> _stateSep) & _zcMask]);
+         
+            if (sym != 0) {
               final ctxt = _scLut[(csj >>> _scShiftR2) & _scMask];
-              final sym = mq.decodeSymbol(ctxt & ((1 << _scShiftR1) - 1)) ^
-                  (ctxt >>> _scSpredShift);
-              data[k] = (sym << 31) | setmask;
+              var sym = mq.decodeSymbol(ctxt & ((1 << _scShiftR1) - 1));
+              sym ^= (ctxt >>> _scSpredShift);
+              data[k] = _encodeSignSample(sym, setmask);
               state[j + offDl] |= _stateNzCtxtR1 | _stateDurR1;
               state[j + offDr] |= _stateNzCtxtR1 | _stateDulR1;
               if (sym != 0) {
@@ -607,81 +565,83 @@ class StdEntropyDecoder extends EntropyDecoder {
               csj |= _stateVisitedR2;
             }
           }
-          state[j] = csj;
-        }
-        if (stripeHeight < 3) {
-          continue;
-        }
-        j += sscanw;
-        csj = state[j];
-        if ((((~csj) & (csj << 2)) & _sigMaskR1R2) != 0) {
-          var k = sk + (dscanw << 1);
-          if ((csj & (_stateSigR1 | _stateNzCtxtR1)) == _stateNzCtxtR1) {
-            if (mq.decodeSymbol(zcLut[csj & _zcMask]) != 0) {
-              final ctxt = _scLut[(csj >>> _scShiftR1) & _scMask];
-              final sym = mq.decodeSymbol(ctxt & ((1 << _scShiftR1) - 1)) ^
-                  (ctxt >>> _scSpredShift);
-              data[k] = (sym << 31) | setmask;
-              state[j + offUl] |= _stateNzCtxtR2 | _stateDdrR2;
-              state[j + offUr] |= _stateNzCtxtR2 | _stateDdlR2;
-              if (sym != 0) {
-                csj |= _stateSigR1 | _stateVisitedR1 |
-                    _stateNzCtxtR2 | _stateVuR2 | _stateVuSignR2;
-                state[j - sscanw] |= _stateNzCtxtR2 |
-                    _stateVdR2 | _stateVdSignR2;
-                state[j + 1] |= _stateNzCtxtR1 | _stateNzCtxtR2 |
-                    _stateHlR1 | _stateHlSignR1 | _stateDulR2;
-                state[j - 1] |= _stateNzCtxtR1 | _stateNzCtxtR2 |
-                    _stateHrR1 | _stateHrSignR1 | _stateDurR2;
-              } else {
-                csj |= _stateSigR1 | _stateVisitedR1 |
-                    _stateNzCtxtR2 | _stateVuR2;
-                state[j - sscanw] |= _stateNzCtxtR2 | _stateVdR2;
-                state[j + 1] |= _stateNzCtxtR1 | _stateNzCtxtR2 |
-                    _stateHlR1 | _stateDulR2;
-                state[j - 1] |= _stateNzCtxtR1 | _stateNzCtxtR2 |
-                    _stateHrR1 | _stateDurR2;
-              }
-            } else {
-              csj |= _stateVisitedR1;
-            }
-          }
-          if (stripeHeight < 4) {
+          if (stripeHeight < 3) {
             state[j] = csj;
             continue;
           }
-          if ((csj & (_stateSigR2 | _stateNzCtxtR2)) == _stateNzCtxtR2) {
-            k += dscanw;
-            if (mq.decodeSymbol(zcLut[(csj >>> _stateSep) & _zcMask]) != 0) {
-              final ctxt = _scLut[(csj >>> _scShiftR2) & _scMask];
-              final sym = mq.decodeSymbol(ctxt & ((1 << _scShiftR1) - 1)) ^
-                  (ctxt >>> _scSpredShift);
-              data[k] = (sym << 31) | setmask;
-              state[j + offDl] |= _stateNzCtxtR1 | _stateDurR1;
-              state[j + offDr] |= _stateNzCtxtR1 | _stateDulR1;
+          j += sscanw;
+          csj = state[j];
+          if ((((~csj) & (csj << 2)) & _sigMaskR1R2) != 0) {
+            var k = sk + (dscanw << 1);
+            if ((csj & (_stateSigR1 | _stateNzCtxtR1)) == _stateNzCtxtR1) {
+              int sym = mq.decodeSymbol(zcLut[csj & _zcMask]);
               if (sym != 0) {
-                csj |= _stateSigR2 | _stateVisitedR2 |
-                    _stateNzCtxtR1 | _stateVdR1 | _stateVdSignR1;
-                state[j + sscanw] |= _stateNzCtxtR1 |
-                    _stateVuR1 | _stateVuSignR1;
-                state[j + 1] |= _stateNzCtxtR1 | _stateNzCtxtR2 |
-                    _stateDdlR1 | _stateHlR2 | _stateHlSignR2;
-                state[j - 1] |= _stateNzCtxtR1 | _stateNzCtxtR2 |
-                    _stateDdrR1 | _stateHrR2 | _stateHrSignR2;
+                final ctxt = _scLut[(csj >>> _scShiftR1) & _scMask];
+                var sym = mq.decodeSymbol(ctxt & ((1 << _scShiftR1) - 1));
+                sym ^= (ctxt >>> _scSpredShift);
+                data[k] = _encodeSignSample(sym, setmask);
+                state[j + offUl] |= _stateNzCtxtR2 | _stateDdrR2;
+                state[j + offUr] |= _stateNzCtxtR2 | _stateDdlR2;
+                if (sym != 0) {
+                  csj |= _stateSigR1 | _stateVisitedR1 |
+                      _stateNzCtxtR2 | _stateVuR2 | _stateVuSignR2;
+                  state[j - sscanw] |= _stateNzCtxtR2 |
+                      _stateVdR2 | _stateVdSignR2;
+                  state[j + 1] |= _stateNzCtxtR1 | _stateNzCtxtR2 |
+                      _stateHlR1 | _stateHlSignR1 | _stateDulR2;
+                  state[j - 1] |= _stateNzCtxtR1 | _stateNzCtxtR2 |
+                      _stateHrR1 | _stateHrSignR1 | _stateDurR2;
+                } else {
+                  csj |= _stateSigR1 | _stateVisitedR1 |
+                      _stateNzCtxtR2 | _stateVuR2;
+                  state[j - sscanw] |= _stateNzCtxtR2 | _stateVdR2;
+                  state[j + 1] |= _stateNzCtxtR1 | _stateNzCtxtR2 |
+                      _stateHlR1 | _stateDulR2;
+                  state[j - 1] |= _stateNzCtxtR1 | _stateNzCtxtR2 |
+                      _stateHrR1 | _stateDurR2;
+                }
               } else {
-                csj |= _stateSigR2 | _stateVisitedR2 |
-                    _stateNzCtxtR1 | _stateVdR1;
-                state[j + sscanw] |= _stateNzCtxtR1 | _stateVuR1;
-                state[j + 1] |= _stateNzCtxtR1 | _stateNzCtxtR2 |
-                    _stateDdlR1 | _stateHlR2;
-                state[j - 1] |= _stateNzCtxtR1 | _stateNzCtxtR2 |
-                    _stateDdrR1 | _stateHrR2;
+                csj |= _stateVisitedR1;
               }
-            } else {
-              csj |= _stateVisitedR2;
             }
+            if (stripeHeight < 4) {
+              state[j] = csj;
+              continue;
+            }
+            if ((csj & (_stateSigR2 | _stateNzCtxtR2)) == _stateNzCtxtR2) {
+              k += dscanw;
+              int sym = mq.decodeSymbol(zcLut[(csj >>> _stateSep) & _zcMask]);
+              if (sym != 0) {
+                final ctxt = _scLut[(csj >>> _scShiftR2) & _scMask];
+                var sym = mq.decodeSymbol(ctxt & ((1 << _scShiftR1) - 1));
+                sym ^= (ctxt >>> _scSpredShift);
+                data[k] = _encodeSignSample(sym, setmask);
+                state[j + offDl] |= _stateNzCtxtR1 | _stateDurR1;
+                state[j + offDr] |= _stateNzCtxtR1 | _stateDulR1;
+                if (sym != 0) {
+                  csj |= _stateSigR2 | _stateVisitedR2 |
+                      _stateNzCtxtR1 | _stateVdR1 | _stateVdSignR1;
+                  state[j + sscanw] |= _stateNzCtxtR1 |
+                      _stateVuR1 | _stateVuSignR1;
+                  state[j + 1] |= _stateNzCtxtR1 | _stateNzCtxtR2 |
+                      _stateDdlR1 | _stateHlR2 | _stateHlSignR2;
+                  state[j - 1] |= _stateNzCtxtR1 | _stateNzCtxtR2 |
+                      _stateDdrR1 | _stateHrR2 | _stateHrSignR2;
+                } else {
+                  csj |= _stateSigR2 | _stateVisitedR2 |
+                      _stateNzCtxtR1 | _stateVdR1;
+                  state[j + sscanw] |= _stateNzCtxtR1 | _stateVuR1;
+                  state[j + 1] |= _stateNzCtxtR1 | _stateNzCtxtR2 |
+                      _stateDdlR1 | _stateHlR2;
+                  state[j - 1] |= _stateNzCtxtR1 | _stateNzCtxtR2 |
+                      _stateDdrR1 | _stateHrR2;
+                }
+              } else {
+                csj |= _stateVisitedR2;
+              }
+            }
+            state[j] = csj;
           }
-          state[j] = csj;
         }
       }
     }
@@ -696,6 +656,7 @@ class StdEntropyDecoder extends EntropyDecoder {
     }
 
     return error;
+
   }
 
   bool _rawSigProgPass(
@@ -710,7 +671,8 @@ class StdEntropyDecoder extends EntropyDecoder {
     final sscanw = cblk.w + 2;
     final jstep = sscanw * StdEntropyCoderOptions.STRIPE_HEIGHT ~/ 2 - cblk.w;
     final kstep = dscanw * StdEntropyCoderOptions.STRIPE_HEIGHT - cblk.w;
-    final setmask = (3 << bitPlane) >> 1;
+    final one = 1 << bitPlane;
+    final setmask = one | (one >> 1);
     final nstripes = (cblk.h + StdEntropyCoderOptions.STRIPE_HEIGHT - 1) ~/ StdEntropyCoderOptions.STRIPE_HEIGHT;
     final causal = (_options & StdEntropyCoderOptions.OPT_VERT_STR_CAUSAL) != 0;
 
@@ -734,7 +696,7 @@ class StdEntropyDecoder extends EntropyDecoder {
           if ((csj & (_stateSigR1 | _stateNzCtxtR1)) == _stateNzCtxtR1) {
             if (bin.readBit() != 0) {
               final sym = bin.readBit();
-              data[k] = (sym << 31) | setmask;
+              data[k] = _encodeSignSample(sym, setmask);
               if (!causal) {
                 state[j + offUl] |= _stateNzCtxtR2 | _stateDdrR2;
                 state[j + offUr] |= _stateNzCtxtR2 | _stateDdlR2;
@@ -773,7 +735,7 @@ class StdEntropyDecoder extends EntropyDecoder {
             k += dscanw;
             if (bin.readBit() != 0) {
               final sym = bin.readBit();
-              data[k] = (sym << 31) | setmask;
+              data[k] = _encodeSignSample(sym, setmask);
               state[j + offDl] |= _stateNzCtxtR1 | _stateDurR1;
               state[j + offDr] |= _stateNzCtxtR1 | _stateDulR1;
               if (sym != 0) {
@@ -810,7 +772,7 @@ class StdEntropyDecoder extends EntropyDecoder {
           if ((csj & (_stateSigR1 | _stateNzCtxtR1)) == _stateNzCtxtR1) {
             if (bin.readBit() != 0) {
               final sym = bin.readBit();
-              data[k] = (sym << 31) | setmask;
+              data[k] = _encodeSignSample(sym, setmask);
               state[j + offUl] |= _stateNzCtxtR2 | _stateDdrR2;
               state[j + offUr] |= _stateNzCtxtR2 | _stateDdlR2;
               if (sym != 0) {
@@ -843,12 +805,12 @@ class StdEntropyDecoder extends EntropyDecoder {
             k += dscanw;
             if (bin.readBit() != 0) {
               final sym = bin.readBit();
-              data[k] = (sym << 31) | setmask;
+              data[k] = _encodeSignSample(sym, setmask);
               state[j + offDl] |= _stateNzCtxtR1 | _stateDurR1;
               state[j + offDr] |= _stateNzCtxtR1 | _stateDulR1;
               if (sym != 0) {
-                csj |= _stateSigR2 | _stateVisitedR2 | _stateNzCtxtR1 |
-                    _stateVdR1 | _stateVdSignR1;
+                csj |= _stateSigR2 | _stateVisitedR2 |
+                    _stateNzCtxtR1 | _stateVdR1 | _stateVdSignR1;
                 state[j + sscanw] |= _stateNzCtxtR1 |
                     _stateVuR1 | _stateVuSignR1;
                 state[j + 1] |= _stateNzCtxtR1 | _stateNzCtxtR2 |
@@ -882,7 +844,7 @@ class StdEntropyDecoder extends EntropyDecoder {
 
   bool _magRefPass(
     DataBlkInt cblk,
-    MQDecoder mq,
+    MQDecoder mqDecoder,
     int bitPlane,
     List<int> state,
     bool terminated,
@@ -909,9 +871,9 @@ class StdEntropyDecoder extends EntropyDecoder {
         if ((((csj >>> 1) & (~csj)) & _vstdMaskR1R2) != 0) {
           var k = sk;
           if ((csj & (_stateSigR1 | _stateVisitedR1)) == _stateSigR1) {
-            final sym = mq.decodeSymbol(_mrLut[csj & _mrMask]);
-            data[k] &= resetmask;
-            data[k] |= (sym << bitPlane) | setmask;
+            final sym = mqDecoder.decodeSymbol(_mrLut[csj & _mrMask]);
+          
+            data[k] = _refineMagnitude(data[k], resetmask, sym, bitPlane, setmask);
             csj |= _statePrevMrR1;
           }
           if (stripeHeight < 2) {
@@ -920,9 +882,9 @@ class StdEntropyDecoder extends EntropyDecoder {
           }
           if ((csj & (_stateSigR2 | _stateVisitedR2)) == _stateSigR2) {
             k += dscanw;
-            final sym = mq.decodeSymbol(_mrLut[(csj >>> _stateSep) & _mrMask]);
-            data[k] &= resetmask;
-            data[k] |= (sym << bitPlane) | setmask;
+            final sym = mqDecoder.decodeSymbol(_mrLut[(csj >>> _stateSep) & _mrMask]);
+         
+            data[k] = _refineMagnitude(data[k], resetmask, sym, bitPlane, setmask);
             csj |= _statePrevMrR2;
           }
           state[j] = csj;
@@ -935,9 +897,9 @@ class StdEntropyDecoder extends EntropyDecoder {
         if ((((csj >>> 1) & (~csj)) & _vstdMaskR1R2) != 0) {
           var k = sk + (dscanw << 1);
           if ((csj & (_stateSigR1 | _stateVisitedR1)) == _stateSigR1) {
-            final sym = mq.decodeSymbol(_mrLut[csj & _mrMask]);
-            data[k] &= resetmask;
-            data[k] |= (sym << bitPlane) | setmask;
+            final sym = mqDecoder.decodeSymbol(_mrLut[csj & _mrMask]);
+          
+            data[k] = _refineMagnitude(data[k], resetmask, sym, bitPlane, setmask);
             csj |= _statePrevMrR1;
           }
           if (stripeHeight < 4) {
@@ -946,9 +908,9 @@ class StdEntropyDecoder extends EntropyDecoder {
           }
           if ((csj & (_stateSigR2 | _stateVisitedR2)) == _stateSigR2) {
             k += dscanw;
-            final sym = mq.decodeSymbol(_mrLut[(csj >>> _stateSep) & _mrMask]);
-            data[k] &= resetmask;
-            data[k] |= (sym << bitPlane) | setmask;
+            final sym = mqDecoder.decodeSymbol(_mrLut[(csj >>> _stateSep) & _mrMask]);
+           
+            data[k] = _refineMagnitude(data[k], resetmask, sym, bitPlane, setmask);
             csj |= _statePrevMrR2;
           }
           state[j] = csj;
@@ -958,10 +920,10 @@ class StdEntropyDecoder extends EntropyDecoder {
 
     var error = false;
     if (terminated && (_options & StdEntropyCoderOptions.OPT_PRED_TERM) != 0) {
-      error = mq.checkPredTerm();
+      error = mqDecoder.checkPredTerm();
     }
     if ((_options & StdEntropyCoderOptions.OPT_RESET_MQ) != 0) {
-      mq.resetCtxts();
+      mqDecoder.resetCtxts();
     }
     return error;
   }
@@ -996,8 +958,7 @@ class StdEntropyDecoder extends EntropyDecoder {
           var k = sk;
           if ((csj & (_stateSigR1 | _stateVisitedR1)) == _stateSigR1) {
             final sym = bin.readBit();
-            data[k] &= resetmask;
-            data[k] |= (sym << bitPlane) | setmask;
+            data[k] = _refineMagnitude(data[k], resetmask, sym, bitPlane, setmask);
           }
           if (stripeHeight < 2) {
             continue;
@@ -1005,8 +966,7 @@ class StdEntropyDecoder extends EntropyDecoder {
           if ((csj & (_stateSigR2 | _stateVisitedR2)) == _stateSigR2) {
             k += dscanw;
             final sym = bin.readBit();
-            data[k] &= resetmask;
-            data[k] |= (sym << bitPlane) | setmask;
+            data[k] = _refineMagnitude(data[k], resetmask, sym, bitPlane, setmask);
           }
         }
         if (stripeHeight < 3) {
@@ -1018,8 +978,7 @@ class StdEntropyDecoder extends EntropyDecoder {
           var k = sk + (dscanw << 1);
           if ((csj & (_stateSigR1 | _stateVisitedR1)) == _stateSigR1) {
             final sym = bin.readBit();
-            data[k] &= resetmask;
-            data[k] |= (sym << bitPlane) | setmask;
+            data[k] = _refineMagnitude(data[k], resetmask, sym, bitPlane, setmask);
           }
           if (stripeHeight < 4) {
             continue;
@@ -1027,8 +986,7 @@ class StdEntropyDecoder extends EntropyDecoder {
           if ((csj & (_stateSigR2 | _stateVisitedR2)) == _stateSigR2) {
             k += dscanw;
             final sym = bin.readBit();
-            data[k] &= resetmask;
-            data[k] |= (sym << bitPlane) | setmask;
+            data[k] = _refineMagnitude(data[k], resetmask, sym, bitPlane, setmask);
           }
         }
       }
@@ -1059,6 +1017,7 @@ class StdEntropyDecoder extends EntropyDecoder {
     final setmask = one | half;
     final nstripes = (cblk.h + StdEntropyCoderOptions.STRIPE_HEIGHT - 1) ~/ StdEntropyCoderOptions.STRIPE_HEIGHT;
     final causal = (_options & StdEntropyCoderOptions.OPT_VERT_STR_CAUSAL) != 0;
+    final instrumented = _isInstrumentationEnabled();
 
     final offUl = -sscanw - 1;
     final offUr = -sscanw + 1;
@@ -1076,22 +1035,36 @@ class StdEntropyDecoder extends EntropyDecoder {
         var j = sj;
         var csj = state[j];
         var broken = false;
+        final column = sk - (stopSk - cblk.w);
         if ((csj == 0) &&
           (state[j + sscanw] == 0) &&
           stripeHeight == StdEntropyCoderOptions.STRIPE_HEIGHT) {
+          if (instrumented) {
+            _log('cleanup RLC candidate column=$column stripe=$s bitPlane=$bitPlane');
+          }
           final rlcFlag = mq.decodeSymbol(_rlcContext);
+          if (instrumented) {
+            _log('cleanup RLC flag=$rlcFlag column=$column stripe=$s');
+          }
+          
           if (rlcFlag != 0) {
-            var rlclen = mq.decodeSymbol(_uniformContext) << 1;
-            rlclen |= mq.decodeSymbol(_uniformContext);
+            var rlc1 = mq.decodeSymbol(_uniformContext);
+            var rlc2 = mq.decodeSymbol(_uniformContext);
+            var rlclen = (rlc1 << 1) | rlc2;
+            if (instrumented) {
+              _log('cleanup RLC len=$rlclen column=$column stripe=$s bits=[$rlc1,$rlc2]');
+            }
+           
             var k = sk + rlclen * dscanw;
             if (rlclen > 1) {
               j += sscanw;
               csj = state[j];
             }
             if ((rlclen & 0x01) == 0) {
-              final sym = mq.decodeSymbol(_scLut[(csj >>> _scShiftR1) & _scMask] & ((1 << _scShiftR1) - 1)) ^
-                  (_scLut[(csj >>> _scShiftR1) & _scMask] >>> _scSpredShift);
-              data[k] = (sym << 31) | setmask;
+              final ctxt = _scLut[(csj >>> _scShiftR1) & _scMask];
+              final rawSym = mq.decodeSymbol(ctxt & ((1 << _scShiftR1) - 1));
+              final sym = rawSym ^ (ctxt >>> _scSpredShift);
+              data[k] = _encodeSignSample(sym, setmask);
               if (rlclen != 0 || !causal) {
                 state[j + offUl] |= _stateNzCtxtR2 | _stateDdrR2;
                 state[j + offUr] |= _stateNzCtxtR2 | _stateDdlR2;
@@ -1123,8 +1096,9 @@ class StdEntropyDecoder extends EntropyDecoder {
               }
             } else {
               final lut = _scLut[(csj >>> _scShiftR2) & _scMask];
-              final sym = mq.decodeSymbol(lut & ((1 << _scShiftR1) - 1)) ^ (lut >>> _scSpredShift);
-              data[k] = (sym << 31) | setmask;
+              final rawSym = mq.decodeSymbol(lut & ((1 << _scShiftR1) - 1));
+              final sym = rawSym ^ (lut >>> _scSpredShift);
+              data[k] = _encodeSignSample(sym, setmask);
               state[j + offDl] |= _stateNzCtxtR1 | _stateDurR1;
               state[j + offDr] |= _stateNzCtxtR1 | _stateDulR1;
               if (sym != 0) {
@@ -1150,16 +1124,22 @@ class StdEntropyDecoder extends EntropyDecoder {
               csj = state[j];
               broken = true;
             }
+          } else {
+            continue;
           }
         }
         if (!broken) {
           if ((((csj >> 1) | csj) & _vstdMaskR1R2) != _vstdMaskR1R2) {
             var k = sk;
             if ((csj & (_stateSigR1 | _stateVisitedR1)) == 0) {
-              if (mq.decodeSymbol(zcLut[csj & _zcMask]) != 0) {
+           
+              int sym = mq.decodeSymbol(zcLut[csj & _zcMask]);
+             
+              if (sym != 0) {
                 final lut = _scLut[(csj >>> _scShiftR1) & _scMask];
-                final sym = mq.decodeSymbol(lut & ((1 << _scShiftR1) - 1)) ^ (lut >>> _scSpredShift);
-                data[k] = (sym << 31) | setmask;
+                var sym = mq.decodeSymbol(lut & ((1 << _scShiftR1) - 1));
+                sym ^= (lut >>> _scSpredShift);
+                data[k] = _encodeSignSample(sym, setmask);
                 if (!causal) {
                   state[j + offUl] |= _stateNzCtxtR2 | _stateDdrR2;
                   state[j + offUr] |= _stateNzCtxtR2 | _stateDdlR2;
@@ -1194,10 +1174,13 @@ class StdEntropyDecoder extends EntropyDecoder {
             }
             if ((csj & (_stateSigR2 | _stateVisitedR2)) == 0) {
               k += dscanw;
-              if (mq.decodeSymbol(zcLut[(csj >>> _stateSep) & _zcMask]) != 0) {
+              int sym = mq.decodeSymbol(zcLut[(csj >>> _stateSep) & _zcMask]);
+            
+              if (sym != 0) {
                 final lut = _scLut[(csj >>> _scShiftR2) & _scMask];
-                final sym = mq.decodeSymbol(lut & ((1 << _scShiftR1) - 1)) ^ (lut >>> _scSpredShift);
-                data[k] = (sym << 31) | setmask;
+                var sym = mq.decodeSymbol(lut & ((1 << _scShiftR1) - 1));
+                sym ^= (lut >>> _scSpredShift);
+                data[k] = _encodeSignSample(sym, setmask);
                 state[j + offDl] |= _stateNzCtxtR1 | _stateDurR1;
                 state[j + offDr] |= _stateNzCtxtR1 | _stateDulR1;
                 if (sym != 0) {
@@ -1215,8 +1198,6 @@ class StdEntropyDecoder extends EntropyDecoder {
                   state[j + sscanw] |= _stateNzCtxtR1 | _stateVuR1;
                   state[j + 1] |= _stateNzCtxtR1 | _stateNzCtxtR2 |
                       _stateDdlR1 | _stateHlR2;
-                  state[j - 1] |= _stateNzCtxtR1 | _stateNzCtxtR2 |
-                      _stateDdrR1 | _stateHrR2;
                 }
               }
             }
@@ -1229,13 +1210,17 @@ class StdEntropyDecoder extends EntropyDecoder {
           j += sscanw;
           csj = state[j];
         }
+        
         if ((((csj >> 1) | csj) & _vstdMaskR1R2) != _vstdMaskR1R2) {
           var k = sk + (dscanw << 1);
           if ((csj & (_stateSigR1 | _stateVisitedR1)) == 0) {
-            if (mq.decodeSymbol(zcLut[csj & _zcMask]) != 0) {
+            int sym = mq.decodeSymbol(zcLut[csj & _zcMask]);
+           
+            if (sym != 0) {
               final lut = _scLut[(csj >>> _scShiftR1) & _scMask];
-              final sym = mq.decodeSymbol(lut & ((1 << _scShiftR1) - 1)) ^ (lut >>> _scSpredShift);
-              data[k] = (sym << 31) | setmask;
+              var sym = mq.decodeSymbol(lut & ((1 << _scShiftR1) - 1));
+              sym ^= (lut >>> _scSpredShift);
+              data[k] = _encodeSignSample(sym, setmask);
               state[j + offUl] |= _stateNzCtxtR2 | _stateDdrR2;
               state[j + offUr] |= _stateNzCtxtR2 | _stateDdlR2;
               if (sym != 0) {
@@ -1265,10 +1250,13 @@ class StdEntropyDecoder extends EntropyDecoder {
           }
           if ((csj & (_stateSigR2 | _stateVisitedR2)) == 0) {
             k += dscanw;
-            if (mq.decodeSymbol(zcLut[(csj >>> _stateSep) & _zcMask]) != 0) {
+            int sym = mq.decodeSymbol(zcLut[(csj >>> _stateSep) & _zcMask]);
+          
+            if (sym != 0) {
               final lut = _scLut[(csj >>> _scShiftR2) & _scMask];
-              final sym = mq.decodeSymbol(lut & ((1 << _scShiftR1) - 1)) ^ (lut >>> _scSpredShift);
-              data[k] = (sym << 31) | setmask;
+              var sym = mq.decodeSymbol(lut & ((1 << _scShiftR1) - 1));
+              sym ^= (lut >>> _scSpredShift);
+              data[k] = _encodeSignSample(sym, setmask);
               state[j + offDl] |= _stateNzCtxtR1 | _stateDurR1;
               state[j + offDr] |= _stateNzCtxtR1 | _stateDulR1;
               if (sym != 0) {
@@ -1283,6 +1271,9 @@ class StdEntropyDecoder extends EntropyDecoder {
               } else {
                 csj |= _stateSigR2 | _stateVisitedR2 |
                     _stateNzCtxtR1 | _stateVdR1;
+              
+                state[j + sscanw] |= _stateNzCtxtR1 | _stateVuR1;
+               
                 state[j + sscanw] |= _stateNzCtxtR1 | _stateVuR1;
                 state[j + 1] |= _stateNzCtxtR1 | _stateNzCtxtR2 |
                     _stateDdlR1 | _stateHlR2;
@@ -1330,7 +1321,7 @@ class StdEntropyDecoder extends EntropyDecoder {
       while (k < lineEnd) {
         final value = data[k];
         if ((value & resetmask & 0x7FFFFFFF) != 0) {
-          data[k] = (value & resetmask) | setmask;
+          data[k] = _int32((value & resetmask) | setmask);
         } else {
           data[k] = 0;
         }
@@ -1410,7 +1401,7 @@ class StdEntropyDecoder extends EntropyDecoder {
     final lut = List<int>.filled(1 << _zcLutBits, 0, growable: false);
     lut[0] = 2;
     final twoBits = <int>[3, 5, 6, 9, 10, 12];
-    final oneBit = <int>[1, 2, 4, 8];
+    final oneBit = <int>[1, 2, 4,  8];
     final twoLeast = <int>[3, 5, 6, 7, 9, 10, 11, 12, 13, 14, 15];
     final threeLeast = <int>[7, 11, 13, 14, 15];
 
@@ -1493,4 +1484,14 @@ class StdEntropyDecoder extends EntropyDecoder {
     }
     return lut;
   }
+
+  static bool _isInstrumentationEnabled() => DecoderInstrumentation.isEnabled();
+
+  static void _logStatic(String message) {
+    if (_isInstrumentationEnabled()) {
+      DecoderInstrumentation.log(_logSource, message);
+    }
+  }
+
+  static void _log(String message) => _logStatic(message);
 }

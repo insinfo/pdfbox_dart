@@ -1,0 +1,68 @@
+import 'dart:io';
+import 'package:test/test.dart';
+import 'package:pdfbox_dart/src/jj2000/j2k/codestream/reader/header_decoder.dart';
+import 'package:pdfbox_dart/src/jj2000/j2k/codestream/header_info.dart';
+import 'package:pdfbox_dart/src/jj2000/j2k/io/be_buffered_random_access_file.dart';
+import 'package:pdfbox_dart/src/jj2000/j2k/fileformat/file_format_reader.dart';
+
+void main() {
+  group('Codestream Reading Tests', () {
+    test('Read sample.jp2', () {
+      dumpMarkers('sample.jp2');
+    });
+
+    test('Read rainbowbars-color.jp2', () {
+      dumpMarkers('rainbowbars-color.jp2');
+    });
+  });
+}
+
+void dumpMarkers(String filename) {
+  final file = File(filename);
+  if (!file.existsSync()) {
+    fail('File not found: $filename');
+  }
+
+  print('--- Dumping markers for $filename ---');
+  final input = BEBufferedRandomAccessFile.file(file, 'r');
+  final headerInfo = HeaderInfo();
+
+  try {
+    final ff = FileFormatReader(input);
+    ff.readFileFormat();
+    if (ff.JP2FFUsed) {
+      input.seek(ff.getFirstCodeStreamPos());
+    }
+
+    // In Dart port, we use the static method readMainHeader
+    HeaderDecoder.readMainHeader(input: input, headerInfo: headerInfo);
+    
+    final siz = headerInfo.siz;
+    if (siz != null) {
+      print('SIZ: w=${siz.xsiz} h=${siz.ysiz} tiles=${siz.xtsiz}x${siz.ytsiz} comps=${siz.csiz}');
+    } else {
+      print('SIZ: null');
+    }
+
+    final cod = headerInfo.cod['main'];
+    if (cod != null) {
+      print('COD: len=${cod.lcod} order=${cod.sgcodPo} layers=${cod.sgcodNl} decomp=${cod.spcodNdl}');
+    } else {
+      print('COD: null');
+    }
+
+    final qcd = headerInfo.qcd['main'];
+    if (qcd != null) {
+      print('QCD: len=${qcd.lqcd} type=${qcd.sqcd & 0x1f} guard=${(qcd.sqcd >> 5) & 7}');
+    } else {
+      print('QCD: null');
+    }
+
+  } catch (e, stack) {
+    print('Error reading header: $e');
+    print(stack);
+    rethrow;
+  } finally {
+    input.close();
+  }
+}

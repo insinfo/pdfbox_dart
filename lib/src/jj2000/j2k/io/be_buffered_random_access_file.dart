@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import '../util/int32_utils.dart';
 import 'buffered_random_access_file.dart';
 import 'endian_type.dart';
 
@@ -80,7 +81,7 @@ class BEBufferedRandomAccessFile extends BufferedRandomAccessFile {
   @override
   int readUnsignedInt() {
     final value = readInt();
-    return value & 0xffffffff;
+    return Int32Utils.mask32(value);
   }
 
   @override

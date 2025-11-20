@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import '../io/endian_type.dart';
 import '../io/exceptions.dart';
 import '../io/random_access_io.dart';
+import 'int32_utils.dart';
 
 /// Read-only implementation that mirrors JJ2000's `ISRandomAccessIO`.
 class ISRandomAccessIO implements RandomAccessIO {
@@ -120,7 +121,7 @@ class ISRandomAccessIO implements RandomAccessIO {
   int readUnsignedShort() => _readUnsigned(2);
 
   @override
-  int readInt() => _readUnsigned(4).toSigned(32);
+  int readInt() => Int32Utils.asInt32(_readUnsigned(4));
 
   @override
   int readUnsignedInt() => _readUnsigned(4);

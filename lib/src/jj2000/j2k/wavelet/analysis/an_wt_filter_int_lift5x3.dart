@@ -181,7 +181,4 @@ class AnWTFilterIntLift5x3 extends AnWTFilterInt {
   String toString() => 'w5x3 (lifting)';
 }
 
-extension on int {
-  bool get isEven => (this & 1) == 0;
-  bool get isOdd => !isEven;
-}
+

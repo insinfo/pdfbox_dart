@@ -451,6 +451,10 @@ class HeaderDecoder {
           );
           break;
         case Markers.PPT:
+          FacilityManager.getMsgLogger().printmsg(
+            MsgLogger.info,
+            'Parsed PPT marker for tile=${sot.isot} part=${sot.tpsot}',
+          );
           parsePptMarker(
             _readMarkerPayload(input),
             tileIdx: sot.isot,
@@ -1212,6 +1216,10 @@ class HeaderDecoder {
   }
 
   void parsePpmMarker(Uint8List markerPayload) {
+    FacilityManager.getMsgLogger().printmsg(
+      MsgLogger.info,
+      'Parsed PPM marker segment (length=${markerPayload.length})',
+    );
     if (markerPayload.length < 3) {
       throw ArgumentError('PPM marker payload must be at least 3 bytes');
     }

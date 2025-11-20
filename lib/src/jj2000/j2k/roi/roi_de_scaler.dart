@@ -4,6 +4,7 @@ import '../image/data_blk.dart';
 import '../image/data_blk_float.dart';
 import '../image/data_blk_int.dart';
 import '../quantization/dequantizer/cblk_quant_data_src_dec.dart';
+import '../util/int32_utils.dart';
 import '../util/parameter_list.dart';
 import '../wavelet/synthesis/multi_res_img_data_adapter.dart';
 import '../wavelet/synthesis/subband_syn.dart';
@@ -149,8 +150,9 @@ class ROIDeScaler extends MultiResImgDataAdapter
       return;
     }
 
-    final roiMask = _mask32(((1 << magBits) - 1) << (31 - magBits));
-    final overflowMask = _mask32(_invert32(roiMask) & 0x7fffffff);
+    final roiMask = Int32Utils.mask32(((1 << magBits) - 1) << (31 - magBits));
+    final overflowMask =
+      Int32Utils.mask32(Int32Utils.invert32(roiMask) & 0x7fffffff);
     final baseX = block.ulx;
     final baseY = block.uly;
     final divisor = 1 << shift;
@@ -168,12 +170,12 @@ class ROIDeScaler extends MultiResImgDataAdapter
           final sign = value & 0x80000000;
           final magnitude = (value & 0x7fffffff) ~/ divisor;
           final scaled = sign | (magnitude & 0x7fffffff);
-          data[rowIndex] = _toSigned32(scaled);
+          data[rowIndex] = Int32Utils.asInt32(scaled);
         } else if (overflowMask != 0 && (value & overflowMask) != 0) {
-          final cleared = value & _invert32(overflowMask);
+          final cleared = value & Int32Utils.invert32(overflowMask);
           final midpoint = 1 << (30 - magBits);
-          final adjusted = _mask32(cleared | midpoint);
-          data[rowIndex] = _toSigned32(adjusted);
+          final adjusted = Int32Utils.mask32(cleared | midpoint);
+          data[rowIndex] = Int32Utils.asInt32(adjusted);
         }
       }
       index += stride;
@@ -292,12 +294,6 @@ class ROIDeScaler extends MultiResImgDataAdapter
       index += stride;
     }
   }
-
-  static int _mask32(int value) => value & 0xffffffff;
-
-  static int _invert32(int value) => (~value) & 0xffffffff;
-
-  static int _toSigned32(int value) => _mask32(value).toSigned(32);
 
   static ROIDeScaler createInstance(
     CBlkQuantDataSrcDec source,

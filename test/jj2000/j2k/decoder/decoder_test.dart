@@ -3,9 +3,11 @@ import 'dart:typed_data';
 import 'dart:math' as math;
 
 import 'package:test/test.dart';
+import 'package:crypto/crypto.dart' show sha256;
 
 import 'package:pdfbox_dart/src/jj2000/j2k/codestream/markers.dart';
 import 'package:pdfbox_dart/src/jj2000/j2k/decoder/decoder.dart';
+import 'package:pdfbox_dart/src/jj2000/j2k/util/decoder_instrumentation.dart';
 import 'package:pdfbox_dart/src/jj2000/j2k/util/facility_manager.dart';
 import 'package:pdfbox_dart/src/jj2000/j2k/util/parameter_list.dart';
 import 'package:pdfbox_dart/src/jj2000/j2k/util/stream_msg_logger.dart';
@@ -207,6 +209,111 @@ void main() {
       expect(probe.hasChrominance, isTrue,
           reason: 'No chroma variation detected; decoder log:\n$diagnosticLog');
     }, skip: 'Chroma components currently decode as grayscale; investigate entropy stage.');
+  });
+
+  group('Decoder instrumentation parity', () {
+    setUp(() {
+      DecoderInstrumentation.configure(false);
+    });
+
+    tearDown(() {
+      DecoderInstrumentation.configure(false);
+    });
+
+    test('emits instrumentation logs when enabled', () {
+      final input = File('rainbowbars-color.jp2');
+      expect(input.existsSync(), isTrue,
+          reason: 'rainbowbars-color.jp2 must be present in repository root');
+
+      final tempDir = Directory.systemTemp.createTempSync('rainbowbars_instrument_');
+      addTearDown(() => tempDir.deleteSync(recursive: true));
+      final outputPath = '${tempDir.path}/rainbowbars.ppm';
+
+      DecoderInstrumentation.configure(true);
+
+      final stdoutBuffer = StringBuffer();
+      final stderrBuffer = StringBuffer();
+      final logger = StreamMsgLogger(stdoutBuffer, stderrBuffer);
+
+      final params = ParameterList()
+        ..put('i', input.path)
+        ..put('o', outputPath)
+        ..put('instrument', 'on')
+        ..put('verbose', 'off')
+        ..put('debug', 'off');
+
+      final decoder = FacilityManager.runWithLogger(logger, () {
+        final d = Decoder(params);
+        d.run();
+        return d;
+      });
+
+      final diagnosticLog = StringBuffer()
+        ..writeln('STDOUT:\n${stdoutBuffer.toString()}')
+        ..writeln('STDERR:\n${stderrBuffer.toString()}');
+
+      expect(decoder.exitCode, equals(0), reason: diagnosticLog.toString());
+
+      final outputFile = File(outputPath);
+      expect(outputFile.existsSync(), isTrue,
+          reason: 'Instrumented PPM file not created');
+
+      final combinedLog = '${stdoutBuffer.toString()}${stderrBuffer.toString()}';
+      expect(combinedLog.contains('[INST][Decoder]'), isTrue,
+          reason: 'Instrumentation log missing\n${diagnosticLog.toString()}');
+
+      expect(DecoderInstrumentation.isEnabled(), isTrue,
+          reason: 'Instrumentation unexpectedly disabled');
+    });
+
+    test('matches Java rainbowbars PPM snapshot when instrumentation is on', () {
+      final input = File('rainbowbars-color.jp2');
+      final expected = File('rainbowbars-java.ppm');
+      expect(input.existsSync(), isTrue,
+          reason: 'rainbowbars-color.jp2 must be present in repository root');
+      expect(expected.existsSync(), isTrue,
+          reason: 'rainbowbars-java.ppm must be present in repository root');
+
+      final tempDir = Directory.systemTemp.createTempSync('rainbowbars_instrument_snapshot_');
+      addTearDown(() => tempDir.deleteSync(recursive: true));
+      final outputPath = '${tempDir.path}/rainbowbars.ppm';
+
+      DecoderInstrumentation.configure(true);
+
+      final stdoutBuffer = StringBuffer();
+      final stderrBuffer = StringBuffer();
+      final logger = StreamMsgLogger(stdoutBuffer, stderrBuffer);
+
+      final params = ParameterList()
+        ..put('i', input.path)
+        ..put('o', outputPath)
+        ..put('instrument', 'on')
+        ..put('verbose', 'off')
+        ..put('debug', 'off');
+
+      final decoder = FacilityManager.runWithLogger(logger, () {
+        final d = Decoder(params);
+        d.run();
+        return d;
+      });
+
+      final diagnosticLog = StringBuffer()
+        ..writeln('STDOUT:\n${stdoutBuffer.toString()}')
+        ..writeln('STDERR:\n${stderrBuffer.toString()}');
+
+      expect(decoder.exitCode, equals(0), reason: diagnosticLog.toString());
+
+      final outputFile = File(outputPath);
+      expect(outputFile.existsSync(), isTrue,
+          reason: 'Instrumented PPM file not created');
+
+      final expectedDigest = sha256.convert(expected.readAsBytesSync()).toString();
+      final actualDigest = sha256.convert(outputFile.readAsBytesSync()).toString();
+      expect(actualDigest, equals(expectedDigest),
+          reason: 'Instrumented PPM mismatch\n${diagnosticLog.toString()}');
+    },
+        skip:
+            'Instrumented PPM output diverges from Java reference; investigate decoder parity.');
   });
 }
 

@@ -10,6 +10,7 @@ import '../io/be_buffered_random_access_file.dart';
 import '../io/random_access_io.dart';
 import '../quantization/dequantizer/std_dequantizer.dart';
 import '../roi/roi_de_scaler.dart';
+import '../util/decoder_instrumentation.dart';
 import '../util/facility_manager.dart';
 import '../util/msg_logger.dart';
 import '../util/parameter_list.dart';
@@ -97,6 +98,7 @@ class Decoder implements Runnable {
     <String>['i', '<filename or url>', 'Input JPEG 2000 codestream/JP2.', ''],
     <String>['o', '<filename>', 'Output image filename.', ''],
     <String>['debug', '[on|off]', 'Print debugging stack traces.', 'off'],
+    <String>['instrument', '[on|off]', 'Emits decoder instrumentation logs.', 'off'],
   ];
 
   static const List<int> vprfxs =
@@ -110,17 +112,27 @@ class Decoder implements Runnable {
   void run() {
     try {
       _runInternal();
-    } on StringFormatException catch (error) {
-      _error('Invalid arguments: ${error.message}', 1, error);
-    } on IOException catch (error) {
-      _error('I/O error: $error', 2, error);
-    } on Exception catch (error) {
-      _error('Unexpected error: $error', 3, error);
+    } on StringFormatException catch (error, stackTrace) {
+      _error('Invalid arguments: ${error.message}', 1, error, stackTrace);
+    } on IOException catch (error, stackTrace) {
+      _error('I/O error: $error', 2, error, stackTrace);
+    } on Exception catch (error, stackTrace) {
+      _error('Unexpected error: $error', 3, error, stackTrace);
     }
   }
 
   void _runInternal() {
     pl.checkList(vprfxs, ParameterList.toNameArray(pinfo));
+
+    var instrumentationEnabled = false;
+    final instrumentValue = pl.getParameter('instrument');
+    if (instrumentValue != null) {
+      instrumentationEnabled = pl.getBooleanParameter('instrument');
+    }
+    DecoderInstrumentation.configure(instrumentationEnabled);
+    if (instrumentationEnabled) {
+      DecoderInstrumentation.log('Decoder', 'Instrumentation enabled');
+    }
 
     if (pl.getParameter('u') == 'on') {
       _printUsage();
@@ -172,6 +184,13 @@ class Decoder implements Runnable {
           final sot = decoder.parseNextTilePart(file);
           tilePartCount++;
           tilePartPerTile[sot.isot] = (tilePartPerTile[sot.isot] ?? 0) + 1;
+
+          final bodyLength = decoder.getTilePartBodyLength(sot.isot, sot.tpsot);
+          final offset = decoder.getTilePartDataOffset(sot.isot, sot.tpsot);
+          _logger.printmsg(
+            MsgLogger.info,
+            'Tile ${sot.isot} part ${sot.tpsot} Psot=${sot.psot} body=${bodyLength ?? -1} offset=${offset ?? -1}',
+          );
 
           final psot = sot.psot;
           if (psot == 0) {
@@ -606,11 +625,11 @@ class Decoder implements Runnable {
         MsgLogger.info, 'JJ2000 Decoder (Dart port) - preview build');
   }
 
-  void _error(String message, int code, Object? error) {
+  void _error(String message, int code, Object? error, StackTrace? stackTrace) {
     exitCode = code;
     _logger.printmsg(MsgLogger.error, message);
-    if (pl.getParameter('debug') == 'on' && error is Error) {
-      _logger.printmsg(MsgLogger.error, error.stackTrace.toString());
+    if (pl.getParameter('debug') == 'on' && stackTrace != null) {
+      _logger.printmsg(MsgLogger.error, stackTrace.toString());
     }
   }
 }

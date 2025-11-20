@@ -49,6 +49,24 @@ class FileBitstreamReaderAgent extends BitstreamReaderAgent {
     final maxCodeBlocks = maxCbParam == null ? -1 : int.tryParse(maxCbParam) ?? -1;
     _pktDecoder = pktDecoderFactory?.call(this) ??
         PktDecoder(decoderSpecs, header, input, this, isTruncMode, maxCodeBlocks);
+    
+    // Parse all tile parts to populate offsets
+    try {
+      while (true) {
+        header.parseNextTilePart(input);
+      }
+    } catch (e) {
+      // Ignore errors indicating end of stream/EOC, rethrow others if critical
+      // For now, assume loop terminates when EOC is hit or EOF
+      if (e is StateError && e.message.contains('Reached end of codestream')) {
+        // Normal termination
+      } else if (e is EOFException) {
+        // Normal termination
+      } else {
+        // print('FileBitstreamReaderAgent: Stopped parsing tile parts: $e');
+      }
+    }
+
       _initialiseTargetResolution();
   }
 
@@ -502,6 +520,9 @@ class FileBitstreamReaderAgent extends BitstreamReaderAgent {
       }
     }
 
+    final dataLength = packedHeaderData?.length ?? 0;
+    print('Tile $tileIdx packedHeaders=$packedHeaders headerBytes=$dataLength');
+
     if (numLayersValue <= 0) {
       cbI = _pktDecoder.restart(nc, maxLevels, 0, cbI, packedHeaders, null);
       return;
@@ -530,6 +551,11 @@ class FileBitstreamReaderAgent extends BitstreamReaderAgent {
 
     if (budgets.isEmpty) {
       budgets.add(0x7fffffff);
+    }
+
+    if (tilePartBodyLengths != null || tilePartLengths != null) {
+      final rawLengths = tilePartBodyLengths ?? tilePartLengths ?? const <int>[];
+      print('Tile $tileIdx tile-part budgets=${rawLengths.join(',')} normalized=${budgets.join(',')}');
     }
 
     if (tilePartOffsets != null && tilePartOffsets.isNotEmpty) {

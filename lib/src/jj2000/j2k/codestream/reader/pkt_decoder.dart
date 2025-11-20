@@ -440,7 +440,7 @@ class PktDecoder {
             blockInfo.segLen[layer] = null;
 
             var newTruncPoints = 1;
-            while (reader.readBit() == 1) {
+            if (reader.readBit() == 1) {
               newTruncPoints++;
               if (reader.readBit() == 1) {
                 newTruncPoints++;
@@ -468,6 +468,15 @@ class PktDecoder {
 
             if (segmentCount == 1) {
               blockInfo.len[layer] = reader.readBits(baseLengthBits);
+              if (blockInfo.len[layer] > 32768) {
+                final tileIdx = src.getTileIdx();
+                print(
+                  'PktDecoder header len anomaly: tile=$tileIdx layer=$layer res=$resolution comp=$component '
+                  'precinct=$precinct subband=$subband block=${coordIdx.x}x${coordIdx.y} '
+                  'len=${blockInfo.len[layer]} bits=$baseLengthBits lblock=${lblockRow[coordIdx.x]} '
+                  'newTruncPoints=$newTruncPoints',
+                );
+              }
             } else {
               final lengths = List<int>.filled(segmentCount, 0, growable: false);
               blockInfo.segLen[layer] = lengths;
@@ -504,6 +513,15 @@ class PktDecoder {
                 );
                 blockInfo.len[layer] += finalValue;
                 lengths[cursor] = finalValue;
+                if (blockInfo.len[layer] > 32768) {
+                  final tileIdx = src.getTileIdx();
+                  print(
+                    'PktDecoder header segmented len anomaly: tile=$tileIdx layer=$layer res=$resolution comp=$component '
+                    'precinct=$precinct subband=$subband block=${coordIdx.x}x${coordIdx.y} '
+                    'len=${blockInfo.len[layer]} segments=$segmentCount lblock=${lblockRow[coordIdx.x]} '
+                    'newTruncPoints=$newTruncPoints',
+                  );
+                }
               }
             }
 
@@ -585,6 +603,12 @@ class PktDecoder {
           try {
             ehs.readFully(payload, 0, payloadLength);
           } on EOFException {
+            final currentPos = ehs.getPos();
+            print(
+              'PktDecoder payload EOF: tile=$tileIdx layer=$layer res=$resolution comp=$component '
+              'precinct=$precinct subband=$subband block=${coordIdx.x}x${coordIdx.y} '
+              'len=$payloadLength currentOffset=$currentOffset pos=$currentPos remaining=${remainingBytesPerTile[tileIdx]}',
+            );
             payload = null;
             _handleBodyRollback(subbandBlocks, subband, coordIdx.y, coordIdx.x, blockInfo, layer);
             rethrow;
@@ -603,6 +627,7 @@ class PktDecoder {
           if (stopReading || payloadLength > remainingBytesPerTile[tileIdx]) {
             _handleBodyRollback(subbandBlocks, subband, coordIdx.y, coordIdx.x, blockInfo, layer);
             stopReading = true;
+            currentOffset = blockInfo.off[layer];
           } else {
             remainingBytesPerTile[tileIdx] -= payloadLength;
           }

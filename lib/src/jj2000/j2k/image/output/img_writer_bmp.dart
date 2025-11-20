@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import '../../util/decoder_instrumentation.dart';
 import '../blk_img_data_src.dart';
 import '../data_blk_int.dart';
 import 'img_writer.dart';
@@ -13,6 +14,7 @@ import 'img_writer.dart';
 /// RGB order and written as BGR triplets, mirroring JJ2000's component
 /// selection for PPM output.
 class ImgWriterBmp extends ImgWriter {
+  static const String _logSource = 'ImgWriterBMP';
   ImgWriterBmp(File output, BlkImgDataSrc source) {
     if (source.getImgWidth() <= 0 || source.getImgHeight() <= 0) {
       throw ArgumentError('Image dimensions must be positive for BMP output.');
@@ -55,7 +57,7 @@ class ImgWriterBmp extends ImgWriter {
     for (var i = 0; i < componentCount; i++) {
       final component = _components[i];
       final rangeBits = source.getNomRangeBits(component);
-      if (_debugNomRangePrinted < 1) {
+      if (_debugNomRangePrinted < 1 && _isInstrumentationEnabled()) {
         _debugNomRangePrinted++;
         final buffer = StringBuffer('BMP writer nominal range bits:');
         for (var j = 0; j < componentCount; j++) {
@@ -63,7 +65,7 @@ class ImgWriterBmp extends ImgWriter {
           final bits = source.getNomRangeBits(compIdx);
           buffer.write(' c$compIdx=$bits');
         }
-        print(buffer.toString());
+        _log(buffer.toString());
       }
       if (rangeBits <= 0) {
         throw ArgumentError('Component $component has invalid bit depth.');
@@ -231,9 +233,9 @@ class ImgWriterBmp extends ImgWriter {
     final greenFixed = _fixedPoint[1];
     final blueFixed = _fixedPoint[2];
 
-    if (_debugFixedPointPrinted < 1) {
+    if (_debugFixedPointPrinted < 1 && _isInstrumentationEnabled()) {
       _debugFixedPointPrinted++;
-      print('BMP writer fixed-point: R=$redFixed G=$greenFixed B=$blueFixed');
+      _log('BMP writer fixed-point: R=$redFixed G=$greenFixed B=$blueFixed');
     }
 
     final redLevel = _levelShift[0];
@@ -253,7 +255,8 @@ class ImgWriterBmp extends ImgWriter {
     var bIndex = blueOffset;
     var target = 0;
     const int debugSamples = 4;
-    var debugRemaining = _debugLines > 0 ? debugSamples : 0;
+    final captureDebug = _isInstrumentationEnabled() && _debugLines > 0;
+    var debugRemaining = captureDebug ? debugSamples : 0;
     for (var x = 0; x < regionWidth; x++) {
       var red = redFixed == 0
           ? redData[rIndex] + redLevel
@@ -290,7 +293,7 @@ class ImgWriterBmp extends ImgWriter {
         _debugRemainingBuffer!.add('($red,$green,$blue)');
         debugRemaining--;
         if (debugRemaining == 0) {
-          print('BMP writer debug line ${_debugLines}: '
+          _log('BMP writer debug line ${_debugLines}: '
               '${_debugRemainingBuffer!.join(' ')}');
           _debugRemainingBuffer!.clear();
           _debugLines--;
@@ -312,6 +315,14 @@ class ImgWriterBmp extends ImgWriter {
   static List<String>? _debugRemainingBuffer;
   static int _debugFixedPointPrinted = 0;
   static int _debugNomRangePrinted = 0;
+
+  static bool _isInstrumentationEnabled() => DecoderInstrumentation.isEnabled();
+
+  static void _log(String message) {
+    if (_isInstrumentationEnabled()) {
+      DecoderInstrumentation.log(_logSource, message);
+    }
+  }
 
   @override
   void flush() {

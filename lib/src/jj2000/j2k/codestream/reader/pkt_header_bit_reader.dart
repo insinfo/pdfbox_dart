@@ -35,6 +35,9 @@ class PktHeaderBitReader {
       } else {
         _bitBuffer = _nextBitBuffer;
         _bitPos = 7;
+        if (_bitBuffer == 0xff) {
+          _nextBitBuffer = _readByte();
+        }
       }
     }
     _bitPos--;
@@ -71,6 +74,9 @@ class PktHeaderBitReader {
       } else {
         _bitBuffer = _nextBitBuffer;
         _bitPos = 7;
+        if (_bitBuffer == 0xff) {
+          _nextBitBuffer = _readByte();
+        }
       }
     }
 
@@ -143,8 +149,7 @@ class PktHeaderBitReader {
       throw StateError('PktHeaderBitReader has no input source');
     }
     try {
-      final value = input.read();
-      return value & 0xff;
+      return input.read() & 0xff;
     } on EOFException {
       rethrow;
     }

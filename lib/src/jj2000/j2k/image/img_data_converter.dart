@@ -6,15 +6,15 @@ import 'data_blk_float.dart';
 import 'data_blk_int.dart';
 import 'img_data_adapter.dart';
 
-/// Converts between integer and floating-point block representations on demand.
 class ImgDataConverter extends ImgDataAdapter implements BlkImgDataSrc {
   ImgDataConverter(BlkImgDataSrc source, [int fixedPoint = 0])
-      : _fixedPoint = fixedPoint,
-        _source = source,
+      : _source = source,
+        _fixedPoint = fixedPoint,
+        _requestBlock = DataBlkInt(),
         super(source);
 
   final BlkImgDataSrc _source;
-  final DataBlkInt _intScratch = DataBlkInt();
+  DataBlk _requestBlock;
   int _fixedPoint;
 
   @override
@@ -22,20 +22,20 @@ class ImgDataConverter extends ImgDataAdapter implements BlkImgDataSrc {
 
   @override
   DataBlk getCompData(DataBlk block, int component) =>
-      _resolveData(block, component, false);
+      _getData(block, component, false);
 
   @override
   DataBlk getInternCompData(DataBlk block, int component) =>
-      _resolveData(block, component, true);
+      _getData(block, component, true);
 
-  DataBlk _resolveData(DataBlk block, int component, bool intern) {
+  DataBlk _getData(DataBlk block, int component, bool intern) {
     final desiredType = block.getDataType();
     DataBlk request;
 
-    if (desiredType == _intScratch.getDataType()) {
+    if (desiredType == _requestBlock.getDataType()) {
       request = block;
     } else {
-      request = _intScratch
+      request = _requestBlock
         ..ulx = block.ulx
         ..uly = block.uly
         ..w = block.w
@@ -46,21 +46,9 @@ class ImgDataConverter extends ImgDataAdapter implements BlkImgDataSrc {
         ? _source.getInternCompData(request, component)
         : _source.getCompData(request, component);
 
+    _requestBlock = acquired;
+
     if (acquired.getDataType() == desiredType) {
-      if (!identical(acquired, block)) {
-        block
-          ..ulx = acquired.ulx
-          ..uly = acquired.uly
-          ..w = acquired.w
-          ..h = acquired.h
-          ..offset = acquired.offset
-          ..scanw = acquired.scanw
-          ..progressive = acquired.progressive
-          ..setData(acquired.getData());
-      }
-      if (acquired is DataBlkInt) {
-        _fixedPoint = _source.getFixedPoint(component);
-      }
       return acquired;
     }
 
@@ -104,13 +92,11 @@ class ImgDataConverter extends ImgDataAdapter implements BlkImgDataSrc {
     var floatData = floatBlock.getDataFloat();
     if (floatData == null || floatData.length < required) {
       floatData = Float32List(required);
-      floatBlock.setData(floatData);
+      floatBlock.setDataFloat(floatData);
     }
 
     final shift = _source.getFixedPoint(component);
-    if (shift != _fixedPoint) {
-      _fixedPoint = shift;
-    }
+    _fixedPoint = shift;
     final scale = shift == 0 ? 1.0 : 1.0 / (1 << shift);
 
     var srcIndex = source.offset;

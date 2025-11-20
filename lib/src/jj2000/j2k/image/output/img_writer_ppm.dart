@@ -3,12 +3,15 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import '../../util/decoder_instrumentation.dart';
 import '../blk_img_data_src.dart';
 import '../data_blk_int.dart';
 import 'img_writer.dart';
 
 /// Writes three-component image data to a binary PPM (P6) file.
 class ImgWriterPpm extends ImgWriter {
+  static const String _logSource = 'ImgWriterPPM';
+
   ImgWriterPpm(
     File output,
     BlkImgDataSrc imageSource,
@@ -86,6 +89,7 @@ class ImgWriterPpm extends ImgWriter {
   final List<int> _components = List<int>.filled(3, 0);
   final List<int> _fixedPoint = List<int>.filled(3, 0);
   final DataBlkInt _block = DataBlkInt();
+  bool _fixedPointLogged = false;
 
   RandomAccessFile? _file;
   Uint8List? _buffer;
@@ -147,6 +151,12 @@ class ImgWriterPpm extends ImgWriter {
       _buffer = Uint8List(bufferSize);
     }
 
+    if (!_fixedPointLogged && _isInstrumentationEnabled()) {
+      _fixedPointLogged = true;
+      _log('PPM writer fixed-point: R=${_fixedPoint[0]} '
+          'G=${_fixedPoint[1]} B=${_fixedPoint[2]}');
+    }
+
     final compIndex0 = _components[0];
     final tOffx = src.getCompULX(compIndex0) -
         (src.getImgULX() / src.getCompSubsX(compIndex0)).ceil();
@@ -179,7 +189,8 @@ class ImgWriterPpm extends ImgWriter {
 
         var sourceIndex = block.offset + regionWidth - 1;
         var targetIndex = 3 * regionWidth - 1 + channel - 2;
-        var debugRemaining = _debugLines > 0 ? debugSamples : 0;
+        final captureDebug = _isInstrumentationEnabled() && _debugLines > 0;
+        var debugRemaining = captureDebug ? debugSamples : 0;
         while (targetIndex >= 0) {
           var sample = fracBits == 0
               ? data[sourceIndex] + shift
@@ -204,12 +215,12 @@ class ImgWriterPpm extends ImgWriter {
         }
       }
 
-      if (_debugLines > 0) {
+      if (_isInstrumentationEnabled() && _debugLines > 0) {
         final tuples = <String>[];
         for (var i = 0; i < debugSamples; i++) {
           tuples.add('(${_debugTuple[0][i]},${_debugTuple[1][i]},${_debugTuple[2][i]})');
         }
-        print('PPM writer debug line $_debugLines: ${tuples.join(' ')}');
+        _log('PPM writer debug line $_debugLines: ${tuples.join(' ')}');
         _debugLines--;
       }
 
@@ -233,4 +244,12 @@ class ImgWriterPpm extends ImgWriter {
   static int _debugLines = 2;
   static final List<List<int>> _debugTuple =
       List<List<int>>.generate(3, (_) => List<int>.filled(debugSamples, 0));
+
+  static bool _isInstrumentationEnabled() => DecoderInstrumentation.isEnabled();
+
+  static void _log(String message) {
+    if (_isInstrumentationEnabled()) {
+      DecoderInstrumentation.log(_logSource, message);
+    }
+  }
 }
