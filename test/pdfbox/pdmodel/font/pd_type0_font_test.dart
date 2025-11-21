@@ -47,7 +47,13 @@ void main() {
       expect(bbox, isNotNull);
       expect(bbox!.lowerLeftX, closeTo(-50, 1e-6));
       expect(pdFont.fontMatrix, isNotNull);
-      expect(pdFont.fontMatrix, orderedEquals(<num>[0.001, 0, 0, 0.001, 0, 0]));
+      final matrix = pdFont.fontMatrix;
+      expect(matrix.scaleX, closeTo(0.001, 1e-6));
+      expect(matrix.shearY, closeTo(0, 1e-6));
+      expect(matrix.shearX, closeTo(0, 1e-6));
+      expect(matrix.scaleY, closeTo(0.001, 1e-6));
+      expect(matrix.translateX, closeTo(0, 1e-6));
+      expect(matrix.translateY, closeTo(0, 1e-6));
       final dictionary = pdFont.cosObject;
       expect(dictionary.getNameAsString(COSName.type), 'Font');
       expect(dictionary.getNameAsString(COSName.subtype), 'Type0');
