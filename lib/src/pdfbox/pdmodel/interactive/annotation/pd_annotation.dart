@@ -156,4 +156,10 @@ abstract class PDAnnotation {
       dictionary.setItem(COSName.bs, value);
     }
   }
+
+  /// Returns the StructParent value, or -1 if missing.
+  int get structParent => dictionary.getInt(COSName.structParent) ?? -1;
+
+  /// Sets the StructParent value.
+  set structParent(int value) => dictionary.setInt(COSName.structParent, value);
 }

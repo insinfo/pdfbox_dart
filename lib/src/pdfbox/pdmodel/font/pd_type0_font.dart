@@ -12,6 +12,7 @@ import '../../cos/cos_array.dart';
 import '../../cos/cos_dictionary.dart';
 import '../../cos/cos_name.dart';
 import '../../cos/cos_stream.dart';
+import '../../util/matrix.dart';
 import '../pd_document.dart';
 import 'pd_cid_font.dart';
 import 'pd_cid_font_parent.dart';
@@ -26,12 +27,15 @@ import 'cid_system_info.dart';
 import 'pd_font_descriptor.dart';
 import '../../../fontbox/util/bounding_box.dart';
 
+import 'dart:io';
+
 /// Lightweight wrapper around [Type0Font] that prepares a Type 0 font dictionary.
 class PDType0Font extends PDFont implements PDVectorFont, PDCIDFontParent {
   PDType0Font(COSDictionary dictionary)
       : _type0Font = null,
         _cidEmbedderResult = null,
         super(dictionary) {
+    // stderr.writeln('PDType0Font created for ${dictionary.getNameAsString(COSName.baseFont)}');
     _cidFont = _readCidFont(dictionary);
   }
 
@@ -94,20 +98,21 @@ class PDType0Font extends PDFont implements PDVectorFont, PDCIDFontParent {
   }
 
   /// Returns the descendant font matrix when available.
-  List<num>? get fontMatrix {
+  @override
+  Matrix get fontMatrix {
     final descendant = _cidFont;
     if (descendant != null) {
-      final matrix = descendant.getFontMatrix();
-      return <num>[
-        matrix.getValue(0, 0),
-        matrix.getValue(0, 1),
-        matrix.getValue(1, 0),
-        matrix.getValue(1, 1),
-        matrix.getValue(2, 0),
-        matrix.getValue(2, 1),
-      ];
+      return descendant.getFontMatrix();
     }
-    return _type0Font?.fontMatrix;
+    final list = _type0Font?.fontMatrix;
+    if (list != null && list.length >= 6) {
+       return Matrix.fromComponents(
+         list[0].toDouble(), list[1].toDouble(),
+         list[2].toDouble(), list[3].toDouble(),
+         list[4].toDouble(), list[5].toDouble()
+       );
+    }
+    return super.fontMatrix;
   }
 
   /// Indicates whether the font dictionary references an embedded descendant font.
@@ -603,6 +608,19 @@ class PDType0Font extends PDFont implements PDVectorFont, PDCIDFontParent {
       }
     }
 
+    // Fallback: Try to get Unicode from the embedded font's CMap
+    final descendant = _cidFont;
+    if (descendant is PDCIDFontType2) {
+      final gid = codeToGid(code);
+      final unicode = descendant.toUnicodeFromGID(gid);
+      stderr.writeln('DEBUG: PDType0Font code=$code gid=$gid unicode=$unicode');
+      if (unicode != null) {
+        return unicode;
+      }
+    } else {
+       stderr.writeln('DEBUG: descendant is not PDCIDFontType2: $descendant');
+    }
+
     return null;
   }
 
@@ -722,15 +740,23 @@ class PDType0Font extends PDFont implements PDVectorFont, PDCIDFontParent {
 
     final base = cosObject.getDictionaryObject(COSName.toUnicode);
     if (base is COSStream) {
+      print('PDType0Font: Found ToUnicode CMap stream');
       final decoded = base.decode();
       if (decoded != null) {
         final buffer = RandomAccessReadBuffer.fromBytes(decoded);
         try {
           _cachedToUnicode = CMapManager.parseCMap(buffer);
+          print('PDType0Font: Parsed ToUnicode CMap: ${_cachedToUnicode?.name}');
+        } catch (e) {
+          print('PDType0Font: Error parsing ToUnicode CMap: $e');
         } finally {
           buffer.close();
         }
+      } else {
+          print('PDType0Font: Failed to decode ToUnicode stream');
       }
+    } else {
+        print('PDType0Font: No ToUnicode CMap found');
     }
     return _cachedToUnicode;
   }

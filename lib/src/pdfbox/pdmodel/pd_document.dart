@@ -24,6 +24,7 @@ import '../pdfparser/pdf_parser.dart';
 import 'pd_document_information.dart';
 import 'pd_document_catalog.dart';
 import 'pd_page.dart';
+import 'pd_page_tree.dart';
 import 'pd_resources.dart';
 import 'resource_cache.dart';
 import 'pd_stream.dart';
@@ -124,6 +125,8 @@ class PDDocument {
 
   set documentOutline(PDOutlineRoot? outline) =>
       _catalog.documentOutline = outline;
+
+  PDPageTree get pages => documentCatalog.pages;
 
   String get version => _document.headerVersion;
 

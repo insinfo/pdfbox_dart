@@ -23,6 +23,24 @@ class PDFontDescriptor {
 
   COSDictionary get cosObject => _dictionary;
 
+  double? get ascent => _dictionary.getFloat(COSName.ascent);
+
+  double? get descent => _dictionary.getFloat(COSName.descent);
+
+  double? get capHeight => _dictionary.getFloat(COSName.capHeight);
+
+  double? get xHeight => _dictionary.getFloat(COSName.xHeight);
+
+  double? get avgWidth => _dictionary.getFloat(COSName.avgWidth);
+
+  List<double>? get fontBBox {
+    final array = _dictionary.getCOSArray(COSName.fontBBox);
+    if (array == null) {
+      return null;
+    }
+    return array.toDoubleList();
+  }
+
   set fontName(String? value) => _dictionary.setName(COSName.fontName, value);
 
   set fontFamily(String? value) => _dictionary.setString(COSName.fontFamily, value);
@@ -35,27 +53,31 @@ class PDFontDescriptor {
 
   set italicAngle(double value) => _dictionary.setFloat(COSName.italicAngle, value);
 
-  set ascent(double value) => _dictionary.setFloat(COSName.ascent, value);
+  set ascent(double? value) => _dictionary.setFloat(COSName.ascent, value);
 
-  set descent(double value) => _dictionary.setFloat(COSName.descent, value);
+  set descent(double? value) => _dictionary.setFloat(COSName.descent, value);
 
   set leading(double value) => _dictionary.setFloat(COSName.leading, value);
 
-  set capHeight(double value) => _dictionary.setFloat(COSName.capHeight, value);
+  set capHeight(double? value) => _dictionary.setFloat(COSName.capHeight, value);
 
-  set xHeight(double value) => _dictionary.setFloat(COSName.xHeight, value);
+  set xHeight(double? value) => _dictionary.setFloat(COSName.xHeight, value);
 
   set stemV(double value) => _dictionary.setFloat(COSName.stemV, value);
 
   set stemH(double value) => _dictionary.setFloat(COSName.stemH, value);
 
-  set avgWidth(double value) => _dictionary.setFloat(COSName.avgWidth, value);
+  set avgWidth(double? value) => _dictionary.setFloat(COSName.avgWidth, value);
 
   set maxWidth(double value) => _dictionary.setFloat(COSName.maxWidth, value);
 
   set missingWidth(double value) => _dictionary.setFloat(COSName.missingWidth, value);
 
-  set fontBBox(List<double> bbox) {
+  set fontBBox(List<double>? bbox) {
+    if (bbox == null) {
+      _dictionary.removeItem(COSName.fontBBox);
+      return;
+    }
     final array = COSArray();
     for (final value in bbox) {
       array.add(COSFloat(value));

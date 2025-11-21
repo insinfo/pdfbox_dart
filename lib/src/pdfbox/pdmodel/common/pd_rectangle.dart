@@ -5,7 +5,7 @@ import '../../cos/cos_number.dart';
 
 /// Represents a rectangle in PDF coordinates.
 class PDRectangle {
-  const PDRectangle(
+  PDRectangle(
       this.lowerLeftX, this.lowerLeftY, this.upperRightX, this.upperRightY);
 
   factory PDRectangle.fromCOSArray(COSArray array) {
@@ -29,37 +29,45 @@ class PDRectangle {
     throw ArgumentError('Expected COSArray when constructing PDRectangle');
   }
 
-  final double lowerLeftX;
-  final double lowerLeftY;
-  final double upperRightX;
-  final double upperRightY;
+  double lowerLeftX;
+  double lowerLeftY;
+  double upperRightX;
+  double upperRightY;
+
+  bool contains(double x, double y) {
+    double x0 = lowerLeftX;
+    double y0 = lowerLeftY;
+    double x1 = upperRightX;
+    double y1 = upperRightY;
+    return x >= x0 && x <= x1 && y >= y0 && y <= y1;
+  }
 
   /// A rectangle the size of U.S. Letter, 8.5" x 11".
-  static const PDRectangle letter = PDRectangle(0, 0, 612, 792);
+  static final PDRectangle letter = PDRectangle(0, 0, 612, 792);
 
   /// A rectangle the size of U.S. Legal, 8.5" x 14".
-  static const PDRectangle legal = PDRectangle(0, 0, 612, 1008);
+  static final PDRectangle legal = PDRectangle(0, 0, 612, 1008);
 
   /// A rectangle the size of A0 Paper.
-  static const PDRectangle a0 = PDRectangle(0, 0, 2383.937, 3370.3937);
+  static final PDRectangle a0 = PDRectangle(0, 0, 2383.937, 3370.3937);
 
   /// A rectangle the size of A1 Paper.
-  static const PDRectangle a1 = PDRectangle(0, 0, 1683.7795, 2383.937);
+  static final PDRectangle a1 = PDRectangle(0, 0, 1683.7795, 2383.937);
 
   /// A rectangle the size of A2 Paper.
-  static const PDRectangle a2 = PDRectangle(0, 0, 1190.5513, 1683.7795);
+  static final PDRectangle a2 = PDRectangle(0, 0, 1190.5513, 1683.7795);
 
   /// A rectangle the size of A3 Paper.
-  static const PDRectangle a3 = PDRectangle(0, 0, 841.8898, 1190.5513);
+  static final PDRectangle a3 = PDRectangle(0, 0, 841.8898, 1190.5513);
 
   /// A rectangle the size of A4 Paper.
-  static const PDRectangle a4 = PDRectangle(0, 0, 595.2756, 841.8898);
+  static final PDRectangle a4 = PDRectangle(0, 0, 595.2756, 841.8898);
 
   /// A rectangle the size of A5 Paper.
-  static const PDRectangle a5 = PDRectangle(0, 0, 419.5276, 595.2756);
+  static final PDRectangle a5 = PDRectangle(0, 0, 419.5276, 595.2756);
 
   /// A rectangle the size of A6 Paper.
-  static const PDRectangle a6 = PDRectangle(0, 0, 297.6378, 419.5276);
+  static final PDRectangle a6 = PDRectangle(0, 0, 297.6378, 419.5276);
 
   double get width => upperRightX - lowerLeftX;
 

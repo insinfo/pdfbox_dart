@@ -193,4 +193,24 @@ class Matrix {
       }
     }
   }
+
+  double get scaleX => _values[0];
+  double get shearY => _values[1];
+  double get shearX => _values[3];
+  double get scaleY => _values[4];
+  double get translateX => _values[6];
+  double get translateY => _values[7];
+
+  double get scalingFactorX {
+    double xScale = _values[0];
+    double yScale = _values[1];
+    return math.sqrt(xScale * xScale + yScale * yScale);
+  }
+
+  double get scalingFactorY {
+    double xScale = _values[3];
+    double yScale = _values[4];
+    return math.sqrt(xScale * xScale + yScale * yScale);
+  }
+
 }

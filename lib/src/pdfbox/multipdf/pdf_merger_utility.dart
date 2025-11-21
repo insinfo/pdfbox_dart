@@ -5,7 +5,6 @@ import 'package:logging/logging.dart';
 import '../cos/cos_array.dart';
 import '../cos/cos_dictionary.dart';
 import '../cos/cos_name.dart';
-import '../cos/cos_object.dart';
 import '../cos/cos_stream.dart';
 import '../cos/cos_number.dart';
 import '../cos/cos_integer.dart';
@@ -20,10 +19,13 @@ import '../pdmodel/interactive/form/pd_acro_form.dart';
 import '../pdmodel/interactive/viewerpreferences/pd_viewer_preferences.dart';
 import '../pdmodel/interactive/documentnavigation/pd_outline_node.dart';
 import '../pdmodel/documentinterchange/logicalstructure/pd_structure_tree_root.dart';
+import '../pdmodel/documentinterchange/logicalstructure/pd_structure_element.dart';
+import '../pdmodel/pd_structure_element_name_tree_node.dart';
 import '../pdmodel/common/pd_number_tree_node.dart';
 import '../pdmodel/documentinterchange/logicalstructure/pd_parent_tree_value.dart';
 import '../../io/random_access_write_file.dart';
 import 'pdf_clone_utility.dart';
+import '../pdmodel/interactive/annotation/pd_annotation.dart';
 
 /// The mode to use when merging documents.
 enum DocumentMergeMode {
@@ -145,6 +147,10 @@ class PDFMergerUtility {
     final destCatalog = destination.documentCatalog;
     final srcCatalog = source.documentCatalog;
     
+    if (srcCatalog.acroForm != null && srcCatalog.acroForm!.xfaIsDynamic) {
+      throw Exception('Error: can\'t merge source document containing dynamic XFA form content.');
+    }
+
     final destInfo = destination.documentInformation;
     final srcInfo = source.documentInformation;
     _mergeInto(srcInfo.cosObject, destInfo.cosObject, cloner, {});
@@ -280,16 +286,53 @@ class PDFMergerUtility {
     _mergeOutputIntents(srcCatalog, destCatalog, cloner);
 
     // Merge StructureTree
-    final destStructTree = destCatalog.structureTreeRoot;
+    var mergeStructTree = false;
+    var destParentTreeNextKey = -1;
+    Map<int, PDParentTreeValue>? srcNumberTreeAsMap;
+    Map<int, PDParentTreeValue>? destNumberTreeAsMap;
     final srcStructTree = srcCatalog.structureTreeRoot;
+    var destStructTree = destCatalog.structureTreeRoot;
+
     if (destStructTree == null && srcStructTree != null) {
-      final newTree = PDStructureTreeRoot();
-      destCatalog.structureTreeRoot = newTree;
-      newTree.setParentTree(PDNumberTreeNode<PDParentTreeValue>(
+      // create a dummy structure tree in the destination, so that the source
+      // tree is cloned. (We can't just copy the tree reference due to PDFBOX-3999)
+      destStructTree = PDStructureTreeRoot();
+      destCatalog.structureTreeRoot = destStructTree;
+      destStructTree.setParentTree(PDNumberTreeNode<PDParentTreeValue>(
           valueFactory: (base) => PDParentTreeValue(base)));
-      newTree.setParentTreeNextKey(0);
+      // PDFBOX-4429: remove bogus StructParent(s)
+      for (final page in destCatalog.pages) {
+        page.cosObject.removeItem(COSName.structParents);
+        for (final ann in page.annotations) {
+          ann.cosObject.removeItem(COSName.structParent);
+        }
+      }
     }
-    
+
+    if (destStructTree != null) {
+      final destParentTree = destStructTree.getParentTree();
+      destParentTreeNextKey = destStructTree.getParentTreeNextKey();
+      if (destParentTree != null) {
+        destNumberTreeAsMap = _getNumberTreeAsMap(destParentTree);
+        if (destParentTreeNextKey < 0) {
+          if (destNumberTreeAsMap.isEmpty) {
+            destParentTreeNextKey = 0;
+          } else {
+            destParentTreeNextKey = destNumberTreeAsMap.keys.reduce((a, b) => a > b ? a : b) + 1;
+          }
+        }
+        if (destParentTreeNextKey >= 0 && srcStructTree != null) {
+          final srcParentTree = srcStructTree.getParentTree();
+          if (srcParentTree != null) {
+            srcNumberTreeAsMap = _getNumberTreeAsMap(srcParentTree);
+            if (srcNumberTreeAsMap.isNotEmpty) {
+              mergeStructTree = true;
+            }
+          }
+        }
+      }
+    }
+
     // Merge OpenAction
     final srcOpenAction = srcCatalog.cosObject.getDictionaryObject(COSName.openAction);
     final destOpenAction = destCatalog.cosObject.getDictionaryObject(COSName.openAction);
@@ -309,8 +352,35 @@ class PDFMergerUtility {
     _mergeMarkInfo(destCatalog, srcCatalog);
 
     // Merge Pages
-    final pageMap = <COSObject, COSObject>{};
-    _mergePages(cloner, destination, destCatalog, srcCatalog, pageMap);
+    final objMapping = <COSDictionary, COSDictionary>{};
+    _mergePages(cloner, destination, destCatalog, srcCatalog, objMapping, mergeStructTree, destParentTreeNextKey);
+
+    if (mergeStructTree) {
+      _updatePageReferences(cloner, srcNumberTreeAsMap!, objMapping);
+      var maxSrcKey = -1;
+      for (final entry in srcNumberTreeAsMap.entries) {
+        final srcKey = entry.key;
+        maxSrcKey = srcKey > maxSrcKey ? srcKey : maxSrcKey;
+        var value = entry.value;
+        // ignore: unnecessary_null_comparison
+        if (value != null) {
+          value = PDParentTreeValue(cloner.cloneForNewDocument(value.cosObject)!);
+          destNumberTreeAsMap![destParentTreeNextKey + srcKey] = value;
+        }
+      }
+      destParentTreeNextKey += maxSrcKey + 1;
+      final newParentTreeNode = PDNumberTreeNode<PDParentTreeValue>(
+          valueFactory: (base) => PDParentTreeValue(base));
+      
+      newParentTreeNode.setNumbers(destNumberTreeAsMap);
+      
+      destStructTree!.setParentTree(newParentTreeNode);
+      destStructTree.setParentTreeNextKey(destParentTreeNextKey);
+      
+      _mergeKEntries(cloner, srcStructTree!, destStructTree);
+      _mergeRoleMap(srcStructTree, destStructTree, cloner);
+      _mergeIDTree(cloner, srcStructTree, destStructTree);
+    }
   }
 
   void _mergePages(
@@ -318,15 +388,26 @@ class PDFMergerUtility {
       PDDocument destination,
       PDDocumentCatalog destCatalog,
       PDDocumentCatalog srcCatalog,
-      Map<COSObject, COSObject> pageMap) {
+      Map<COSDictionary, COSDictionary> objMapping,
+      bool mergeStructTree,
+      int destParentTreeNextKey) {
       
       final srcPages = srcCatalog.pages;
       for (int i = 0; i < srcPages.count; i++) {
           final page = srcPages[i];
           final newPageDict = cloner.cloneForNewDocument(page.cosObject) as COSDictionary;
-          newPageDict.removeItem(COSName.parent);
           
           final newPage = PDPage(newPageDict);
+          if (!mergeStructTree) {
+            // PDFBOX-4429: remove bogus StructParent(s)
+            newPage.cosObject.removeItem(COSName.structParents);
+            for (final ann in newPage.annotations) {
+              ann.cosObject.removeItem(COSName.structParent);
+            }
+          }
+
+          newPageDict.removeItem(COSName.parent);
+          
           newPage.cropBox = page.cropBox;
           newPage.mediaBox = page.mediaBox;
           newPage.rotation = page.rotation;
@@ -337,9 +418,39 @@ class PDFMergerUtility {
               cloner.cloneForNewDocument(resources.cosObject) as COSDictionary
           );
           newPage.resources = newResources;
+
+          if (mergeStructTree) {
+            // add the value of the destination ParentTreeNextKey to every source element 
+            // StructParent(s) value so that these don't overlap with the existing values
+            _updateStructParentEntries(newPage, destParentTreeNextKey);
+            objMapping[page.cosObject] = newPage.cosObject;
+            final oldAnnots = page.annotations;
+            final newAnnots = newPage.annotations;
+            for (int k = 0; k < oldAnnots.length; k++) {
+              objMapping[oldAnnots[k].cosObject] = newAnnots[k].cosObject;
+            }
+            // TODO update mapping for XObjects
+          }
           
           destination.addPage(newPage);
       }
+  }
+
+  void _updateStructParentEntries(PDPage page, int structParentOffset) {
+    final structParents = page.structParents;
+    if (structParents >= 0) {
+      page.structParents = structParents + structParentOffset;
+    }
+    final annots = page.annotations;
+    final newAnnots = <PDAnnotation>[];
+    for (final annot in annots) {
+      final structParent = annot.structParent;
+      if (structParent >= 0) {
+        annot.structParent = structParent + structParentOffset;
+      }
+      newAnnots.add(annot);
+    }
+    page.annotations = newAnnots;
   }
 
   void _mergeAcroForm(
@@ -461,5 +572,219 @@ class PDFMergerUtility {
               dst[entry.key] = cloner.cloneForNewDocument(entry.value);
           }
       }
+  }
+
+  Map<int, PDParentTreeValue> _getNumberTreeAsMap(PDNumberTreeNode<PDParentTreeValue> tree) {
+    final numbers = tree.numbers;
+    final result = <int, PDParentTreeValue>{};
+    if (numbers != null) {
+      for (final entry in numbers.entries) {
+        if (entry.value != null) {
+          result[entry.key] = entry.value!;
+        }
+      }
+    }
+    final kids = tree.kids;
+    if (kids != null) {
+      for (final kid in kids) {
+        result.addAll(_getNumberTreeAsMap(kid));
+      }
+    }
+    return result;
+  }
+
+  void _updatePageReferences(
+      PDFCloneUtility cloner,
+      Map<int, PDParentTreeValue> numberTreeAsMap,
+      Map<COSDictionary, COSDictionary> objMapping) {
+    for (final obj in numberTreeAsMap.values) {
+      final base = obj.cosObject;
+      if (base is COSArray) {
+        _updatePageReferencesArray(cloner, base, objMapping);
+      } else if (base is COSDictionary) {
+        _updatePageReferencesDict(cloner, base, objMapping);
+      }
+    }
+  }
+
+  void _updatePageReferencesDict(
+      PDFCloneUtility cloner,
+      COSDictionary parentTreeEntry,
+      Map<COSDictionary, COSDictionary> objMapping) {
+    final pageDict = parentTreeEntry.getCOSDictionary(COSName.pg);
+    if (pageDict != null && objMapping.containsKey(pageDict)) {
+      parentTreeEntry[COSName.pg] = objMapping[pageDict]!;
+    }
+    final objDict = parentTreeEntry.getCOSDictionary(COSName.obj);
+    if (objDict != null) {
+      if (objMapping.containsKey(objDict)) {
+        parentTreeEntry[COSName.obj] = objMapping[objDict]!;
+      } else {
+        // PDFBOX-3999: clone objects that are not in mapping
+        parentTreeEntry[COSName.obj] = cloner.cloneForNewDocument(objDict);
+      }
+    }
+    final kSubEntry = parentTreeEntry.getDictionaryObject(COSName.k);
+    if (kSubEntry is COSArray) {
+      _updatePageReferencesArray(cloner, kSubEntry, objMapping);
+    } else if (kSubEntry is COSDictionary) {
+      _updatePageReferencesDict(cloner, kSubEntry, objMapping);
+    }
+  }
+
+  void _updatePageReferencesArray(
+      PDFCloneUtility cloner,
+      COSArray parentTreeEntry,
+      Map<COSDictionary, COSDictionary> objMapping) {
+    for (var i = 0; i < parentTreeEntry.length; i++) {
+      final subEntry = parentTreeEntry.getObject(i);
+      if (subEntry is COSArray) {
+        _updatePageReferencesArray(cloner, subEntry, objMapping);
+      } else if (subEntry is COSDictionary) {
+        _updatePageReferencesDict(cloner, subEntry, objMapping);
+      }
+    }
+  }
+
+  void _mergeKEntries(
+      PDFCloneUtility cloner,
+      PDStructureTreeRoot srcStructTree,
+      PDStructureTreeRoot destStructTree) {
+    final srcKEntry = srcStructTree.k;
+    final srcKArray = COSArray();
+    final clonedSrcKEntry = cloner.cloneForNewDocument(srcKEntry);
+    
+    if (clonedSrcKEntry is COSArray) {
+      srcKArray.addAll(clonedSrcKEntry);
+    } else if (clonedSrcKEntry is COSDictionary) {
+      srcKArray.add(clonedSrcKEntry);
+    }
+
+    if (srcKArray.isEmpty) {
+      return;
+    }
+
+    final dstKArray = COSArray();
+    final dstKEntry = destStructTree.k;
+    if (dstKEntry is COSArray) {
+      dstKArray.addAll(dstKEntry);
+    } else if (dstKEntry is COSDictionary) {
+      dstKArray.add(dstKEntry);
+    }
+
+    if (dstKArray.length == 1 && dstKArray.getObject(0) is COSDictionary) {
+      final topKDict = dstKArray.getObject(0) as COSDictionary;
+      if (COSName.document == topKDict.getCOSName(COSName.s)) {
+        final kLevelOneArray = topKDict.getCOSArray(COSName.k);
+        if (kLevelOneArray != null) {
+          if (_hasOnlyDocumentsOrParts(kLevelOneArray)) {
+            kLevelOneArray.addAll(srcKArray);
+            _updateParentEntry(kLevelOneArray, topKDict, COSName.part);
+            return;
+          }
+        }
+      }
+    }
+
+    if (dstKArray.isEmpty) {
+      _updateParentEntry(srcKArray, destStructTree.cosObject, null);
+      destStructTree.k = srcKArray;
+      return;
+    }
+
+    dstKArray.addAll(srcKArray);
+    final kLevelZeroDict = COSDictionary();
+    final newStructureType = _hasOnlyDocumentsOrParts(dstKArray) ? COSName.part : null;
+    _updateParentEntry(dstKArray, kLevelZeroDict, newStructureType);
+    kLevelZeroDict[COSName.k] = dstKArray;
+    kLevelZeroDict[COSName.p] = destStructTree;
+    kLevelZeroDict[COSName.s] = COSName.document;
+    destStructTree.k = kLevelZeroDict;
+  }
+
+  bool _hasOnlyDocumentsOrParts(COSArray kLevelOneArray) {
+    for (var i = 0; i < kLevelOneArray.length; ++i) {
+      final base = kLevelOneArray.getObject(i);
+      if (base is! COSDictionary) {
+        return false;
+      }
+      final sEntry = base.getCOSName(COSName.s);
+      if (COSName.document != sEntry && COSName.part != sEntry) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  void _updateParentEntry(COSArray kArray, COSDictionary newParent, COSName? newStructureType) {
+    for (var i = 0; i < kArray.length; i++) {
+      final subEntry = kArray.getObject(i);
+      if (subEntry is COSDictionary) {
+        subEntry[COSName.p] = newParent;
+        if (newStructureType != null) {
+          subEntry[COSName.s] = newStructureType;
+        }
+      }
+    }
+  }
+
+  void _mergeRoleMap(
+      PDStructureTreeRoot srcStructTree,
+      PDStructureTreeRoot destStructTree,
+      PDFCloneUtility cloner) {
+    final srcDict = srcStructTree.cosObject.getCOSDictionary(COSName.roleMap);
+    if (srcDict == null) {
+      return;
+    }
+    final destDict = destStructTree.cosObject.getCOSDictionary(COSName.roleMap);
+    if (destDict == null) {
+      destStructTree.cosObject[COSName.roleMap] = cloner.cloneForNewDocument(srcDict);
+      return;
+    }
+    for (final entry in srcDict.entries) {
+      final destValue = destDict.getDictionaryObject(entry.key);
+      if (destValue != null && destValue == entry.value) {
+        continue;
+      }
+      if (destDict.containsKey(entry.key)) {
+        _logger.warning("key '${entry.key.name}' already exists in destination RoleMap");
+      } else {
+        destDict[entry.key] = cloner.cloneForNewDocument(entry.value);
+      }
+    }
+  }
+
+  void _mergeIDTree(
+      PDFCloneUtility cloner,
+      PDStructureTreeRoot srcStructTree,
+      PDStructureTreeRoot destStructTree) {
+    final srcIDTree = srcStructTree.getIDTree();
+    if (srcIDTree == null) {
+      return;
+    }
+    var destIDTree = destStructTree.getIDTree();
+    if (destIDTree == null) {
+      destIDTree = PDStructureElementNameTreeNode();
+    }
+    final srcNames = srcIDTree.getNames();
+    final destNames = destIDTree.getNames() ?? <String, PDStructureElement?>{};
+    
+    if (srcNames != null) {
+      for (final entry in srcNames.entries) {
+        if (destNames.containsKey(entry.key)) {
+          _logger.warning("key '${entry.key}' already exists in destination IDTree");
+        } else {
+          if (entry.value != null) {
+            final structureElement = PDStructureElement(
+                cloner.cloneForNewDocument(entry.value!.cosObject) as COSDictionary);
+            destNames[entry.key] = structureElement;
+          }
+        }
+      }
+    }
+    
+    destIDTree = PDStructureElementNameTreeNode();
+    destIDTree.setNames(destNames);
+    destStructTree.setIDTree(destIDTree);
   }
 }

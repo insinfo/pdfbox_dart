@@ -373,6 +373,20 @@ class PDResources {
     return name;
   }
 
+  /// Adds a font to the resources and returns the name it was assigned.
+  COSName addFont(PDFont font, [String prefix = "F"]) {
+    final fonts = _ensureFontDictionary();
+    var nameKey = prefix;
+    var i = 0;
+    while (fonts.containsKey(COSName.getPDFName(nameKey))) {
+      i++;
+      nameKey = "$prefix$i";
+    }
+    final name = COSName.getPDFName(nameKey);
+    fonts[name] = font.cosObject;
+    return name;
+  }
+
   void _configureXObject(PDXObject xObject) {
     if (xObject is PDImageXObject) {
       xObject.setAssociatedResources(this);

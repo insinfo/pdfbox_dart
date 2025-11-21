@@ -53,6 +53,11 @@ class PDAcroForm implements COSObjectable {
     _dictionary.setBoolean(COSName.needAppearances, value);
   }
 
+  /// Returns true if the XFA entry is present.
+  bool get xfaIsDynamic {
+    return _dictionary.containsKey(COSName.xfa);
+  }
+
   /// Returns the list of fields in this AcroForm.
   List<PDField> get fields {
     final fieldsArray = _dictionary.getDictionaryObject(COSName.fields);

@@ -36,6 +36,7 @@ class COSName extends COSBase implements Comparable<COSName> {
   static final COSName pg = COSName('Pg');
   static final COSName alt = COSName('Alt');
   static final COSName actualText = COSName('ActualText');
+  static final COSName mcid = COSName('MCID');
   static final COSName kids = COSName('Kids');
   static final COSName annots = COSName('Annots');
   static final COSName count = COSName('Count');
@@ -394,6 +395,12 @@ class COSName extends COSBase implements Comparable<COSName> {
   static final COSName pdfDocEncoding = COSName('PDFDocEncoding');
   static final COSName structTreeRoot = COSName('StructTreeRoot');
   static final COSName openAction = COSName('OpenAction');
+  static final COSName structParents = COSName('StructParents');
+  static final COSName structParent = COSName('StructParent');
+  static final COSName obj = COSName('Obj');
+  static final COSName document = COSName('Document');
+  static final COSName part = COSName('Part');
+  static final COSName xfa = COSName('XFA');
 
   @override
   int compareTo(COSName other) => name.compareTo(other.name);

@@ -1,3 +1,4 @@
+import '../../../fontbox/encoding/encoding.dart';
 import '../../../fontbox/encoding/win_ansi_encoding.dart';
 import '../../../fontbox/ttf/cmap_lookup.dart';
 import '../../../fontbox/ttf/true_type_font.dart';
@@ -7,6 +8,7 @@ import '../../cos/cos_array.dart';
 import '../../cos/cos_dictionary.dart';
 import '../../cos/cos_float.dart';
 import '../../cos/cos_name.dart';
+import 'encoding/dictionary_encoding.dart';
 import 'encoding/glyph_list.dart';
 import 'pd_font_descriptor.dart';
 import 'pd_simple_font.dart';
@@ -20,13 +22,18 @@ class PDTrueTypeFont extends PDSimpleFont {
     this._trueTypeFont,
     this._unicodeCMap,
     this._embedder,
-    this._basePostScriptName,
-  ) : super(
+    this._basePostScriptName, {
+    required Encoding encoding,
+  }) : super(
           dictionary,
-          encoding: WinAnsiEncoding.instance,
+          encoding: encoding,
           glyphList: GlyphList.getAdobeGlyphList(),
         ) {
-    _initialiseWidths(_defaultFirstChar, _defaultLastChar);
+    if (dictionary.containsKey(COSName.widths)) {
+      _readWidths();
+    } else {
+      _initialiseWidths(_defaultFirstChar, _defaultLastChar);
+    }
   }
 
   static const int _defaultFirstChar = 32;
@@ -106,7 +113,66 @@ class PDTrueTypeFont extends PDSimpleFont {
       unicodeCMap,
       embedder,
       postScriptName,
+      encoding: WinAnsiEncoding.instance,
     );
+  }
+
+  /// Creates a [PDTrueTypeFont] from a [COSDictionary].
+  factory PDTrueTypeFont(COSDictionary fontDictionary) {
+    final fontDescriptorDict =
+        fontDictionary.getCOSDictionary(COSName.fontDescriptor);
+    TrueTypeFont? ttf;
+
+    if (fontDescriptorDict != null) {
+      final descriptor = PDFontDescriptor(fontDescriptorDict);
+      final fontFile2 = descriptor.fontFile2Stream;
+      if (fontFile2 != null) {
+        final parser = TtfParser();
+        final view = fontFile2.createView();
+        try {
+          ttf = parser.parse(view);
+        } finally {
+          view.close();
+        }
+      }
+    }
+
+    if (ttf == null) {
+      throw UnimplementedError(
+          'TrueType font loading without embedded FontFile2 is not supported yet.');
+    }
+
+    final unicodeCMap = ttf.getUnicodeCmapLookup(isStrict: false);
+    final embedder = TrueTypeEmbedder(ttf, embedSubset: false);
+    final baseFont = fontDictionary.getNameAsString(COSName.baseFont) ??
+        ttf.getName() ??
+        'TrueTypeFont';
+
+    final encoding = _readEncoding(fontDictionary);
+    print('PDTrueTypeFont created. BaseFont: $baseFont, Encoding: ${encoding.runtimeType}');
+
+    return PDTrueTypeFont._(
+      fontDictionary,
+      ttf,
+      unicodeCMap,
+      embedder,
+      baseFont,
+      encoding: encoding,
+    );
+  }
+
+  static Encoding _readEncoding(COSDictionary dictionary) {
+    final encoding = dictionary.getDictionaryObject(COSName.encoding);
+    if (encoding is COSDictionary) {
+      print('Reading DictionaryEncoding');
+      return DictionaryEncoding(encoding);
+    } else if (encoding is COSName) {
+      print('Reading Encoding Name: ${encoding.name}');
+      return DictionaryEncoding.resolveEncoding(encoding) ??
+          WinAnsiEncoding.instance;
+    }
+    print('No encoding found, using WinAnsiEncoding');
+    return WinAnsiEncoding.instance;
   }
 
   /// Adds the Unicode code points present in [text] to the pending subset.
@@ -170,6 +236,27 @@ class PDTrueTypeFont extends PDSimpleFont {
   /// Releases resources held by the underlying TrueType font.
   void close() {
     _trueTypeFont.close();
+  }
+
+  void _readWidths() {
+    _firstChar = dictionary.getInt(COSName.firstChar) ?? 0;
+    _lastChar = dictionary.getInt(COSName.lastChar) ?? 255;
+    final widthsArray = dictionary.getCOSArray(COSName.widths);
+    if (widthsArray != null) {
+      _widths = widthsArray.toDoubleList();
+    } else {
+      _widths = [];
+    }
+
+    final fdDict = dictionary.getCOSDictionary(COSName.fontDescriptor);
+    if (fdDict != null) {
+      _fontDescriptor = PDFontDescriptor(fdDict);
+    } else {
+      _fontDescriptor = _createFontDescriptor();
+    }
+
+    _unitsPerEmScale = _computeUnitsPerEmScale();
+    _defaultWidth = _widthForGlyphId(0) ?? 0;
   }
 
   void _initialiseWidths(int firstChar, int lastChar) {
@@ -244,5 +331,47 @@ class PDTrueTypeFont extends PDSimpleFont {
       postScriptName: _basePostScriptName,
       missingWidth: _defaultWidth,
     ).build();
+  }
+
+  @override
+  String? toUnicode(int code) {
+    final result = super.toUnicode(code);
+    
+    // Debugging for the specific issue
+    if (_basePostScriptName.contains('+')) {
+       // It's a subset
+       // Check what the embedded font thinks about this code
+       try {
+         final cmap = _trueTypeFont.getCmapTable();
+         if (cmap != null) {
+           final subtable = cmap.getSubtable(3, 1) ?? cmap.getSubtable(3, 0) ?? cmap.cmaps.first;
+           final gid = subtable.getGlyphId(code);
+           
+           String? glyphName;
+           try {
+             final post = _trueTypeFont.getPostScriptTable();
+             final names = post?.glyphNames;
+             if (names != null && gid < names.length) {
+                glyphName = names[gid];
+             }
+             
+             // Try to reverse map using (3, 1) cmap
+             final unicodeCmap = cmap.getSubtable(3, 1);
+             if (unicodeCmap != null) {
+                final codes = unicodeCmap.getCharCodes(gid);
+                print('DEBUG: Code: $code, Result: $result, GID: $gid, GlyphName: $glyphName, ReverseCodes: $codes');
+             } else {
+                print('DEBUG: Code: $code, Result: $result, GID: $gid, GlyphName: $glyphName, No (3,1) Cmap');
+             }
+           } catch (e) {
+             // ignore
+           }
+         }
+       } catch (e) {
+         print('DEBUG: Error probing embedded font: $e');
+       }
+    }
+    
+    return result;
   }
 }

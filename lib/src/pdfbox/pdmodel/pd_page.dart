@@ -18,6 +18,7 @@ import '../cos/cos_object.dart';
 import '../cos/cos_stream.dart';
 import 'interactive/annotation/pd_annotation.dart';
 import 'interactive/annotation/pd_annotation_factory.dart';
+import 'interactive/pagenavigation/pd_thread_bead.dart';
 import 'common/pd_rectangle.dart';
 import 'pd_resources.dart';
 import 'pd_stream.dart';
@@ -338,4 +339,30 @@ class PDPage implements PDContentStream {
 
   /// Sets the StructParents value.
   set structParents(int value) => _dictionary.setInt(COSName.structParents, value);
+
+  /// Returns the list of thread beads associated with this page.
+  List<PDThreadBead> get threadBeads {
+    final beads = <PDThreadBead>[];
+    final value = _dictionary.getDictionaryObject(COSName.b);
+    if (value is COSArray) {
+      for (final item in value) {
+        if (item is COSDictionary) {
+          beads.add(PDThreadBead(item));
+        } else if (item is COSObject && item.object is COSDictionary) {
+          beads.add(PDThreadBead(item.object as COSDictionary));
+        }
+      }
+    } else if (value is COSDictionary) {
+      beads.add(PDThreadBead(value));
+    }
+    return beads;
+  }
+
+  set threadBeads(List<PDThreadBead> beads) {
+    final array = COSArray();
+    for (final bead in beads) {
+      array.addObject(bead.cosObject);
+    }
+    _dictionary[COSName.b] = array;
+  }
 }

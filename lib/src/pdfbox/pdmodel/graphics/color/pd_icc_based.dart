@@ -1,6 +1,7 @@
 import '../../../cos/cos_array.dart';
 import '../../../cos/cos_base.dart';
 import '../../../cos/cos_name.dart';
+import '../../../cos/cos_object.dart';
 import '../../../cos/cos_stream.dart';
 import '../../pd_resources.dart';
 import 'pd_color.dart';
@@ -70,7 +71,10 @@ class PDICCBased extends PDColorSpace {
       throw StateError(
           'ICCBased colour space array must contain a stream entry');
     }
-    final streamObject = array.getObject(1);
+    var streamObject = array.getObject(1);
+    if (streamObject is COSObject) {
+      streamObject = streamObject.object;
+    }
     if (streamObject is! COSStream) {
       throw StateError(
           'ICCBased colour space requires a COSStream as the second operand');

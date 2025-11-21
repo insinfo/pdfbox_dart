@@ -1,5 +1,6 @@
 import '../../cos/cos_dictionary.dart';
 import '../../cos/cos_name.dart';
+import 'pd_true_type_font.dart';
 import 'pdfont.dart';
 import 'pd_type0_font.dart';
 import 'pd_type1_font.dart';
@@ -13,9 +14,7 @@ class PDFontFactory {
     } else if (subtype == COSName.type1) {
       return PDType1Font(dictionary);
     } else if (subtype == COSName.trueType) {
-      // TODO: Support reading TrueType font from dictionary without file
-      // return PDTrueTypeFont(dictionary);
-      throw UnimplementedError('Reading PDTrueTypeFont from dictionary is not fully supported yet');
+      return PDTrueTypeFont(dictionary);
     } else if (subtype == COSName.type3) {
       return PDType3Font(dictionary);
     } else if (subtype == COSName.cidFontType0) {

@@ -223,6 +223,15 @@ class PDCIDFontType2 extends PDCIDFont {
 		throw ArgumentError('No glyph for U+${unicode.toRadixString(16).padLeft(4, '0')} in font ${getName()}');
 	}
 
+  /// Tries to find the Unicode character for the given Glyph ID using the embedded CMap.
+  String? toUnicodeFromGID(int gid) {
+    final codes = _unicodeCmap?.getCharCodes(gid);
+    if (codes != null && codes.isNotEmpty) {
+      return String.fromCharCodes(codes);
+    }
+    return null;
+  }
+
 	TrueTypeFont? _loadEmbeddedFont(PDFontDescriptor descriptor) {
 		final stream = descriptor.fontFile2Stream;
 		if (stream == null) {

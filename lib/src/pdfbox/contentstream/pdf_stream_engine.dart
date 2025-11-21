@@ -166,6 +166,18 @@ class PDFStreamEngine {
     final PDTextState textState = state.textState;
     textState.fontSize = fontSize;
     _currentFontName = fontName;
+
+    final res = resources;
+    if (res != null) {
+      final font = res.getPDFont(fontName);
+      if (font != null) {
+        textState.font = font;
+      } else {
+        _logger.warning("Font '$fontName' not found in resources");
+      }
+    } else {
+      _logger.warning("Resources is null in setFont");
+    }
   }
 
   /// Hook invoked when a `Td`/`TD` operator adjusts the text position.

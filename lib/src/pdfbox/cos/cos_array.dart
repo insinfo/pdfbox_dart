@@ -46,6 +46,12 @@ class COSArray extends COSBase with IterableMixin<COSBase> {
     markDirty();
   }
 
+  void addAll(Iterable<COSBase> iterable) {
+    for (final item in iterable) {
+      add(item);
+    }
+  }
+
   COSBase operator [](int index) => _items[index];
 
   COSBase getObject(int index) => _items[index];

@@ -47,6 +47,7 @@ class DictionaryEncoding extends Encoding {
       } else if (obj is COSName) {
         if (code != -1) {
           addCharacterEncoding(code, obj.name);
+          differences[code] = obj.name;
           code++;
         }
       }
