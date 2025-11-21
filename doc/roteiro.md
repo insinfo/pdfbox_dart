@@ -1,5 +1,11 @@
 # Roteiro de Portabilidade PDFBox para Dart (Status: Novembro 2025)
 
+### referencias de jbig2
+https://github.com/agl/jbig2enc
+https://github.com/zdenop/jbig2enc-samples
+https://github.com/ocrmypdf/OCRmyPDF/issues/748
+https://github.com/anotatta/jbig2enc
+
 Este documento descreve o estado atual do projeto e o que ainda falta para concluir o porte da biblioteca Apache PDFBox para Dart.
 
 não pode depender do diretorio pdfbox-java pois ele sera removido depois que o port tiver sido concluido pdfbox-java/pdfbox/src/test/resources
