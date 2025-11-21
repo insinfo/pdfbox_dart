@@ -9,7 +9,7 @@ https://github.com/anotatta/jbig2enc
 C:\MyDartProjects\pdfbox_dart\jbig2-imageio\src\test\java\org\apache\pdfbox\jbig2
 
 
-### referencias de JPEG2000 
+### referencias de JPEG2000 para poder copiar testes e implementar estes testes em dart
 https://github.com/iszak/jpeg2000
 https://github.com/uclouvain/openjpeg
 https://github.com/GrokImageCompression/grok
