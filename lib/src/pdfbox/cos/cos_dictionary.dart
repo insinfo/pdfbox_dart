@@ -11,9 +11,19 @@ import 'cos_number.dart';
 import 'cos_object.dart';
 import 'cos_string.dart';
 import '../util/pdf_date.dart';
+import 'cos_stream.dart';
 
 class COSDictionary extends COSBase {
   final Map<COSName, COSBase> _items = LinkedHashMap<COSName, COSBase>();
+
+  COSDictionary();
+
+  /// Creates a shallow copy of the given dictionary.
+  factory COSDictionary.fromDictionary(COSDictionary other) {
+    final dict = COSDictionary();
+    dict.addAll(other);
+    return dict;
+  }
 
   COSBase? operator [](COSName key) => _items[key];
 
@@ -326,6 +336,11 @@ class COSDictionary extends COSBase {
       return PdfDate.parse(value.string);
     }
     return null;
+  }
+
+  COSStream? getCOSStream(COSName key) {
+    final value = getDictionaryObject(key);
+    return value is COSStream ? value : null;
   }
 
   @override

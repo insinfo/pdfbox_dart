@@ -1,7 +1,10 @@
 import '../../../cos/cos_dictionary.dart';
 import '../../../cos/cos_name.dart';
 import 'pd_annotation.dart';
-import 'pd_annotation_appearance_characteristics.dart';
+import 'pd_appearance_characteristics_dictionary.dart';
+import '../action/pd_action.dart';
+import '../action/pd_action_factory.dart';
+import '../action/pd_annotation_additional_actions.dart';
 
 /// Widget annotation used by AcroForm fields.
 class PDAnnotationWidget extends PDAnnotation {
@@ -47,5 +50,23 @@ class PDAnnotationWidget extends PDAnnotation {
     } else {
       dictionary.setItem(COSName.appearanceCharacteristics, value.cosObject);
     }
+  }
+
+  PDAction? get action {
+    COSDictionary? action = dictionary.getCOSDictionary(COSName.a);
+    return action != null ? PDActionFactory.instance.createAction(action) : null;
+  }
+
+  set action(PDAction? action) {
+    dictionary.setItem(COSName.a, action);
+  }
+
+  PDAnnotationAdditionalActions? get actions {
+    COSDictionary? actions = dictionary.getCOSDictionary(COSName.aa);
+    return actions != null ? PDAnnotationAdditionalActions(actions) : null;
+  }
+
+  set actions(PDAnnotationAdditionalActions? actions) {
+    dictionary.setItem(COSName.aa, actions);
   }
 }

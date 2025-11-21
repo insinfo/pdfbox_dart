@@ -1,4 +1,4 @@
-part of pdfbox.pdmodel.property_list;
+part of '../../documentinterchange/markedcontent/pd_property_list.dart';
 
 /// Represents an optional content membership dictionary (OCMD).
 class PDOptionalContentMembershipDictionary extends PDPropertyList {

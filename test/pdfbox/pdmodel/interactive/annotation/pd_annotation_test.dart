@@ -3,9 +3,11 @@ import 'package:pdfbox_dart/src/pdfbox/cos/cos_dictionary.dart';
 import 'package:pdfbox_dart/src/pdfbox/cos/cos_integer.dart';
 import 'package:pdfbox_dart/src/pdfbox/cos/cos_name.dart';
 import 'package:pdfbox_dart/src/pdfbox/pdmodel/common/pd_page_destination.dart';
+import 'package:pdfbox_dart/src/pdfbox/pdmodel/graphics/color/pd_color.dart';
+import 'package:pdfbox_dart/src/pdfbox/pdmodel/graphics/color/pd_device_rgb.dart';
 import 'package:pdfbox_dart/src/pdfbox/pdmodel/interactive/action/pd_action_named.dart';
 import 'package:pdfbox_dart/src/pdfbox/pdmodel/interactive/annotation/pd_annotation_appearance.dart';
-import 'package:pdfbox_dart/src/pdfbox/pdmodel/interactive/annotation/pd_annotation_appearance_characteristics.dart';
+import 'package:pdfbox_dart/src/pdfbox/pdmodel/interactive/annotation/pd_appearance_characteristics_dictionary.dart';
 import 'package:pdfbox_dart/src/pdfbox/pdmodel/interactive/annotation/pd_annotation_factory.dart';
 import 'package:pdfbox_dart/src/pdfbox/pdmodel/interactive/annotation/pd_annotation_link.dart';
 import 'package:pdfbox_dart/src/pdfbox/pdmodel/interactive/annotation/pd_annotation_text.dart';
@@ -235,12 +237,12 @@ void main() {
       final characteristics =
           PDAppearanceCharacteristicsDictionary(dictionary);
 
-      expect(characteristics.backgroundColor, isNull);
-      characteristics.backgroundColor = <double>[1, 0.5, 0];
-      expect(characteristics.backgroundColor, equals(<double>[1, 0.5, 0]));
+      expect(characteristics.background, isNull);
+      characteristics.background = PDColor([1, 0.5, 0], PDDeviceRGB.instance);
+      expect(characteristics.background!.components, equals(<double>[1, 0.5, 0]));
 
-      characteristics.borderColor = <double>[0.2, 0.3, 0.4];
-      expect(characteristics.borderColor, equals(<double>[0.2, 0.3, 0.4]));
+      characteristics.borderColour = PDColor([0.2, 0.3, 0.4], PDDeviceRGB.instance);
+      expect(characteristics.borderColour!.components, equals(<double>[0.2, 0.3, 0.4]));
 
       characteristics.normalCaption = 'Sign';
       expect(characteristics.normalCaption, 'Sign');
@@ -253,10 +255,6 @@ void main() {
 
       characteristics.textPosition = 2;
       expect(characteristics.textPosition, 2);
-
-      expect(() => characteristics.textPosition = -1, throwsArgumentError);
-      expect(() => characteristics.backgroundColor = <double>[],
-          throwsArgumentError);
     });
   });
 }

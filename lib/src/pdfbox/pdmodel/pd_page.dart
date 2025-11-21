@@ -332,4 +332,10 @@ class PDPage implements PDContentStream {
     }
     return null;
   }
+
+  /// Returns the StructParents value, or -1 if missing.
+  int get structParents => _dictionary.getInt(COSName.structParents) ?? -1;
+
+  /// Sets the StructParents value.
+  set structParents(int value) => _dictionary.setInt(COSName.structParents, value);
 }

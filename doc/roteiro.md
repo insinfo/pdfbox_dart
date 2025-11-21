@@ -123,7 +123,8 @@ Próximos passos naturais: (1) escolher um módulo das listas de tarefas pendent
 - Status: Dart cobre `common/`, parte de `graphics/optionalcontent`, `font/`, `interactive/digitalsignature`, `interactive/viewerpreferences`, alem de `pd_document.dart`, `pd_document_catalog.dart`, `pd_document_information.dart`, `pd_page.dart`, `pd_page_tree.dart`, `pd_page_content_stream.dart`, `pd_resources.dart`, `pd_stream.dart`, `page_layout.dart`, `page_mode.dart`.
 - `PDStream` agora implementa `PDContentStream`, `PDPage` oferece `parseContentStreamTokens()` e `PDFormXObject` (junto com o esqueleto de `PDXObject`) foi portado com suporte a bbox, matriz e recursos. Novos testes em `test/pdfbox/pdmodel/pd_page_parser_test.dart` e `test/pdfbox/pdmodel/graphics/pd_form_xobject_test.dart` validam a integração do `PDFStreamParser` com streams de página e XObjects.
 - `PDResources` compartilha um `ResourceCache` com `PDDocument`, `PDImageXObject`, `PDFormXObject`, `PDShading`, padrões (`/Pattern`) e listas de propriedades (`/Properties`). `PDResources.getXObject/getShading/getPattern/getPropertyList` agora reutilizam wrappers via cache, incluindo reconhecimento de XObjects `/PS`. Testes em `test/pdfbox/pdmodel/graphics/pd_image_xobject_test.dart` cobrem imagens, padrões, propriedades opcionais e propagação do cache.
-- TODO portar pacotes ausentes em Dart: `encryption/`, `fdf/`, `fixup/`, `documentinterchange/*` (logicalstructure, tagged PDF, mark info), `interactive/action`, `interactive/annotation`, `interactive/form`, `interactive/measurement`, `interactive/optionalcontent` (restante), `interactive/pagenavigation`, `interactive/documentnavigation/*`, `interactive/printing`, `interactive/viewerpreferences` (complementar com preferencias faltantes), `interactive/transition`, alem dos caches (`DefaultResourceCache`, `ResourceCache`, `ResourceCacheFactory`, `ResourceCacheCreateFunction`).
+- TODO portar pacotes ausentes em Dart: `encryption/`, `fdf/`, `fixup/`, `documentinterchange/*` (logicalstructure, tagged PDF, mark info), `interactive/measurement`, `interactive/optionalcontent` (restante), `interactive/pagenavigation`, `interactive/documentnavigation/*`, `interactive/printing`, `interactive/viewerpreferences` (complementar com preferencias faltantes), `interactive/transition`, alem dos caches (`DefaultResourceCache`, `ResourceCache`, `ResourceCacheFactory`, `ResourceCacheCreateFunction`).
+- `interactive/form`: Portado estrutura básica (`PDAcroForm`, `PDField`, `PDFieldFactory`), campos de texto (`PDTextField`), botões (`PDButton`, `PDCheckBox`, `PDRadioButton`, `PDPushButton`) e escolhas (`PDChoice`, `PDComboBox`, `PDListBox`). Implementada geração de aparência básica para campos de texto e escolhas via `AppearanceGeneratorHelper` e sincronização de estado para botões. Testes em `test/pdfbox/pdmodel/interactive/form/` cobrem criação, definição de valores e geração de streams.
 - `PDDocumentNameDictionary`: agora retorna name trees tipados (`PDDestinationNameTreeNode`, `PDEmbeddedFilesNameTreeNode`, `PDJavascriptNameTreeNode`) com cache e fallback para `/Dests` no catálogo.
 - `PDDestinationNameTreeNode`, `PDEmbeddedFilesNameTreeNode` e `PDJavascriptNameTreeNode`: usam wrappers provisórios (`PDDestination`, `PDFileSpecification`, `PDActionJavaScript`) mantendo os `COSDictionary` originais acessíveis; TODO expandir para hierarquias completas (destinos de página, `PDComplexFileSpecification` com `PDEmbeddedFile`, `PDAction` especializada).
 - `PDDestinationNameTreeNode`, `PDEmbeddedFilesNameTreeNode` e `PDJavascriptNameTreeNode`: agora convertem entradas diretamente para wrappers tipados (`PDPageDestination` para arrays, `PDComplexFileSpecification`, `PDAction*`).
@@ -546,10 +547,6 @@ class COSDictionary extends COSBase {
 }
 
 
-// --- lib/src/cos/cos_array.dart ---
-import 'cos_base.dart';
-import 'cos_visitor.dart';
-
 /// Representa um array PDF ([ ... ]).
 class COSArray extends COSBase implements Iterable<COSBase> {
   final List<COSBase> _objects = [];
@@ -603,11 +600,6 @@ class COSStream extends COSDictionary {
 }
 
 
-// --- lib/src/cos/cos_object.dart ---
-import 'cos_base.dart';
-import 'cos_object_key.dart';
-import 'cos_visitor.dart';
-
 /// Representa um objeto indireto (ex: "1 0 R").
 class COSObject extends COSBase {
   final COSObjectKey key;
@@ -631,8 +623,7 @@ class COSObject extends COSBase {
   }
 }
 
-// E assim por diante para as outras classes COS...```
-
+// E assim por diante para as outras classes COS...
 ---
 
 ### **Fase 2: Filtros (Decodificadores de Stream)**

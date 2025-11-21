@@ -34,6 +34,33 @@ class PDRectangle {
   final double upperRightX;
   final double upperRightY;
 
+  /// A rectangle the size of U.S. Letter, 8.5" x 11".
+  static const PDRectangle letter = PDRectangle(0, 0, 612, 792);
+
+  /// A rectangle the size of U.S. Legal, 8.5" x 14".
+  static const PDRectangle legal = PDRectangle(0, 0, 612, 1008);
+
+  /// A rectangle the size of A0 Paper.
+  static const PDRectangle a0 = PDRectangle(0, 0, 2383.937, 3370.3937);
+
+  /// A rectangle the size of A1 Paper.
+  static const PDRectangle a1 = PDRectangle(0, 0, 1683.7795, 2383.937);
+
+  /// A rectangle the size of A2 Paper.
+  static const PDRectangle a2 = PDRectangle(0, 0, 1190.5513, 1683.7795);
+
+  /// A rectangle the size of A3 Paper.
+  static const PDRectangle a3 = PDRectangle(0, 0, 841.8898, 1190.5513);
+
+  /// A rectangle the size of A4 Paper.
+  static const PDRectangle a4 = PDRectangle(0, 0, 595.2756, 841.8898);
+
+  /// A rectangle the size of A5 Paper.
+  static const PDRectangle a5 = PDRectangle(0, 0, 419.5276, 595.2756);
+
+  /// A rectangle the size of A6 Paper.
+  static const PDRectangle a6 = PDRectangle(0, 0, 297.6378, 419.5276);
+
   double get width => upperRightX - lowerLeftX;
 
   double get height => upperRightY - lowerLeftY;

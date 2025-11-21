@@ -28,6 +28,13 @@ import '../../../fontbox/util/bounding_box.dart';
 
 /// Lightweight wrapper around [Type0Font] that prepares a Type 0 font dictionary.
 class PDType0Font extends PDFont implements PDVectorFont, PDCIDFontParent {
+  PDType0Font(COSDictionary dictionary)
+      : _type0Font = null,
+        _cidEmbedderResult = null,
+        super(dictionary) {
+    _cidFont = _readCidFont(dictionary);
+  }
+
   PDType0Font._internal(
     COSDictionary dictionary, {
     Type0Font? type0Font,
@@ -751,5 +758,19 @@ class PDType0Font extends PDFont implements PDVectorFont, PDCIDFontParent {
       }
     }
     return _cachedEncodingCMap;
+  }
+
+  PDCIDFont? _readCidFont(COSDictionary dictionary) {
+    final descendantFonts = dictionary.getCOSArray(COSName.descendantFonts);
+    if (descendantFonts != null && descendantFonts.isNotEmpty) {
+      final descendant = descendantFonts.getObject(0);
+      if (descendant is COSDictionary) {
+        final subtype = descendant.getCOSName(COSName.subtype);
+        if (subtype == COSName.cidFontType2) {
+          return PDCIDFontType2(descendant, this);
+        }
+      }
+    }
+    return null;
   }
 }

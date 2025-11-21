@@ -5,6 +5,8 @@ import '../cos/cos_stream.dart';
 import 'documentinterchange/markedcontent/pd_property_list.dart';
 import 'font/pd_type1_font.dart';
 import 'font/standard14_fonts.dart';
+import 'font/pdfont.dart';
+import 'font/pdfont_factory.dart';
 import 'graphics/color/pd_color_space.dart';
 import 'graphics/form/pd_form_xobject.dart';
 import 'graphics/pattern/pd_abstract_pattern.dart';
@@ -48,6 +50,34 @@ class PDResources {
   COSDictionary? getFont(COSName name) {
     final fonts = _dictionary.getCOSDictionary(COSName.font);
     return fonts?.getCOSDictionary(name);
+  }
+
+  PDFont? getPDFont(COSName name) {
+    final fonts = _dictionary.getCOSDictionary(COSName.font);
+    if (fonts == null) {
+      return null;
+    }
+
+    final COSBase? raw = fonts[name];
+    final COSDictionary? dictionary = fonts.getCOSDictionary(name);
+    if (dictionary == null) {
+      return null;
+    }
+
+    final cacheKey = raw ?? dictionary;
+    final cache = _resourceCache;
+    if (cache != null) {
+      final cached = cache.getFont(cacheKey);
+      if (cached != null) {
+        return cached;
+      }
+    }
+
+    final font = PDFontFactory.createFont(dictionary);
+    if (cache != null) {
+      cache.putFont(cacheKey, font);
+    }
+    return font;
   }
 
   void setFont(COSName name, COSDictionary fontDictionary) {
@@ -317,6 +347,30 @@ class PDResources {
     final spaces = COSDictionary();
     _dictionary[COSName.colorSpace] = spaces;
     return spaces;
+  }
+
+  COSDictionary _ensureXObjectDictionary() {
+    final existing = _dictionary.getCOSDictionary(COSName.xObject);
+    if (existing != null) {
+      return existing;
+    }
+    final xObjects = COSDictionary();
+    _dictionary[COSName.xObject] = xObjects;
+    return xObjects;
+  }
+
+  /// Adds an XObject to the resources and returns the name it was assigned.
+  COSName add(PDXObject xObject, [String prefix = "XO"]) {
+    final xObjects = _ensureXObjectDictionary();
+    var nameKey = prefix;
+    var i = 0;
+    while (xObjects.containsKey(COSName.getPDFName(nameKey))) {
+      i++;
+      nameKey = "$prefix$i";
+    }
+    final name = COSName.getPDFName(nameKey);
+    xObjects[name] = xObject.cosObject;
+    return name;
   }
 
   void _configureXObject(PDXObject xObject) {

@@ -1,4 +1,4 @@
-part of pdfbox.pdmodel.property_list;
+part of '../../documentinterchange/markedcontent/pd_property_list.dart';
 
 /// An optional content group (OCG).
 class PDOptionalContentGroup extends PDPropertyList {

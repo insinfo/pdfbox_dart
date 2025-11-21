@@ -8,7 +8,7 @@ import '../pd_stream.dart';
 import 'color/pd_color_space.dart';
 
 /// Base representation of an external object (XObject).
-class PDXObject {
+class PDXObject implements COSObjectable {
   PDXObject(PDStream stream, COSName subtype) : _stream = stream {
     _initialiseSubtype(subtype);
   }

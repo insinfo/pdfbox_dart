@@ -7,6 +7,7 @@ import '../../cos/cos_name.dart';
 import 'encoding/glyph_list.dart';
 import 'pd_simple_font.dart';
 import 'standard14_fonts.dart';
+import 'encoding/dictionary_encoding.dart';
 
 /// Lightweight implementation of PDFBox's PDType1Font focused on creation scenarios.
 class PDType1Font extends PDSimpleFont {
@@ -21,6 +22,16 @@ class PDType1Font extends PDSimpleFont {
           glyphList: glyphList,
           standard14Font: standard14Font,
         );
+
+  factory PDType1Font(COSDictionary dictionary) {
+    final encoding = _readEncoding(dictionary);
+    final glyphList = _readGlyphList(dictionary);
+    return PDType1Font._(
+      dictionary,
+      encoding: encoding,
+      glyphList: glyphList,
+    );
+  }
 
   /// Creates an instance representing one of the PDF standard 14 Type 1 fonts.
   factory PDType1Font.standard14(Standard14Font font) {
@@ -40,6 +51,36 @@ class PDType1Font extends PDSimpleFont {
       glyphList: glyphList,
       standard14Font: font,
     );
+  }
+
+  /// Creates an instance representing the Helvetica standard 14 font.
+  factory PDType1Font.helvetica() {
+    return PDType1Font.standard14(
+      Standard14Fonts.byPostScriptName('Helvetica')!,
+    );
+  }
+
+  static Encoding _readEncoding(COSDictionary dictionary) {
+    final encoding = dictionary.getDictionaryObject(COSName.encoding);
+    if (encoding is COSDictionary) {
+      return DictionaryEncoding(encoding);
+    } else if (encoding is COSName) {
+      return DictionaryEncoding.resolveEncoding(encoding) ??
+          WinAnsiEncoding.instance;
+    }
+    final baseFont = dictionary.getNameAsString(COSName.baseFont);
+    if (baseFont != null) {
+      return _encodingForStandard14(baseFont);
+    }
+    return WinAnsiEncoding.instance;
+  }
+
+  static GlyphList _readGlyphList(COSDictionary dictionary) {
+    final baseFont = dictionary.getNameAsString(COSName.baseFont);
+    if (baseFont != null) {
+      return _glyphListForStandard14(baseFont);
+    }
+    return GlyphList.getAdobeGlyphList();
   }
 
   static Encoding _encodingForStandard14(String name) {

@@ -12,6 +12,8 @@ import 'page_mode.dart';
 import 'pd_page_tree.dart';
 import 'pd_document_name_dictionary.dart';
 import 'interactive/documentnavigation/pd_outline_node.dart';
+import 'interactive/form/pd_acro_form.dart';
+import 'documentinterchange/logicalstructure/pd_structure_tree_root.dart';
 
 /// Represents the document catalog (/Root) dictionary.
 class PDDocumentCatalog {
@@ -28,6 +30,8 @@ class PDDocumentCatalog {
   PDViewerPreferences? _viewerPreferences;
   PDDocumentNameDictionary? _names;
   PDOutlineRoot? _documentOutline;
+  PDAcroForm? _acroForm;
+  PDStructureTreeRoot? _structureTreeRoot;
 
   COSDictionary get cosObject => _dictionary;
 
@@ -173,6 +177,50 @@ class PDDocumentCatalog {
       dict.setName(COSName.type, 'Outlines');
     }
     _dictionary[COSName.outlines] = dict;
+  }
+
+  /// Returns the document's AcroForm.
+  PDAcroForm? get acroForm {
+    if (_acroForm != null) {
+      return _acroForm;
+    }
+    final dict = _dictionary.getCOSDictionary(COSName.acroForm);
+    if (dict == null) {
+      return null;
+    }
+    _acroForm = PDAcroForm(_document, _resourceCache, dict);
+    return _acroForm;
+  }
+
+  set acroForm(PDAcroForm? value) {
+    _acroForm = value;
+    if (value == null) {
+      _dictionary.removeItem(COSName.acroForm);
+    } else {
+      _dictionary[COSName.acroForm] = value.cosObject;
+    }
+  }
+
+  /// Returns the document's structure tree root.
+  PDStructureTreeRoot? get structureTreeRoot {
+    if (_structureTreeRoot != null) {
+      return _structureTreeRoot;
+    }
+    final dict = _dictionary.getCOSDictionary(COSName.structTreeRoot);
+    if (dict == null) {
+      return null;
+    }
+    _structureTreeRoot = PDStructureTreeRoot(dict);
+    return _structureTreeRoot;
+  }
+
+  set structureTreeRoot(PDStructureTreeRoot? treeRoot) {
+    _structureTreeRoot = treeRoot;
+    if (treeRoot == null) {
+      _dictionary.removeItem(COSName.structTreeRoot);
+    } else {
+      _dictionary[COSName.structTreeRoot] = treeRoot.cosObject;
+    }
   }
 
   /// Returns the page layout preference for the document.
