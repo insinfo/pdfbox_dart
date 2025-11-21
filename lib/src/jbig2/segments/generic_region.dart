@@ -629,6 +629,8 @@ class GenericRegion implements Region {
      _isTPGDon = isTPGDon;
      _gbAtX = gbAtX;
      _gbAtY = gbAtY;
+     
+     _regionBitmap = null;
   }
 
   @override

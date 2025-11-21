@@ -6,7 +6,7 @@ import 'package:pdfbox_dart/src/io/random_access_read_buffer.dart';
 
 void main() {
   test('PatternDictionary parseHeaderTest', () {
-    final file = File('lib/src/jbig2/resources/images/sampledata.jb2');
+    final file = File('test/jbig2/resources/images/sampledata.jb2');
     if (!file.existsSync()) {
       fail('Test resource not found: ${file.path}');
     }

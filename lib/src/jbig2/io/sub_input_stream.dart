@@ -48,6 +48,7 @@ class SubInputStream {
     if (val == -1) return -1;
 
     int bit = (val >> (7 - _bitOffset)) & 1;
+    
     _bitOffset++;
     if (_bitOffset == 8) {
       _bitOffset = 0;

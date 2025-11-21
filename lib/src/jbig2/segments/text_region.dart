@@ -102,16 +102,25 @@ class TextRegion implements Region {
   }
 
   void _parseHeader() {
+    print("TextRegion parsing header...");
     _regionInfo.parseHeader();
+    print("Region info parsed.");
     _readRegionFlags();
+    print("Region flags read. Huffman: $_isHuffmanEncoded");
     if (_isHuffmanEncoded) {
       _readHuffmanFlags();
+      print("Huffman flags read.");
     }
     _readUseRefinement();
+    print("Use refinement read.");
     _readAmountOfSymbolInstances();
+    print("Amount of symbol instances: $_amountOfSymbolInstances");
     _getSymbols();
+    print("Symbols retrieved.");
     _computeSymbolCodeLength();
+    print("Symbol code length computed.");
     _checkInput();
+    print("Input checked.");
   }
 
   void _readRegionFlags() {

@@ -226,7 +226,7 @@ class SymbolDictionary implements Dictionary {
       int heightClassHeight = 0;
       _amountOfDecodedSymbols = 0;
 
-      while (_amountOfDecodedSymbols != _amountOfNewSymbols) {
+      while (_amountOfDecodedSymbols < _amountOfNewSymbols) {
         heightClassHeight += _decodeHeightClassDeltaHeight();
         int symbolWidth = 0;
         int totalWidth = 0;
@@ -246,7 +246,9 @@ class SymbolDictionary implements Dictionary {
               _decodeAggregate(symbolWidth, heightClassHeight);
             }
           } else if (_isHuffmanEncoded && !_useRefinementAggregation) {
-            newSymbolsWidths![_amountOfDecodedSymbols] = symbolWidth;
+            if (_amountOfDecodedSymbols < _amountOfNewSymbols) {
+              newSymbolsWidths![_amountOfDecodedSymbols] = symbolWidth;
+            }
           }
           _amountOfDecodedSymbols++;
         }
@@ -260,6 +262,9 @@ class SymbolDictionary implements Dictionary {
           }
           _subInputStream!.skipBits();
           final Bitmap heightClassCollectiveBitmap = _decodeHeightClassCollectiveBitmap(bmSize, heightClassHeight, totalWidth);
+          if (bmSize != 0) {
+            _subInputStream!.seek(_subInputStream!.getStreamPosition() + bmSize);
+          }
           _subInputStream!.skipBits();
           _decodeHeightClassBitmap(heightClassCollectiveBitmap, heightClassFirstSymbolIndex, heightClassHeight, newSymbolsWidths!);
         }
@@ -287,7 +292,7 @@ class SymbolDictionary implements Dictionary {
   }
 
   void _decodeHeightClassBitmap(final Bitmap heightClassCollectiveBitmap, final int heightClassFirstSymbol, final int heightClassHeight, final List<int> newSymbolsWidths) {
-    for (int i = heightClassFirstSymbol; i < _amountOfDecodedSymbols; i++) {
+    for (int i = heightClassFirstSymbol; i < _amountOfDecodedSymbols && i < _amountOfNewSymbols; i++) {
       int startColumn = 0;
       for (int j = heightClassFirstSymbol; j <= i - 1; j++) {
         startColumn += newSymbolsWidths[j];
@@ -466,7 +471,9 @@ class SymbolDictionary implements Dictionary {
       }
       if (exRunLength != 0) {
         for (int index = exportIndex; index < exportIndex + exRunLength; index++) {
-          exportFlags[index] = currentExportFlag;
+          if (index < exportFlags.length) {
+            exportFlags[index] = currentExportFlag;
+          }
         }
       }
       currentExportFlag = (currentExportFlag == 0) ? 1 : 0;

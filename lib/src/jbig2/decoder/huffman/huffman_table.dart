@@ -67,7 +67,7 @@ abstract class HuffmanTable {
     lenCount[0] = 0;
 
     /* Annex B.3 3) */
-    for (int curLen = 1; curLen <= lenCount.length; curLen++) {
+    for (int curLen = 1; curLen < lenCount.length; curLen++) {
       firstCode[curLen] = (firstCode[curLen - 1] + (lenCount[curLen - 1]) << 1);
       curCode = firstCode[curLen];
       for (var code in codeTable) {

@@ -7,7 +7,7 @@ import 'package:pdfbox_dart/src/jbig2/util/combination_operator.dart';
 
 void main() {
   test('GenericRegion parseHeaderTest', () {
-    final file = File('lib/src/jbig2/resources/images/sampledata.jb2');
+    final file = File('test/jbig2/resources/images/sampledata.jb2');
     if (!file.existsSync()) {
       // Try relative to workspace root if running from IDE might be different
       // But usually tests run from project root.

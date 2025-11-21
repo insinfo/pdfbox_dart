@@ -14,7 +14,7 @@ void main() {
     // Convert expected to Uint8List for comparison as Bitmap uses Uint8List
     final expectedUint8 = Uint8List.fromList(expected.map((e) => e & 0xff).toList());
 
-    final file = File('lib/src/jbig2/resources/images/sampledata.jb2');
+    final file = File('test/jbig2/resources/images/sampledata.jb2');
     if (!file.existsSync()) {
       fail('Test resource not found: ${file.path}');
     }

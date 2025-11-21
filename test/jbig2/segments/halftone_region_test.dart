@@ -7,7 +7,7 @@ import 'package:pdfbox_dart/src/jbig2/util/combination_operator.dart';
 
 void main() {
   test('HalftoneRegion parseHeaderTest', () {
-    final file = File('lib/src/jbig2/resources/images/sampledata.jb2');
+    final file = File('test/jbig2/resources/images/sampledata.jb2');
     if (!file.existsSync()) {
       fail('Test resource not found: ${file.path}');
     }

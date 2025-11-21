@@ -523,7 +523,7 @@ void main() {
   ];
 
   test('ArithmeticDecoder decodeTest', () {
-    final file = File('lib/src/jbig2/resources/images/arith/encoded testsequence');
+    final file = File('test/jbig2/resources/images/arith/encoded testsequence');
     if (!file.existsSync()) {
       fail('Test resource not found: ${file.path}');
     }
@@ -540,7 +540,7 @@ void main() {
   });
 
   test('ArithmeticDecoder decodeTestWithTracadataComparison', () {
-    final file = File('lib/src/jbig2/resources/images/arith/encoded testsequence');
+    final file = File('test/jbig2/resources/images/arith/encoded testsequence');
     if (!file.existsSync()) {
       fail('Test resource not found: ${file.path}');
     }
