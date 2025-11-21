@@ -25,7 +25,7 @@ void main() {
         ..h = 4
         ..offset = 0
         ..scanw = 4
-        ..setDataInt(List<int>.from(data, growable: false));
+        ..setDataInt(Int32List.fromList(data));
 
       final quantSource = _SingleBlockQuantSource(block);
       final sampleSource = _SingleBlockComponentSource(block);

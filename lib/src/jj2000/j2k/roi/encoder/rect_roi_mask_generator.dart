@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import '../../image/data_blk_int.dart';
 import '../../wavelet/subband.dart';
 import 'roi.dart';
@@ -40,10 +42,10 @@ class RectROIMaskGenerator extends ROIMaskGenerator {
     }
 
     final int totalSamples = block.w * block.h;
-    final List<int> maskData;
+    final Int32List maskData;
     final existing = block.getDataInt();
     if (existing == null || existing.length < totalSamples) {
-      maskData = List<int>.filled(totalSamples, 0);
+      maskData = Int32List(totalSamples);
       block.setDataInt(maskData);
       block.offset = 0;
       block.scanw = block.w;

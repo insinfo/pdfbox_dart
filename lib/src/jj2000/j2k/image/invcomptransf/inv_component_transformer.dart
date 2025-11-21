@@ -118,7 +118,7 @@ class InvCompTransfImgDataSrc extends ImgDataAdapter implements BlkImgDataSrc {
     final existing = target.getDataInt();
     late final List<int> buffer;
     if (existing == null || existing.length < required) {
-      final newData = List<int>.filled(required, 0, growable: false);
+      final newData = Int32List(required);
       target.setDataInt(newData);
       buffer = newData;
     } else {
@@ -151,8 +151,8 @@ class InvCompTransfImgDataSrc extends ImgDataAdapter implements BlkImgDataSrc {
         final int crVal = crData[crPos];
 
         final int g = yVal - ((cbVal + crVal) >> 2);
-        final int r = crVal + g;
-        final int b = cbVal + g;
+        final int r = yVal + crVal;
+        final int b = yVal + cbVal;
 
         if (_componentDebugCountdown[component] > 0) {
           if (_componentDebugCountdown[component] == 5) {

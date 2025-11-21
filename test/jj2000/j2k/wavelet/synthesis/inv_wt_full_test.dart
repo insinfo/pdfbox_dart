@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:test/test.dart';
 
 import 'package:pdfbox_dart/src/jj2000/j2k/decoder/decoder_specs.dart';
@@ -187,7 +189,7 @@ class _StubCBlkWTDataSrcDec extends CBlkWTDataSrcDec {
       result = block;
       var buffer = result.getData() as List<int>?;
       if (buffer == null || buffer.length < data.length) {
-        buffer = List<int>.from(data);
+        buffer = Int32List.fromList(data);
         result.setData(buffer);
       } else {
         for (var i = 0; i < data.length; i++) {
@@ -196,7 +198,7 @@ class _StubCBlkWTDataSrcDec extends CBlkWTDataSrcDec {
       }
     } else {
       result = DataBlkInt.withGeometry(0, 0, width, height)
-        ..setData(List<int>.from(data));
+        ..setData(Int32List.fromList(data));
     }
 
     result
@@ -223,7 +225,7 @@ class _StubCBlkWTDataSrcDec extends CBlkWTDataSrcDec {
       result = block;
       var buffer = result.getData() as List<int>?;
       if (buffer == null || buffer.length < data.length) {
-        buffer = List<int>.from(data);
+        buffer = Int32List.fromList(data);
         result.setData(buffer);
       } else {
         for (var i = 0; i < data.length; i++) {
@@ -232,7 +234,7 @@ class _StubCBlkWTDataSrcDec extends CBlkWTDataSrcDec {
       }
     } else {
       result = DataBlkInt.withGeometry(0, 0, width, height)
-        ..setData(List<int>.from(data));
+        ..setData(Int32List.fromList(data));
     }
 
     result

@@ -5,6 +5,7 @@ import '../../decoder/decoder_specs.dart';
 import '../../image/data_blk.dart';
 import '../../image/data_blk_float.dart';
 import '../../image/data_blk_int.dart';
+import '../../util/decoder_instrumentation.dart';
 import '../../util/facility_manager.dart';
 import '../../util/progress_watch.dart';
 import '../wavelet_transform.dart';
@@ -31,6 +32,10 @@ class InvWTFull extends InverseWT {
   int cblkToDecode = 0;
   int nDecCblk = 0;
   int dtype = DataBlk.typeInt;
+  static const int _maxReconstructionLogs = 4;
+  int _reconstructionLogCount = 0;
+  static const int _subbandLogLimit = 2;
+  final Map<String, int> _subbandLogCounts = <String, int>{};
 
   bool _isSubbandReversible(SubbandSyn subband) {
     if (subband.isNode) {
@@ -98,6 +103,7 @@ class InvWTFull extends InverseWT {
         root,
         component,
       );
+      _logReconstructionPreview(tileIdx, component, reconstructedComps[component]!);
       if (pw != null && component == src.getNumComps() - 1) {
         pw!.terminateProgressWatch();
       }
@@ -129,7 +135,7 @@ class InvWTFull extends InverseWT {
       case DataBlk.typeInt:
         var buffer = block.getData() as List<int>?;
         if (buffer == null || buffer.length < block.w * block.h) {
-          buffer = List<int>.filled(block.w * block.h, 0, growable: false);
+          buffer = Int32List(block.w * block.h);
         }
         dstData = buffer;
         break;
@@ -383,6 +389,7 @@ class InvWTFull extends InverseWT {
   }
 
   void _waveletTreeReconstruction(DataBlk img, SubbandSyn sb, int component) {
+    final tileIdx = src.getTileIdx();
     if (!sb.isNode) {
       if (sb.w == 0 || sb.h == 0) {
         return;
@@ -410,6 +417,7 @@ class InvWTFull extends InverseWT {
             nDecCblk++;
             pw!.updateProgressWatch(nDecCblk, '');
           }
+          _logSubbandBlock(tileIdx, component, sb, block);
           for (var row = block.h - 1; row >= 0; row--) {
             final dstPos = (block.uly + row) * img.w + block.ulx;
             final srcPos = block.offset + row * block.scanw;
@@ -503,4 +511,145 @@ class InvWTFull extends InverseWT {
       reconstructedComps[i] = null;
     }
   }
+
+  void _logReconstructionPreview(int tileIdx, int component, DataBlk block) {
+    if (!DecoderInstrumentation.isEnabled() || _reconstructionLogCount >= _maxReconstructionLogs) {
+      return;
+    }
+    _reconstructionLogCount++;
+    final width = block.w;
+    final height = block.h;
+    if (width == 0 || height == 0) {
+      DecoderInstrumentation.log(
+        'InvWTFull',
+        'tile=$tileIdx comp=$component reconstruction empty block',
+      );
+      return;
+    }
+
+    final data = block.getData();
+    if (data == null) {
+      DecoderInstrumentation.log(
+        'InvWTFull',
+        'tile=$tileIdx comp=$component reconstruction missing buffer',
+      );
+      return;
+    }
+
+    final summary = data is Float32List
+        ? _summarizeFloatBlock(data, width, height, block.offset, block.scanw)
+        : _summarizeIntBlock(data as List<int>, width, height, block.offset, block.scanw);
+
+    DecoderInstrumentation.log(
+      'InvWTFull',
+      'tile=$tileIdx comp=$component reconstruction dtype=${block.getDataType()} '
+      'block=${width}x$height min=${summary.minLabel} max=${summary.maxLabel} preview=${summary.preview}',
+    );
+  }
+
+  _ReconstructionSummary _summarizeIntBlock(
+    List<int> data,
+    int width,
+    int height,
+    int offset,
+    int scanw,
+  ) {
+    var minVal = data[offset];
+    var maxVal = data[offset];
+    final previewCount = math.min(width, 8);
+    final preview = <String>[];
+    var rowOffset = offset;
+    for (var row = 0; row < height; row++) {
+      for (var col = 0; col < width; col++) {
+        final sample = data[rowOffset + col];
+        if (sample < minVal) {
+          minVal = sample;
+        }
+        if (sample > maxVal) {
+          maxVal = sample;
+        }
+        if (row == 0 && col < previewCount) {
+          preview.add(sample.toString());
+        }
+      }
+      rowOffset += scanw;
+    }
+    return _ReconstructionSummary(
+      minVal.toString(),
+      maxVal.toString(),
+      '[${preview.join(', ')}]',
+    );
+  }
+
+  _ReconstructionSummary _summarizeFloatBlock(
+    Float32List data,
+    int width,
+    int height,
+    int offset,
+    int scanw,
+  ) {
+    var minVal = data[offset];
+    var maxVal = data[offset];
+    final previewCount = math.min(width, 8);
+    final preview = <String>[];
+    var rowOffset = offset;
+    for (var row = 0; row < height; row++) {
+      for (var col = 0; col < width; col++) {
+        final sample = data[rowOffset + col];
+        if (sample < minVal) {
+          minVal = sample;
+        }
+        if (sample > maxVal) {
+          maxVal = sample;
+        }
+        if (row == 0 && col < previewCount) {
+          preview.add(sample.toStringAsFixed(4));
+        }
+      }
+      rowOffset += scanw;
+    }
+    return _ReconstructionSummary(
+      minVal.toStringAsFixed(6),
+      maxVal.toStringAsFixed(6),
+      '[${preview.join(', ')}]',
+    );
+  }
+
+  void _logSubbandBlock(
+    int tileIdx,
+    int component,
+    SubbandSyn subband,
+    DataBlk block,
+  ) {
+    if (!DecoderInstrumentation.isEnabled()) {
+      return;
+    }
+    final key = 't${tileIdx}c${component}r${subband.resLvl}b${subband.sbandIdx}';
+    final count = _subbandLogCounts[key] ?? 0;
+    if (count >= _subbandLogLimit) {
+      return;
+    }
+    final data = block.getData();
+    if (data == null || block.w == 0 || block.h == 0) {
+      return;
+    }
+    _subbandLogCounts[key] = count + 1;
+    final summary = data is Float32List
+        ? _summarizeFloatBlock(data, block.w, block.h, block.offset, block.scanw)
+        : _summarizeIntBlock(data as List<int>, block.w, block.h, block.offset, block.scanw);
+    DecoderInstrumentation.log(
+      'InvWTFull',
+      'subband tile=$tileIdx comp=$component res=${subband.resLvl} band=${subband.sbandIdx} '
+      'dtype=${block.getDataType()} block=${block.w}x${block.h} min=${summary.minLabel} '
+      'max=${summary.maxLabel} preview=${summary.preview}',
+    );
+  }
+}
+
+class _ReconstructionSummary {
+  const _ReconstructionSummary(this.minLabel, this.maxLabel, this.preview);
+
+  final String minLabel;
+  final String maxLabel;
+  final String preview;
 }

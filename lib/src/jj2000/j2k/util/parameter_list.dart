@@ -218,13 +218,13 @@ class ParameterList {
   }
 
   /// Converts usage metadata into a list of parameter names.
-  static List<String>? toNameArray(List<List<String>>? pinfo) {
+  static List<String>? toNameArray(List<List<String?>>? pinfo) {
     if (pinfo == null) {
       return null;
     }
     final names = List<String>.filled(pinfo.length, '', growable: false);
     for (var i = 0; i < pinfo.length; i++) {
-      names[i] = pinfo[i][0];
+      names[i] = pinfo[i][0]!;
     }
     return names;
   }

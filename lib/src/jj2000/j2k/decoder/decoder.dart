@@ -329,7 +329,11 @@ class Decoder implements Runnable {
     );
 
     final initialFixedPoint = inverseWT!.getFixedPoint(0);
-    imageDataConverter = ImgDataConverter(inverseWT!, initialFixedPoint);
+    imageDataConverter = ImgDataConverter(
+      inverseWT!,
+      initialFixedPoint,
+      'core-img-data-converter',
+    );
     _logger.printmsg(
       MsgLogger.info,
       'Instantiated image data converter (fixed-point=$initialFixedPoint).',
@@ -360,7 +364,11 @@ class Decoder implements Runnable {
     }
 
     if (pipelineSource != null) {
-      writerDataConverter = ImgDataConverter(pipelineSource, 0);
+      writerDataConverter = ImgDataConverter(
+        pipelineSource,
+        0,
+        'writer-img-data-converter',
+      );
       _logger.printmsg(
         MsgLogger.info,
         'Instantiated writer data converter (ensuring integer samples).',

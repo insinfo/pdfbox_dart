@@ -184,7 +184,7 @@ class _StaticImageSource implements BlkImgDataSrc {
     final length = reqWidth * reqHeight;
     var payload = result.data;
     if (payload == null || payload.length < length) {
-      payload = List<int>.filled(length, 0, growable: false);
+      payload = Int32List(length);
       result.data = payload;
     }
 

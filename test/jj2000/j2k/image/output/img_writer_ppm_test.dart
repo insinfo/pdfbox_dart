@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:test/test.dart';
 
@@ -129,7 +130,7 @@ class _FakeRgbSource implements BlkImgDataSrc {
     final length = reqWidth * reqHeight;
     var payload = result.data;
     if (payload == null || payload.length < length) {
-      payload = List<int>.filled(length, 0, growable: false);
+      payload = Int32List(length);
       result.data = payload;
     }
 

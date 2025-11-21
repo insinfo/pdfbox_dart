@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:test/test.dart';
 
 import 'package:pdfbox_dart/src/jj2000/j2k/decoder/decoder_specs.dart';
@@ -130,7 +131,7 @@ class _StubQuantDataSrcDec extends CBlkQuantDataSrcDec {
   _StubQuantDataSrcDec()
       : block = DataBlkInt.withGeometry(0, 0, 1, 1),
         root = SubbandSyn() {
-    block.setDataInt(<int>[0]);
+    block.setDataInt(Int32List.fromList(<int>[0]));
     block.progressive = false;
     root
       ..isNode = false
@@ -182,7 +183,7 @@ class _StubQuantDataSrcDec extends CBlkQuantDataSrcDec {
       ..offset = 0
       ..scanw = block.w
       ..progressive = false
-      ..setDataInt(List<int>.from(block.getDataInt() ?? const <int>[]));
+      ..setDataInt(Int32List.fromList(block.getDataInt() ?? const <int>[]));
     return target;
   }
 

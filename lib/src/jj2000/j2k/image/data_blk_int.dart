@@ -1,8 +1,10 @@
+import 'dart:typed_data';
+
 import 'data_blk.dart';
 
 /// Integer implementation of [DataBlk].
 class DataBlkInt extends DataBlk {
-  List<int>? data;
+  Int32List? data;
 
   DataBlkInt();
 
@@ -13,7 +15,7 @@ class DataBlkInt extends DataBlk {
     h = height;
     offset = 0;
     scanw = width;
-    data = List<int>.filled(width * height, 0, growable: false);
+    data = Int32List(width * height);
   }
 
   DataBlkInt.copy(DataBlkInt source) {
@@ -25,7 +27,7 @@ class DataBlkInt extends DataBlk {
     scanw = w;
     final src = source.data;
     if (src != null) {
-      data = List<int>.filled(w * h, 0, growable: false);
+      data = Int32List(w * h);
       for (var row = 0; row < h; row++) {
         final destBase = row * scanw;
         final srcBase = row * source.scanw;
@@ -42,14 +44,14 @@ class DataBlkInt extends DataBlk {
   @override
   Object? getData() => data;
 
-  List<int>? getDataInt() => data;
+  Int32List? getDataInt() => data;
 
   @override
   void setData(Object? value) {
-    data = value as List<int>?;
+    data = value as Int32List?;
   }
 
-  void setDataInt(List<int>? value) {
+  void setDataInt(Int32List? value) {
     data = value;
   }
 

@@ -370,10 +370,15 @@ abstract class BitstreamReaderAgent extends CodedCBlkDataSrcDec {
         sb.numCb!.y = ((tmpY + sb.h - 1) ~/ sb.nomCBlkH) - ((tmpY ~/ sb.nomCBlkH) - 1);
       }
 
+      // JJ2000 defines magnitude bits as guardBits + exponent (derived bands use
+      // the LL exponent adjusted by the decomposition gap). The Java port does
+      // not subtract one, so mirroring that behaviour keeps bitplane alignment
+      // consistent with quantization step sizes. Otherwise we introduce an
+      // extra right shift in StdDequantizer, halving every coefficient.
       if (derived[comp]) {
-        sb.magBits = guardBits[comp] + (params[comp]!.exp[0][0] - (mdl[comp] - sb.level)) - 1;
+        sb.magBits = guardBits[comp] + (params[comp]!.exp[0][0] - (mdl[comp] - sb.level));
       } else {
-        sb.magBits = guardBits[comp] + params[comp]!.exp[sb.resLvl][sb.sbandIdx] - 1;
+        sb.magBits = guardBits[comp] + params[comp]!.exp[sb.resLvl][sb.sbandIdx];
       }
     } else {
       initSubbandsFields(comp, sb.getLL() as SubbandSyn);

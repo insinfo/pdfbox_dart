@@ -6,10 +6,8 @@ https://github.com/zdenop/jbig2enc-samples
 https://github.com/ocrmypdf/OCRmyPDF/issues/748
 https://github.com/anotatta/jbig2enc
 
-C:\MyDartProjects\pdfbox_dart\jbig2-imageio\src\test\java\org\apache\pdfbox\jbig2
 
-
-### referencias de JPEG2000 para poder copiar testes e implementar estes testes em dart
+### referencias de JPEG2000 para poder copiar testes e implementar estes testes em dart e tem que portar tambem o C:\MyDartProjects\pdfbox_dart\jj2000\src\main\java\ucar\jpeg\colorspace o encoder tambem C:\MyDartProjects\pdfbox_dart\jj2000\src\main\java\ucar\jpeg\jj2000\j2k\encoder e o C:\MyDartProjects\pdfbox_dart\jj2000\src\main\java\ucar\jpeg\jj2000\disp
 https://github.com/iszak/jpeg2000
 https://github.com/uclouvain/openjpeg
 https://github.com/GrokImageCompression/grok

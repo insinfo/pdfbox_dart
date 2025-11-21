@@ -12,6 +12,7 @@ import '../../quantization/dequantizer/std_dequantizer.dart';
 import '../../quantization/dequantizer/std_dequantizer_params.dart';
 import '../../quantization/dequantizer/cblk_quant_data_src_dec.dart';
 import '../../roi/roi_de_scaler.dart';
+import '../../util/decoder_instrumentation.dart';
 import '../../util/facility_manager.dart';
 import '../../util/msg_logger.dart';
 import '../../util/parameter_list.dart';
@@ -47,6 +48,21 @@ class _QuantizationParseResult {
 /// rest of the pipeline expects while leaving TODO markers where parsing
 /// logic must be restored.
 class HeaderDecoder {
+  static const String _logSource = 'HeaderDecoder';
+  static const int _maxSizLogs = 2;
+  static const int _maxCodLogs = 4;
+  static const int _maxQuantLogs = 6;
+  static int _sizLogCount = 0;
+  static int _codLogCount = 0;
+  static int _quantLogCount = 0;
+
+  static bool _isInstrumentationEnabled() => DecoderInstrumentation.isEnabled();
+
+  static void _log(String message) {
+    if (_isInstrumentationEnabled()) {
+      DecoderInstrumentation.log(_logSource, message);
+    }
+  }
   /// Parses the main header of a JPEG 2000 codestream.
   ///
   /// The method assumes [input] is positioned at the beginning of a codestream
@@ -375,6 +391,18 @@ class HeaderDecoder {
       decSpec.ephs.setTileDef(tileIdx, (scod & Markers.SCOX_USE_EPH) != 0);
     }
 
+    _logCodSummary(
+      contextLabel: isMainHeader ? 'main' : 'tile=$tileIdx',
+      scod: scod,
+      progression: sgcodPo,
+      layers: sgcodNl,
+      decompLevels: spcodNdl,
+      cblkWidthExp: spcodCw,
+      cblkHeightExp: spcodCh,
+      filterId: spcodT,
+      precincts: precinctSpec,
+    );
+
     precinctPartitionFlag = (scod & Markers.SCOX_PRECINCT_PARTITION) != 0;
     if (precinctPartitionFlag && precinctSpec != null) {
       final widths = <int>[];
@@ -694,6 +722,13 @@ class HeaderDecoder {
       decSpec.qsss.setTileDef(tileIdx, result.params);
       decSpec.gbs.setTileDef(tileIdx, guardBits);
     }
+
+    _logQuantSummary(
+      contextLabel: isMainHeader ? 'main' : 'tile=$tileIdx',
+      guardBits: guardBits,
+      qType: qType,
+      params: result.params,
+    );
   }
 
   void parseQccMarker(
@@ -760,6 +795,14 @@ class HeaderDecoder {
       decSpec.qsss.setTileCompVal(tileIdx, component, result.params);
       decSpec.gbs.setTileCompVal(tileIdx, component, guardBits);
     }
+
+    final contextLabel = isMainHeader ? 'main:c$component' : 'tile=$tileIdx:c$component';
+    _logQuantSummary(
+      contextLabel: contextLabel,
+      guardBits: guardBits,
+      qType: qType,
+      params: result.params,
+    );
   }
 
   int _selectComponentTransform(int sgcodMct, int spcodT) {
@@ -1530,6 +1573,7 @@ class HeaderDecoder {
     }
 
     headerInfo.siz = siz;
+    _logSizSummary(siz);
     return siz;
   }
 
@@ -1545,5 +1589,105 @@ class HeaderDecoder {
       MsgLogger.log,
       'Skipping marker 0x${marker.toRadixString(16)} (${length - 2} bytes)',
     );
+  }
+
+  static void _logSizSummary(HeaderInfoSIZ siz) {
+    if (!_isInstrumentationEnabled() || _sizLogCount >= _maxSizLogs) {
+      return;
+    }
+    _sizLogCount++;
+    final components = siz.csiz;
+    final depthLabels = <String>[];
+    final previewCount = math.min(components, 4);
+    for (var c = 0; c < previewCount; c++) {
+      final signed = siz.isOrigSigned(c) ? 's' : 'u';
+      depthLabels.add('c$c:$signed${siz.getOrigBitDepth(c)}');
+    }
+    if (components > previewCount) {
+      depthLabels.add('…');
+    }
+    _log(
+      'SIZ summary: comps=$components size=${siz.xsiz - siz.x0siz}x${siz.ysiz - siz.y0siz} '
+      'tile=${siz.xtsiz}x${siz.ytsiz} depths=${depthLabels.join(' ')}',
+    );
+  }
+
+  void _logCodSummary({
+    required String contextLabel,
+    required int scod,
+    required int progression,
+    required int layers,
+    required int decompLevels,
+    required int cblkWidthExp,
+    required int cblkHeightExp,
+    required int filterId,
+    List<int>? precincts,
+  }) {
+    if (!_isInstrumentationEnabled() || _codLogCount >= _maxCodLogs) {
+      return;
+    }
+    _codLogCount++;
+    final cblkWidth = 1 << (cblkWidthExp + 2);
+    final cblkHeight = 1 << (cblkHeightExp + 2);
+    final usesPrecincts = (scod & Markers.SCOX_PRECINCT_PARTITION) != 0;
+    final flags = <String>[];
+    if ((scod & Markers.SCOX_USE_SOP) != 0) {
+      flags.add('SOP');
+    }
+    if ((scod & Markers.SCOX_USE_EPH) != 0) {
+      flags.add('EPH');
+    }
+    if (usesPrecincts) {
+      flags.add('precincts');
+    }
+    final filterLabel = filterId == FilterTypes.W5X3 ? '5x3' : '9x7';
+    final precinctLabel = usesPrecincts && precincts != null
+        ? 'precinctSpec=${precincts.map((v) => '0x${v.toRadixString(16)}').join(',')}'
+        : 'precinctSpec=default';
+    _log(
+      'COD summary ($contextLabel): progression=$progression layers=$layers '
+      'levels=$decompLevels cblk=${cblkWidth}x${cblkHeight} filter=$filterLabel '
+      'flags=${flags.isEmpty ? 'none' : flags.join('|')} $precinctLabel',
+    );
+  }
+
+  void _logQuantSummary({
+    required String contextLabel,
+    required int guardBits,
+    required int qType,
+    required StdDequantizerParams params,
+  }) {
+    if (!_isInstrumentationEnabled() || _quantLogCount >= _maxQuantLogs) {
+      return;
+    }
+    _quantLogCount++;
+    final expSummary = _summariseExponentTable(params.exp);
+    final label = _quantizationTypeLabel(qType);
+    _log(
+      'Quantization summary ($contextLabel): guardBits=$guardBits type=$label exp=$expSummary',
+    );
+  }
+
+  String _summariseExponentTable(List<List<int>> table) {
+    if (table.isEmpty) {
+      return 'none';
+    }
+    final entries = <String>[];
+    for (var res = 0; res < table.length; res++) {
+      final row = table[res];
+      final startBand = res == 0 ? 0 : 1;
+      final endBand = res == 0 ? 0 : math.min(3, row.length - 1);
+      final bands = <String>[];
+      for (var band = startBand; band <= endBand && band < row.length; band++) {
+        final exp = row[band];
+        if (exp > 0) {
+          bands.add('b$band=$exp');
+        }
+      }
+      if (bands.isNotEmpty) {
+        entries.add('r$res{${bands.join(',')}}');
+      }
+    }
+    return entries.isEmpty ? 'none' : entries.join(' ');
   }
 }

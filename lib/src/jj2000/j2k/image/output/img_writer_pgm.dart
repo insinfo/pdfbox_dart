@@ -3,12 +3,14 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import '../../util/decoder_instrumentation.dart';
 import '../blk_img_data_src.dart';
 import '../data_blk_int.dart';
 import 'img_writer.dart';
 
 /// Writes a single component to the raw binary PGM (P5) format.
 class ImgWriterPgm extends ImgWriter {
+  static const String _logSource = 'ImgWriterPGM';
   ImgWriterPgm(File output, BlkImgDataSrc source, int componentIndex) {
     final numComps = source.getNumComps();
     if (componentIndex < 0 || componentIndex >= numComps) {
@@ -54,6 +56,10 @@ class ImgWriterPgm extends ImgWriter {
   RandomAccessFile? _file;
   Uint8List? _lineBuffer;
   int _pixelDataOffset = 0;
+  static const int debugSamples = 8;
+  static int _debugLines = 2;
+  static final List<int> _rawDebug = List<int>.filled(debugSamples, 0);
+  static final List<int> _shiftedDebug = List<int>.filled(debugSamples, 0);
 
   @override
   void close() {
@@ -115,6 +121,8 @@ class ImgWriterPgm extends ImgWriter {
         (src.getImgULY() / src.getCompSubsY(_component)).ceil();
 
     for (var line = 0; line < regionHeight; line++) {
+      final captureDebug = _isInstrumentationEnabled() && _debugLines > 0;
+      var debugCount = 0;
       _block
         ..ulx = ulx
         ..uly = uly + line
@@ -133,9 +141,10 @@ class ImgWriterPgm extends ImgWriter {
 
       var sourceIndex = block.offset;
       for (var x = 0; x < regionWidth; x++) {
-        var sample = _fixedPoint == 0
-          ? data[sourceIndex] + _levelShift
-          : (data[sourceIndex] >> _fixedPoint) + _levelShift;
+        final rawSample = _fixedPoint == 0
+            ? data[sourceIndex]
+            : (data[sourceIndex] >> _fixedPoint);
+        var sample = rawSample + _levelShift;
         if (sample < 0) {
           sample = 0;
         } else {
@@ -145,7 +154,21 @@ class ImgWriterPgm extends ImgWriter {
           }
         }
         _lineBuffer![x] = (sample >> _downShift) & 0xff;
+        if (captureDebug && debugCount < debugSamples) {
+          _rawDebug[debugCount] = rawSample;
+          _shiftedDebug[debugCount] = sample;
+          debugCount++;
+        }
         sourceIndex++;
+      }
+
+      if (captureDebug) {
+        final tuples = <String>[];
+        for (var i = 0; i < debugCount; i++) {
+          tuples.add('${_rawDebug[i]}->${_shiftedDebug[i]}');
+        }
+        _log('PGM writer debug line $_debugLines: ${tuples.join(' ')}');
+        _debugLines--;
       }
 
       final imageRow = uly + tOffy + line;
@@ -161,5 +184,13 @@ class ImgWriterPgm extends ImgWriter {
     _file!.setPositionSync(0);
     _file!.writeFromSync(header);
     _pixelDataOffset = header.length;
+  }
+
+  static bool _isInstrumentationEnabled() => DecoderInstrumentation.isEnabled();
+
+  static void _log(String message) {
+    if (_isInstrumentationEnabled()) {
+      DecoderInstrumentation.log(_logSource, message);
+    }
   }
 }

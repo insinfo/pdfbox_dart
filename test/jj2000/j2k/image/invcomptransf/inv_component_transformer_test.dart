@@ -146,7 +146,7 @@ class _RctStub implements BlkImgDataSrc {
       ..offset = 0
       ..scanw = 2
       ..progressive = false
-      ..setDataInt(List<int>.from(data));
+      ..setDataInt(Int32List.fromList(data));
     return out;
   }
 

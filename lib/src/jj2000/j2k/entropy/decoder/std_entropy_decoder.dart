@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import '../../decoder/decoder_specs.dart';
 import '../../image/data_blk.dart';
 import '../../image/data_blk_int.dart';
@@ -221,7 +223,7 @@ class StdEntropyDecoder extends EntropyDecoder {
     var outData = outBlk.data;
     final required = currentBlock.w * currentBlock.h;
     if (outData == null || outData.length < required) {
-      outData = List<int>.filled(required, 0, growable: false);
+      outData = Int32List(required);
       outBlk.data = outData;
     } else {
       ArrayUtil.intArraySet(outData, 0);

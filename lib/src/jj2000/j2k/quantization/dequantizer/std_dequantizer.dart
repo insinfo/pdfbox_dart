@@ -35,6 +35,11 @@ class StdDequantizer extends Dequantizer {
   static final Set<String> _floatPreviewKeys = <String>{};
   static final Set<String> _rawPreviewKeys = <String>{};
   static const int _floatPreviewLimit = 32;
+  static const int _blockStatsLimit = 2;
+  static final Map<String, int> _floatBlockStatsCounts = <String, int>{};
+  static final Map<String, int> _intBlockStatsCounts = <String, int>{};
+  static const int _shiftLogLimit = 4;
+  static final Map<String, int> _shiftLogCounts = <String, int>{};
   static const int _signMask = 0x80000000;
   static const int _magnitudeMask = 0x7fffffff;
 
@@ -232,7 +237,10 @@ class StdDequantizer extends Dequantizer {
       throw StateError('Quantized block missing payload');
     }
 
+
+    _logIntBlockStats(block, subband, component);
     final shiftBits = 31 - subband.magBits;
+    _logShiftInfo(component, subband, shiftBits);
 
     if (_dequantDebug > 0 && _isInstrumentationEnabled()) {
       _dequantDebug--;
@@ -298,12 +306,14 @@ class StdDequantizer extends Dequantizer {
           'res=${subband.resLvl} band=${subband.sbandIdx} values=${preview.join(', ')}');
     }
 
+    final shiftBits = 31 - subband.magBits;
+    _logShiftInfo(component, subband, shiftBits);
     final step = _computeStep(
       params,
       derived,
       subband,
       component,
-      31 - subband.magBits,
+      shiftBits,
     );
 
     final width = quantized.w;
@@ -354,6 +364,8 @@ class StdDequantizer extends Dequantizer {
         outData[outBase + col] = value;
       }
     }
+
+    _logFloatBlockStats(outBlock, subband, component);
   }
 
   double _computeStep(
@@ -400,4 +412,163 @@ class StdDequantizer extends Dequantizer {
       outBlock.setData(buffer);
     }
   }
+
+  void _logFloatBlockStats(
+    DataBlkFloat block,
+    SubbandSyn subband,
+    int component,
+  ) {
+    if (!_isInstrumentationEnabled() || block.w == 0 || block.h == 0) {
+      return;
+    }
+    final data = block.getDataFloat();
+    if (data == null) {
+      return;
+    }
+    final key = 'float-c$component-r${subband.resLvl}-b${subband.sbandIdx}';
+    final count = _floatBlockStatsCounts[key] ?? 0;
+    if (count >= _blockStatsLimit) {
+      return;
+    }
+    _floatBlockStatsCounts[key] = count + 1;
+    final summary = _summarizeFloatBlock(
+      data,
+      block.w,
+      block.h,
+      block.offset,
+      block.scanw,
+    );
+    _log(
+      'StdDequantizer float stats: comp=$component res=${subband.resLvl} '
+      'band=${subband.sbandIdx} block=${block.w}x${block.h} '
+      'min=${summary.minLabel} max=${summary.maxLabel} preview=${summary.preview}',
+    );
+  }
+
+  void _logIntBlockStats(
+    DataBlkInt block,
+    SubbandSyn subband,
+    int component,
+  ) {
+    if (!_isInstrumentationEnabled() || block.w == 0 || block.h == 0) {
+      return;
+    }
+    final data = block.getDataInt();
+    if (data == null) {
+      return;
+    }
+    final key = 'int-c$component-r${subband.resLvl}-b${subband.sbandIdx}';
+    final count = _intBlockStatsCounts[key] ?? 0;
+    if (count >= _blockStatsLimit) {
+      return;
+    }
+    _intBlockStatsCounts[key] = count + 1;
+    final summary = _summarizeIntBlock(
+      data,
+      block.w,
+      block.h,
+      block.offset,
+      block.scanw,
+    );
+    _log(
+      'StdDequantizer int stats: comp=$component res=${subband.resLvl} '
+      'band=${subband.sbandIdx} block=${block.w}x${block.h} '
+      'min=${summary.minLabel} max=${summary.maxLabel} preview=${summary.preview}',
+    );
+  }
+
+  _BlockStats _summarizeFloatBlock(
+    Float32List data,
+    int width,
+    int height,
+    int offset,
+    int scanw,
+  ) {
+    var minVal = data[offset];
+    var maxVal = data[offset];
+    final previewCount = math.min(width, 8);
+    final preview = <String>[];
+    var rowOffset = offset;
+    for (var row = 0; row < height; row++) {
+      for (var col = 0; col < width; col++) {
+        final sample = data[rowOffset + col];
+        if (sample < minVal) {
+          minVal = sample;
+        }
+        if (sample > maxVal) {
+          maxVal = sample;
+        }
+        if (row == 0 && col < previewCount) {
+          preview.add(sample.toStringAsFixed(4));
+        }
+      }
+      rowOffset += scanw;
+    }
+    return _BlockStats(
+      minVal.toStringAsFixed(6),
+      maxVal.toStringAsFixed(6),
+      '[${preview.join(', ')}]',
+    );
+  }
+
+  _BlockStats _summarizeIntBlock(
+    List<int> data,
+    int width,
+    int height,
+    int offset,
+    int scanw,
+  ) {
+    var minVal = data[offset];
+    var maxVal = data[offset];
+    final previewCount = math.min(width, 8);
+    final preview = <String>[];
+    var rowOffset = offset;
+    for (var row = 0; row < height; row++) {
+      for (var col = 0; col < width; col++) {
+        final sample = data[rowOffset + col];
+        if (sample < minVal) {
+          minVal = sample;
+        }
+        if (sample > maxVal) {
+          maxVal = sample;
+        }
+        if (row == 0 && col < previewCount) {
+          preview.add(sample.toString());
+        }
+      }
+      rowOffset += scanw;
+    }
+    return _BlockStats(
+      minVal.toString(),
+      maxVal.toString(),
+      '[${preview.join(', ')}]',
+    );
+  }
+  void _logShiftInfo(int component, SubbandSyn subband, int shiftBits) {
+    if (!_isInstrumentationEnabled()) {
+      return;
+    }
+    final key = 'shift-c$component-r${subband.resLvl}-b${subband.sbandIdx}';
+    final count = _shiftLogCounts[key] ?? 0;
+    if (count >= _shiftLogLimit) {
+      return;
+    }
+    _shiftLogCounts[key] = count + 1;
+    final gain = subband.anGainExp;
+    final magBits = subband.magBits;
+    final rangeBits = component < rb.length ? rb[component] : -1;
+    _log(
+      'StdDequantizer shift: comp=$component res=${subband.resLvl} '
+      'band=${subband.sbandIdx} magBits=$magBits shiftBits=$shiftBits '
+      'rb=$rangeBits anGainExp=$gain',
+    );
+  }
+}
+
+class _BlockStats {
+  const _BlockStats(this.minLabel, this.maxLabel, this.preview);
+
+  final String minLabel;
+  final String maxLabel;
+  final String preview;
 }
