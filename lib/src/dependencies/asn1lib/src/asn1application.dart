@@ -4,15 +4,59 @@ part of '../asn1lib.dart';
 // custom ASN1 object that delegates the interpretation to the
 // consumer.
 class ASN1Application extends ASN1Object {
-  ASN1Application({super.tag = APPLICATION_CLASS});
+  ASN1Application({
+    int applicationTagNumber = 0,
+    bool constructed = false,
+  })  : applicationTagNumber = applicationTagNumber,
+        isConstructedApplication = constructed,
+        super(tag: _encodeApplicationTag(applicationTagNumber, constructed));
 
-  ///  TODO: Need to override the tag..
-
-  ASN1Application.fromBytes(super.bytes) : super.fromBytes() {
-    // check that this really is an application type
+  ASN1Application.fromBytes(Uint8List bytes)
+      : applicationTagNumber = _decodeApplicationTagNumber(bytes),
+        isConstructedApplication = (bytes[0] & CONSTRUCTED_BIT) != 0,
+        super.fromBytes(bytes) {
     if (!isApplication(tag)) {
       throw ASN1Exception('tag $tag is not an ASN1 Application class');
     }
+  }
+
+  /// Lower five bits (or decoded high-tag number) representing the application tag.
+  final int applicationTagNumber;
+
+  /// Whether this application tag carries the constructed bit.
+  final bool isConstructedApplication;
+
+  static int _encodeApplicationTag(int tagNumber, bool constructed) {
+    if (tagNumber < 0 || tagNumber > 0x1e) {
+      throw ArgumentError(
+          'Application tag number must be between 0 and 30 inclusive');
+    }
+    var value = APPLICATION_CLASS | (tagNumber & 0x1f);
+    if (constructed) {
+      value |= CONSTRUCTED_BIT;
+    }
+    return value;
+  }
+
+  static int _decodeApplicationTagNumber(Uint8List bytes) {
+    if (bytes.isEmpty) {
+      throw ASN1Exception('Cannot decode application tag from empty input');
+    }
+    final base = bytes[0] & 0x1f;
+    if (base != 0x1f) {
+      return base;
+    }
+    var value = 0;
+    var offset = 1;
+    while (offset < bytes.length) {
+      final byte = bytes[offset++];
+      value = (value << 7) | (byte & 0x7f);
+      if ((byte & 0x80) == 0) {
+        return value;
+      }
+    }
+    throw ASN1Exception(
+        'Truncated high-tag-number while decoding application tag');
   }
 }
 

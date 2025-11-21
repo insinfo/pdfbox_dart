@@ -9,6 +9,13 @@ class TextPosition {
   static final Logger _log = Logger('TextPosition');
 
   static final Map<int, String> _diacritics = _createDiacritics();
+  static const List<List<int>> _combiningMarkRanges = [
+    [0x0300, 0x036F], // Combining Diacritical Marks
+    [0x1AB0, 0x1AFF], // Combining Diacritical Marks Extended
+    [0x1DC0, 0x1DFF], // Combining Diacritical Marks Supplement
+    [0x20D0, 0x20FF], // Combining Diacritical Marks for Symbols
+    [0xFE20, 0xFE2F], // Combining Half Marks
+  ];
 
   // text matrix for the start of the text object, coordinates are in display units
   // and have not been adjusted
@@ -471,21 +478,38 @@ class TextPosition {
     }
   }
 
+  static bool _isCombiningMark(int codePoint) {
+    for (final range in _combiningMarkRanges) {
+      final start = range[0];
+      final end = range[1];
+      if (codePoint >= start && codePoint <= end) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   /// @return True if the current character is a diacritic char.
   bool isDiacritic() {
-    String text = getUnicode();
-    if (text.length != 1) {
+    final text = getUnicode();
+    if (text.isEmpty || text == 'ー') {
       return false;
     }
-    if ("ー" == text) {
+
+    final iterator = text.runes.iterator;
+    if (!iterator.moveNext()) {
       return false;
     }
-    // TODO: Implement proper unicode category check
-    // For now, we can't easily check NON_SPACING_MARK etc without a library or table.
-    // We will assume false for now or try to find a way.
-    // Actually, let's check if we can use a regex or range.
-    // Or just rely on the fact that we might not need this perfectly for now.
-    return false; 
+    final codePoint = iterator.current;
+    if (iterator.moveNext()) {
+      // Multi-codepoint glyphs are unlikely to be pure diacritics.
+      return false;
+    }
+
+    if (_diacritics.containsKey(codePoint)) {
+      return true;
+    }
+    return _isCombiningMark(codePoint);
   }
 
   @override

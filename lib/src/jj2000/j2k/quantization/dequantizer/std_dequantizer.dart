@@ -40,6 +40,8 @@ class StdDequantizer extends Dequantizer {
   static final Map<String, int> _intBlockStatsCounts = <String, int>{};
   static const int _shiftLogLimit = 4;
   static final Map<String, int> _shiftLogCounts = <String, int>{};
+  static const int _stepLogLimit = 4;
+  static final Map<String, int> _stepLogCounts = <String, int>{};
   static const int _signMask = 0x80000000;
   static const int _magnitudeMask = 0x7fffffff;
 
@@ -148,6 +150,7 @@ class StdDequantizer extends Dequantizer {
           outBlock,
           subband,
           component,
+          reversible,
           derived,
           params,
         );
@@ -270,6 +273,7 @@ class StdDequantizer extends Dequantizer {
     }
 
     final step = _computeStep(params, derived, subband, component, shiftBits);
+    _logStepInfo(component, subband, step, derived);
     for (var i = data.length - 1; i >= 0; i--) {
       final temp = Int32Utils.mask32(data[i]);
       final magnitude = temp & _magnitudeMask;
@@ -285,6 +289,7 @@ class StdDequantizer extends Dequantizer {
     DataBlkFloat outBlock,
     SubbandSyn subband,
     int component,
+    bool reversible,
     bool derived,
     StdDequantizerParams params,
   ) {
@@ -308,6 +313,18 @@ class StdDequantizer extends Dequantizer {
 
     final shiftBits = 31 - subband.magBits;
     _logShiftInfo(component, subband, shiftBits);
+
+    if (reversible) {
+      _applyReversibleFloatTransform(
+        inData,
+        outData,
+        quantized,
+        shiftBits,
+      );
+      _logFloatBlockStats(outBlock, subband, component);
+      return;
+    }
+
     final step = _computeStep(
       params,
       derived,
@@ -315,6 +332,7 @@ class StdDequantizer extends Dequantizer {
       component,
       shiftBits,
     );
+    _logStepInfo(component, subband, step, derived);
 
     final width = quantized.w;
     final height = quantized.h;
@@ -368,6 +386,31 @@ class StdDequantizer extends Dequantizer {
     _logFloatBlockStats(outBlock, subband, component);
   }
 
+  void _applyReversibleFloatTransform(
+    List<int> inData,
+    Float32List outData,
+    DataBlkInt quantized,
+    int shiftBits,
+  ) {
+    final width = quantized.w;
+    final height = quantized.h;
+    final inOffset = quantized.offset;
+    final inScanw = quantized.scanw;
+
+    for (var row = 0; row < height; row++) {
+      final inBase = inOffset + row * inScanw;
+      final outBase = row * width;
+      for (var col = 0; col < width; col++) {
+        final temp = Int32Utils.mask32(inData[inBase + col]);
+        final magnitude = temp & _magnitudeMask;
+        final int sample = (temp & _signMask) == 0
+            ? magnitude >> shiftBits
+            : -(magnitude >> shiftBits);
+        outData[outBase + col] = sample.toDouble();
+      }
+    }
+  }
+
   double _computeStep(
     StdDequantizerParams params,
     bool derived,
@@ -380,21 +423,39 @@ class StdDequantizer extends Dequantizer {
       throw StateError('Non-reversible quantization requires step sizes');
     }
 
+    double baseStep;
+    String sourceLabel;
     double step;
     if (derived) {
       final root = src.getSynSubbandTree(src.getTileIdx(), component);
       final mrl = root.resLvl;
-      step = steps[0][0] *
+      baseStep = steps[0][0];
+      step = baseStep *
           (1 << (rb[component] + subband.anGainExp + mrl - subband.level));
+      sourceLabel = 'derived[r0][b0]';
     } else {
       final resList = steps[subband.resLvl];
       if (resList.length <= subband.sbandIdx) {
         throw StateError('Missing quantization step for subband');
       }
-      step = resList[subband.sbandIdx] *
-          (1 << (rb[component] + subband.anGainExp));
+      baseStep = resList[subband.sbandIdx];
+      step = baseStep * (1 << (rb[component] + subband.anGainExp));
+      sourceLabel = 'expounded[r=${subband.resLvl}][b=${subband.sbandIdx}]';
     }
-    return step / (1 << shiftBits);
+
+    final scaled = step / (1 << shiftBits);
+    final exponentBits = _resolveExponentBits(params, subband, derived);
+    _logStepInfo(
+      component,
+      subband,
+      scaled,
+      derived,
+      baseStep: baseStep,
+      shiftBits: shiftBits,
+      exponentBits: exponentBits,
+      sourceLabel: sourceLabel,
+    );
+    return scaled;
   }
 
   void _prepareFloatBlock(DataBlkFloat outBlock, DataBlkInt quantized) {
@@ -562,6 +623,45 @@ class StdDequantizer extends Dequantizer {
       'band=${subband.sbandIdx} magBits=$magBits shiftBits=$shiftBits '
       'rb=$rangeBits anGainExp=$gain',
     );
+  }
+
+  void _logStepInfo(
+    int component,
+    SubbandSyn subband,
+    double step,
+    bool derived, {
+    double? baseStep,
+    int? shiftBits,
+    int? exponentBits,
+    String? sourceLabel,
+  }) {
+    if (!_isInstrumentationEnabled()) {
+      return;
+    }
+    final key = 'step-c$component-r${subband.resLvl}-b${subband.sbandIdx}';
+    final count = _stepLogCounts[key] ?? 0;
+    if (count >= _stepLogLimit) {
+      return;
+    }
+    _stepLogCounts[key] = count + 1;
+    final details = <String>[
+      'StdDequantizer step: comp=$component res=${subband.resLvl} '
+          'band=${subband.sbandIdx} derived=$derived',
+      'step=${step.toStringAsFixed(12)}',
+    ];
+    if (baseStep != null) {
+      details.add('baseStep=${baseStep.toStringAsFixed(12)}');
+    }
+    if (shiftBits != null) {
+      details.add('shiftBits=$shiftBits');
+    }
+    if (exponentBits != null) {
+      details.add('expBits=$exponentBits');
+    }
+    if (sourceLabel != null) {
+      details.add('source=$sourceLabel');
+    }
+    _log(details.join(' '));
   }
 }
 

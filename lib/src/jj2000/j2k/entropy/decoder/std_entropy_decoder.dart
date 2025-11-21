@@ -720,11 +720,6 @@ class StdEntropyDecoder extends EntropyDecoder {
                 } else {
                   csj |= _stateSigR2 | _stateVisitedR2 |
                       _stateNzCtxtR1 | _stateVdR1;
-                  state[j + sscanw] |= _stateNzCtxtR1 | _stateVuR1;
-                  state[j + 1] |= _stateNzCtxtR1 | _stateNzCtxtR2 |
-                      _stateDdlR1 | _stateHlR2;
-                  state[j - 1] |= _stateNzCtxtR1 | _stateNzCtxtR2 |
-                      _stateDdrR1 | _stateHrR2;
                 }
               } else {
                 csj |= _stateVisitedR2;
@@ -792,8 +787,8 @@ class StdEntropyDecoder extends EntropyDecoder {
                 state[j + offUr] |= _stateNzCtxtR2 | _stateDdlR2;
               }
               if (sym != 0) {
-                csj |= _stateSigR1 | _stateVisitedR1 | _stateNzCtxtR2 |
-                    _stateVuR2 | _stateVuSignR2;
+                csj |= _stateSigR1 | _stateVisitedR1 |
+                    _stateNzCtxtR2 | _stateVuR2 | _stateVuSignR2;
                 if (!causal) {
                   state[j - sscanw] |= _stateNzCtxtR2 |
                       _stateVdR2 | _stateVdSignR2;
@@ -829,76 +824,6 @@ class StdEntropyDecoder extends EntropyDecoder {
               state[j + offDl] |= _stateNzCtxtR1 | _stateDurR1;
               state[j + offDr] |= _stateNzCtxtR1 | _stateDulR1;
               if (sym != 0) {
-                csj |= _stateSigR2 | _stateVisitedR2 | _stateNzCtxtR1 |
-                    _stateVdR1 | _stateVdSignR1;
-                state[j + sscanw] |= _stateNzCtxtR1 |
-                    _stateVuR1 | _stateVuSignR1;
-                state[j + 1] |= _stateNzCtxtR1 | _stateNzCtxtR2 |
-                    _stateDdlR1 | _stateHlR2 | _stateHlSignR2;
-                state[j - 1] |= _stateNzCtxtR1 | _stateNzCtxtR2 |
-                    _stateDdrR1 | _stateHrR2 | _stateHrSignR2;
-              } else {
-                csj |= _stateSigR2 | _stateVisitedR2 |
-                    _stateNzCtxtR1 | _stateVdR1;
-                state[j + sscanw] |= _stateNzCtxtR1 | _stateVuR1;
-                state[j + 1] |= _stateNzCtxtR1 | _stateNzCtxtR2 |
-                    _stateDdlR1 | _stateHlR2;
-                state[j - 1] |= _stateNzCtxtR1 | _stateNzCtxtR2 |
-                    _stateDdrR1 | _stateHrR2;
-              }
-            } else {
-              csj |= _stateVisitedR2;
-            }
-          }
-          state[j] = csj;
-        }
-        if (stripeHeight < 3) {
-          continue;
-        }
-        j += sscanw;
-        csj = state[j];
-        if ((((~csj) & (csj << 2)) & _sigMaskR1R2) != 0) {
-          var k = sk + (dscanw << 1);
-          if ((csj & (_stateSigR1 | _stateNzCtxtR1)) == _stateNzCtxtR1) {
-            if (bin.readBit() != 0) {
-              final sym = bin.readBit();
-              data[k] = _encodeSignSample(sym, setmask);
-              state[j + offUl] |= _stateNzCtxtR2 | _stateDdrR2;
-              state[j + offUr] |= _stateNzCtxtR2 | _stateDdlR2;
-              if (sym != 0) {
-                csj |= _stateSigR1 | _stateVisitedR1 | _stateNzCtxtR2 |
-                    _stateVuR2 | _stateVuSignR2;
-                state[j - sscanw] |= _stateNzCtxtR2 |
-                    _stateVdR2 | _stateVdSignR2;
-                state[j + 1] |= _stateNzCtxtR1 | _stateNzCtxtR2 |
-                    _stateHlR1 | _stateHlSignR1 | _stateDulR2;
-                state[j - 1] |= _stateNzCtxtR1 | _stateNzCtxtR2 |
-                    _stateHrR1 | _stateHrSignR1 | _stateDurR2;
-              } else {
-                csj |= _stateSigR1 | _stateVisitedR1 |
-                    _stateNzCtxtR2 | _stateVuR2;
-                state[j - sscanw] |= _stateNzCtxtR2 | _stateVdR2;
-                state[j + 1] |= _stateNzCtxtR1 | _stateNzCtxtR2 |
-                    _stateHlR1 | _stateDulR2;
-                state[j - 1] |= _stateNzCtxtR1 | _stateNzCtxtR2 |
-                    _stateHrR1 | _stateDurR2;
-              }
-            } else {
-              csj |= _stateVisitedR1;
-            }
-          }
-          if (stripeHeight < 4) {
-            state[j] = csj;
-            continue;
-          }
-          if ((csj & (_stateSigR2 | _stateNzCtxtR2)) == _stateNzCtxtR2) {
-            k += dscanw;
-            if (bin.readBit() != 0) {
-              final sym = bin.readBit();
-              data[k] = _encodeSignSample(sym, setmask);
-              state[j + offDl] |= _stateNzCtxtR1 | _stateDurR1;
-              state[j + offDr] |= _stateNzCtxtR1 | _stateDulR1;
-              if (sym != 0) {
                 csj |= _stateSigR2 | _stateVisitedR2 |
                     _stateNzCtxtR1 | _stateVdR1 | _stateVdSignR1;
                 state[j + sscanw] |= _stateNzCtxtR1 |
@@ -920,7 +845,74 @@ class StdEntropyDecoder extends EntropyDecoder {
               csj |= _stateVisitedR2;
             }
           }
-          state[j] = csj;
+          if (stripeHeight < 3) {
+            state[j] = csj;
+            continue;
+          }
+          j += sscanw;
+          csj = state[j];
+          if ((((~csj) & (csj << 2)) & _sigMaskR1R2) != 0) {
+            var k = sk + (dscanw << 1);
+            if ((csj & (_stateSigR1 | _stateNzCtxtR1)) == _stateNzCtxtR1) {
+              if (bin.readBit() != 0) {
+                final sym = bin.readBit();
+                data[k] = _encodeSignSample(sym, setmask);
+                if (!causal) {
+                  state[j + offUl] |= _stateNzCtxtR2 | _stateDdrR2;
+                  state[j + offUr] |= _stateNzCtxtR2 | _stateDdlR2;
+                }
+                if (sym != 0) {
+                  csj |= _stateSigR1 | _stateVisitedR1 |
+                      _stateNzCtxtR2 | _stateVuR2 | _stateVuSignR2;
+                  state[j - sscanw] |= _stateNzCtxtR2 |
+                      _stateVdR2 | _stateVdSignR2;
+                  state[j + 1] |= _stateNzCtxtR1 | _stateNzCtxtR2 |
+                      _stateHlR1 | _stateHlSignR1 | _stateDulR2;
+                  state[j - 1] |= _stateNzCtxtR1 | _stateNzCtxtR2 |
+                      _stateHrR1 | _stateHrSignR1 | _stateDurR2;
+                } else {
+                  csj |= _stateSigR1 | _stateVisitedR1 |
+                      _stateNzCtxtR2 | _stateVuR2;
+                  state[j - sscanw] |= _stateNzCtxtR2 | _stateVdR2;
+                  state[j + 1] |= _stateNzCtxtR1 | _stateNzCtxtR2 |
+                      _stateHlR1 | _stateDulR2;
+                  state[j - 1] |= _stateNzCtxtR1 | _stateNzCtxtR2 |
+                      _stateHrR1 | _stateDurR2;
+                }
+              } else {
+                csj |= _stateVisitedR1;
+              }
+            }
+            if (stripeHeight < 4) {
+              state[j] = csj;
+              continue;
+            }
+            if ((csj & (_stateSigR2 | _stateNzCtxtR2)) == _stateNzCtxtR2) {
+              k += dscanw;
+              if (bin.readBit() != 0) {
+                final sym = bin.readBit();
+                data[k] = _encodeSignSample(sym, setmask);
+                state[j + offDl] |= _stateNzCtxtR1 | _stateDurR1;
+                state[j + offDr] |= _stateNzCtxtR1 | _stateDulR1;
+                if (sym != 0) {
+                  csj |= _stateSigR2 | _stateVisitedR2 |
+                      _stateNzCtxtR1 | _stateVdR1 | _stateVdSignR1;
+                  state[j + sscanw] |= _stateNzCtxtR1 |
+                      _stateVuR1 | _stateVuSignR1;
+                  state[j + 1] |= _stateNzCtxtR1 | _stateNzCtxtR2 |
+                      _stateDdlR1 | _stateHlR2 | _stateHlSignR2;
+                  state[j - 1] |= _stateNzCtxtR1 | _stateNzCtxtR2 |
+                      _stateDdrR1 | _stateHrR2 | _stateHrSignR2;
+                } else {
+                  csj |= _stateSigR2 | _stateVisitedR2 |
+                      _stateNzCtxtR1 | _stateVdR1;
+                }
+              } else {
+                csj |= _stateVisitedR2;
+              }
+            }
+            state[j] = csj;
+          }
         }
       }
     }
@@ -1285,9 +1277,6 @@ class StdEntropyDecoder extends EntropyDecoder {
                 } else {
                   csj |= _stateSigR2 | _stateVisitedR2 |
                       _stateNzCtxtR1 | _stateVdR1;
-                  state[j + sscanw] |= _stateNzCtxtR1 | _stateVuR1;
-                  state[j + 1] |= _stateNzCtxtR1 | _stateNzCtxtR2 |
-                      _stateDdlR1 | _stateHlR2;
                 }
               }
             }
@@ -1480,7 +1469,7 @@ class StdEntropyDecoder extends EntropyDecoder {
       }
     }
     for (var i = 0; i < 4; i++) {
-      for (var j = 0; j < 16; j++) {
+      for (var j = 0, k = 1; j < 16; j++, k <<= 1) {
         lut[(i << 6) | _stateVuR1 | _stateVdR1 | j] = 10;
       }
     }

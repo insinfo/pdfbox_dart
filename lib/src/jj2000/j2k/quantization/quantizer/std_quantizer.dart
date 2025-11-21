@@ -60,6 +60,21 @@ class StdQuantizer extends Quantizer {
   /// The maximum value of the exponent for the quantization steps
   static const int QSTEP_MAX_EXPONENT = (1 << QSTEP_EXPONENT_BITS) - 1;
 
+  /// The ID for no quantization (i.e. reversible)
+  static const int SQCX_NO_QUANTIZATION = 0;
+
+  /// The ID for scalar derived quantization
+  static const int SQCX_SCALAR_DERIVED = 1;
+
+  /// The ID for scalar expounded quantization
+  static const int SQCX_SCALAR_EXPOUNDED = 2;
+
+  /// The shift for the guard bits in the Sqcd/Sqcc field
+  static const int SQCX_GB_SHIFT = 5;
+
+  /// The shift for the exponent in the SPqcd/SPqcc field
+  static const int SQCX_EXP_SHIFT = 11;
+
   /// Natural log of 2, used as a convenience variable
   static final double log2 = math.log(2);
 

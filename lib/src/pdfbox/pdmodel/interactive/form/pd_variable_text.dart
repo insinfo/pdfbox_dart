@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import '../../../cos/cos_base.dart';
 import '../../../cos/cos_dictionary.dart';
 import '../../../cos/cos_name.dart';
@@ -79,9 +82,54 @@ abstract class PDVariableText extends PDTerminalField {
     if (base is COSString) {
       return base.string;
     } else if (base is COSStream) {
-      // TODO: Implement toTextString for COSStream
-      return ''; 
+      return _streamToText(base);
     }
     return null;
+  }
+
+  String _streamToText(COSStream stream) {
+    final decoded = stream.decode();
+    if (decoded != null && decoded.isNotEmpty) {
+      return _decodeTextBytes(decoded);
+    }
+    final encoded = stream.encodedBytes();
+    if (encoded != null && encoded.isNotEmpty) {
+      return _decodeTextBytes(encoded);
+    }
+    return '';
+  }
+
+  String _decodeTextBytes(Uint8List bytes) {
+    if (bytes.length >= 2) {
+      final first = bytes[0];
+      final second = bytes[1];
+      if (first == 0xFE && second == 0xFF) {
+        return _decodeUtf16(bytes.sublist(2), Endian.big);
+      }
+      if (first == 0xFF && second == 0xFE) {
+        return _decodeUtf16(bytes.sublist(2), Endian.little);
+      }
+    }
+    try {
+      return utf8.decode(bytes, allowMalformed: true);
+    } on FormatException {
+      return latin1.decode(bytes, allowInvalid: true);
+    }
+  }
+
+  String _decodeUtf16(Uint8List bytes, Endian endian) {
+    final usableLength = bytes.length - (bytes.length % 2);
+    if (usableLength == 0) {
+      return '';
+    }
+    final dataView = ByteData.view(
+      bytes.buffer,
+      bytes.offsetInBytes,
+      usableLength,
+    );
+    final codeUnits = List<int>.generate(usableLength ~/ 2, (index) {
+      return dataView.getUint16(index * 2, endian);
+    });
+    return String.fromCharCodes(codeUnits);
   }
 }

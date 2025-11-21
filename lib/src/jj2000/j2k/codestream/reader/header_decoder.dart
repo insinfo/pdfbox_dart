@@ -63,6 +63,7 @@ class HeaderDecoder {
       DecoderInstrumentation.log(_logSource, message);
     }
   }
+
   /// Parses the main header of a JPEG 2000 codestream.
   ///
   /// The method assumes [input] is positioned at the beginning of a codestream
@@ -182,6 +183,42 @@ class HeaderDecoder {
           }
           target.parsePpmMarker(payload);
           break;
+        case Markers.TLM:
+          final payload = _readMarkerPayload(input);
+          final target = decoder;
+          if (target == null) {
+            throw StateError('TLM marker encountered before SIZ');
+          }
+          target.parseTlmMarker(payload);
+          break;
+        case Markers.RGN:
+          final payload = _readMarkerPayload(input);
+          final target = decoder;
+          if (target == null) {
+            throw StateError('RGN marker encountered before SIZ');
+          }
+          target.parseRgnMarker(
+            payload,
+            isMainHeader: true,
+            tileIdx: 0,
+          );
+          break;
+        case Markers.COM:
+          final payload = _readMarkerPayload(input);
+          final target = decoder;
+          if (target == null) {
+            throw StateError('COM marker encountered before SIZ');
+          }
+          target.parseComMarker(payload);
+          break;
+        case Markers.CRG:
+          final payload = _readMarkerPayload(input);
+          final target = decoder;
+          if (target == null) {
+            throw StateError('CRG marker encountered before SIZ');
+          }
+          target.parseCrgMarker(payload);
+          break;
         case Markers.SOT:
           final target = decoder;
           if (target == null) {
@@ -249,8 +286,10 @@ class HeaderDecoder {
         maxCompImgHeight = 0,
         tilingOrigin = Coord(0, 0),
         precinctPartitionFlag = false,
-        compSubsX = List<int>.unmodifiable(compSubsX ?? List<int>.filled(numComps, 1)),
-        compSubsY = List<int>.unmodifiable(compSubsY ?? List<int>.filled(numComps, 1));
+        compSubsX =
+            List<int>.unmodifiable(compSubsX ?? List<int>.filled(numComps, 1)),
+        compSubsY =
+            List<int>.unmodifiable(compSubsY ?? List<int>.filled(numComps, 1));
 
   final HeaderInfo headerInfo;
   final int numComps;
@@ -273,7 +312,8 @@ class HeaderDecoder {
   /// Number of tile-parts per tile. Populated by the codestream reader.
   List<int> nTileParts = <int>[];
 
-  final Map<int, Map<int, _TilePartInfo>> _tilePartInfo = <int, Map<int, _TilePartInfo>>{};
+  final Map<int, Map<int, _TilePartInfo>> _tilePartInfo =
+      <int, Map<int, _TilePartInfo>>{};
   final Map<int, Uint8List> _packedHeaders = <int, Uint8List>{};
   final List<Uint8List?> _ppmMarkerData = <Uint8List?>[];
   final List<int> _tilePartTiles = <int>[];
@@ -371,7 +411,8 @@ class HeaderDecoder {
       ..spcodPs = precinctSpec;
     headerInfo.cod[key] = cod;
 
-    final cblkSize = List<int>.unmodifiable(<int>[1 << (spcodCw + 2), 1 << (spcodCh + 2)]);
+    final cblkSize =
+        List<int>.unmodifiable(<int>[1 << (spcodCw + 2), 1 << (spcodCh + 2)]);
 
     if (isMainHeader) {
       decSpec.nls.setDefault(sgcodNl);
@@ -489,6 +530,16 @@ class HeaderDecoder {
             tilePartIdx: sot.tpsot,
           );
           break;
+        case Markers.RGN:
+          parseRgnMarker(
+            _readMarkerPayload(input),
+            isMainHeader: false,
+            tileIdx: sot.isot,
+          );
+          break;
+        case Markers.COM:
+          parseComMarker(_readMarkerPayload(input));
+          break;
         case Markers.SOD:
           headerDone = true;
           input.seek(input.getPos() - 2);
@@ -510,7 +561,8 @@ class HeaderDecoder {
   }) {
     while (true) {
       if (input.getPos() + 2 > input.length()) {
-        throw StateError('Unexpected end of codestream while searching for tile-part header');
+        throw StateError(
+            'Unexpected end of codestream while searching for tile-part header');
       }
       final marker = input.readUnsignedShort();
       switch (marker) {
@@ -533,13 +585,15 @@ class HeaderDecoder {
           final sotKey = 't${tileIdx}_tp$tilePartIdx';
           final sot = headerInfo.sot[sotKey];
           if (sot == null) {
-            throw StateError('Parsed SOT for tile=$tileIdx part=$tilePartIdx but metadata missing');
+            throw StateError(
+                'Parsed SOT for tile=$tileIdx part=$tilePartIdx but metadata missing');
           }
 
           parseTilePartHeader(input, sot: sot);
 
           if (input.getPos() + 2 > input.length()) {
-            throw StateError('Unexpected end of codestream while expecting SOD marker');
+            throw StateError(
+                'Unexpected end of codestream while expecting SOD marker');
           }
           final sodMarker = input.readUnsignedShort();
           if (sodMarker != Markers.SOD) {
@@ -558,7 +612,8 @@ class HeaderDecoder {
 
           return sot;
         case Markers.EOC:
-          throw StateError('Reached end of codestream before encountering tile-part header');
+          throw StateError(
+              'Reached end of codestream before encountering tile-part header');
         default:
           _skipUnknownMarker(input, marker, FacilityManager.getMsgLogger());
           break;
@@ -586,9 +641,8 @@ class HeaderDecoder {
     }
 
     var offset = 2;
-    final component = numComps < 257
-        ? view.getUint8(offset++)
-        : view.getUint16(offset);
+    final component =
+        numComps < 257 ? view.getUint8(offset++) : view.getUint16(offset);
     if (numComps >= 257) {
       offset += 2;
     }
@@ -642,7 +696,8 @@ class HeaderDecoder {
       decSpec.dls.setCompDef(component, spcocNdl);
       decSpec.ecopts.setCompDef(component, spcocCs);
     } else {
-      decSpec.cblks.setTileCompVal(tileIdx, component, List<int>.unmodifiable(cblkSizes));
+      decSpec.cblks.setTileCompVal(
+          tileIdx, component, List<int>.unmodifiable(cblkSizes));
       decSpec.dls.setTileCompVal(tileIdx, component, spcocNdl);
       decSpec.ecopts.setTileCompVal(tileIdx, component, spcocCs);
     }
@@ -751,9 +806,8 @@ class HeaderDecoder {
     }
 
     var offset = 2;
-    final component = numComps < 257
-        ? view.getUint8(offset++)
-        : view.getUint16(offset);
+    final component =
+        numComps < 257 ? view.getUint8(offset++) : view.getUint16(offset);
     if (numComps >= 257) {
       offset += 2;
     }
@@ -796,7 +850,8 @@ class HeaderDecoder {
       decSpec.gbs.setTileCompVal(tileIdx, component, guardBits);
     }
 
-    final contextLabel = isMainHeader ? 'main:c$component' : 'tile=$tileIdx:c$component';
+    final contextLabel =
+        isMainHeader ? 'main:c$component' : 'tile=$tileIdx:c$component';
     _logQuantSummary(
       contextLabel: contextLabel,
       guardBits: guardBits,
@@ -809,7 +864,9 @@ class HeaderDecoder {
     if (sgcodMct == 0) {
       return InvCompTransf.none;
     }
-    return spcodT == FilterTypes.W5X3 ? InvCompTransf.invRct : InvCompTransf.invIct;
+    return spcodT == FilterTypes.W5X3
+        ? InvCompTransf.invRct
+        : InvCompTransf.invIct;
   }
 
   _QuantizationParseResult _parseQuantizationTables({
@@ -945,13 +1002,15 @@ class HeaderDecoder {
     offset += 2;
 
     if (lpoc > markerPayload.length) {
-      throw ArgumentError('POC marker length $lpoc exceeds payload size ${markerPayload.length}');
+      throw ArgumentError(
+          'POC marker length $lpoc exceeds payload size ${markerPayload.length}');
     }
 
     final useShort = numComps >= 256;
     final changeStride = 5 + (useShort ? 4 : 2);
     if (changeStride <= 0 || lpoc < 2 || (lpoc - 2) % changeStride != 0) {
-      throw ArgumentError('Invalid POC marker length $lpoc for component count $numComps');
+      throw ArgumentError(
+          'Invalid POC marker length $lpoc for component count $numComps');
     }
 
     final newChanges = (lpoc - 2) ~/ changeStride;
@@ -1039,7 +1098,8 @@ class HeaderDecoder {
         );
       }
 
-      final rawCepoc = useShort ? view.getUint16(offset) : view.getUint8(offset);
+      final rawCepoc =
+          useShort ? view.getUint16(offset) : view.getUint8(offset);
       offset += useShort ? 2 : 1;
       final cepoc = rawCepoc == 0 ? 0 : rawCepoc;
       if (cepoc <= cspoc) {
@@ -1076,11 +1136,124 @@ class HeaderDecoder {
     }
   }
 
+  void parseRgnMarker(
+    Uint8List markerPayload, {
+    required bool isMainHeader,
+    required int tileIdx,
+  }) {
+    final view = ByteData.view(
+      markerPayload.buffer,
+      markerPayload.offsetInBytes,
+      markerPayload.lengthInBytes,
+    );
+
+    final length = view.getUint16(0);
+    if (length < 5) {
+      throw StateError('RGN marker too short: $length bytes');
+    }
+    if (length > markerPayload.length) {
+      throw StateError('RGN marker length exceeds payload size');
+    }
+
+    var offset = 2;
+    final component =
+        numComps < 257 ? view.getUint8(offset++) : view.getUint16(offset);
+    if (numComps >= 257) {
+      offset += 2;
+    }
+    if (component < 0 || component >= numComps) {
+      throw StateError('RGN marker references invalid component $component');
+    }
+
+    final srgn = view.getUint8(offset++);
+    final sprgn = view.getUint8(offset++);
+
+    if (offset != length) {
+      throw StateError('Unexpected padding bytes at end of RGN marker');
+    }
+
+    final rgn = headerInfo.getNewRGN()
+      ..lrgn = length
+      ..crgn = component
+      ..srgn = srgn
+      ..sprgn = sprgn;
+
+    final key = isMainHeader ? 'main_c$component' : 't${tileIdx}_c$component';
+    headerInfo.rgn[key] = rgn;
+
+    _log('Parsed RGN marker: comp=$component style=$srgn shift=$sprgn');
+  }
+
+  void parseComMarker(Uint8List markerPayload) {
+    final view = ByteData.view(
+      markerPayload.buffer,
+      markerPayload.offsetInBytes,
+      markerPayload.lengthInBytes,
+    );
+
+    final length = view.getUint16(0);
+    if (length < 4) {
+      throw StateError('COM marker too short: $length bytes');
+    }
+
+    final rcom = view.getUint16(2);
+    final dataLength = length - 4;
+    final ccom = markerPayload.sublist(4, 4 + dataLength);
+
+    final com = headerInfo.getNewCOM()
+      ..lcom = length
+      ..rcom = rcom
+      ..ccom = Uint8List.fromList(ccom);
+
+    final key = 'main_${headerInfo.numCOM - 1}';
+    headerInfo.com[key] = com;
+
+    _log('Parsed COM marker: reg=$rcom len=$dataLength');
+  }
+
+  void parseCrgMarker(Uint8List markerPayload) {
+    final view = ByteData.view(
+      markerPayload.buffer,
+      markerPayload.offsetInBytes,
+      markerPayload.lengthInBytes,
+    );
+
+    final length = view.getUint16(0);
+    if (length < 6) {
+      throw StateError('CRG marker too short: $length bytes');
+    }
+
+    final xcrg = <int>[];
+    final ycrg = <int>[];
+    var offset = 2;
+    // CRG contains Xcrg, Ycrg for all components
+    // But we should check if payload has enough data
+    for (var i = 0; i < numComps; i++) {
+      if (offset + 4 > length) {
+        throw StateError('CRG marker truncated');
+      }
+      xcrg.add(view.getUint16(offset));
+      offset += 2;
+      ycrg.add(view.getUint16(offset));
+      offset += 2;
+    }
+
+    final crg = headerInfo.getNewCRG()
+      ..lcrg = length
+      ..xcrg = xcrg
+      ..ycrg = ycrg;
+
+    headerInfo.crg = crg;
+    _log('Parsed CRG marker');
+  }
+
   void registerTilePartLength(int tileIdx, int tilePartIdx, int length) {
     if (tileIdx < 0 || tilePartIdx < 0) {
-      throw ArgumentError('Tile index and tile-part index must be non-negative');
+      throw ArgumentError(
+          'Tile index and tile-part index must be non-negative');
     }
-    final tileMap = _tilePartInfo.putIfAbsent(tileIdx, () => <int, _TilePartInfo>{});
+    final tileMap =
+        _tilePartInfo.putIfAbsent(tileIdx, () => <int, _TilePartInfo>{});
     final info = tileMap.putIfAbsent(tilePartIdx, () => _TilePartInfo());
     info.length = length;
 
@@ -1093,18 +1266,23 @@ class HeaderDecoder {
 
   void registerTilePartDataOffset(int tileIdx, int tilePartIdx, int offset) {
     if (tileIdx < 0 || tilePartIdx < 0) {
-      throw ArgumentError('Tile index and tile-part index must be non-negative');
+      throw ArgumentError(
+          'Tile index and tile-part index must be non-negative');
     }
-    final tileMap = _tilePartInfo.putIfAbsent(tileIdx, () => <int, _TilePartInfo>{});
+    final tileMap =
+        _tilePartInfo.putIfAbsent(tileIdx, () => <int, _TilePartInfo>{});
     final info = tileMap.putIfAbsent(tilePartIdx, () => _TilePartInfo());
     info.dataOffset = offset;
   }
 
-  void registerTilePartBodyLength(int tileIdx, int tilePartIdx, int bodyLength) {
+  void registerTilePartBodyLength(
+      int tileIdx, int tilePartIdx, int bodyLength) {
     if (tileIdx < 0 || tilePartIdx < 0) {
-      throw ArgumentError('Tile index and tile-part index must be non-negative');
+      throw ArgumentError(
+          'Tile index and tile-part index must be non-negative');
     }
-    final tileMap = _tilePartInfo.putIfAbsent(tileIdx, () => <int, _TilePartInfo>{});
+    final tileMap =
+        _tilePartInfo.putIfAbsent(tileIdx, () => <int, _TilePartInfo>{});
     final info = tileMap.putIfAbsent(tilePartIdx, () => _TilePartInfo());
     info.bodyLength = math.max(0, bodyLength);
   }
@@ -1258,6 +1436,108 @@ class HeaderDecoder {
     _packedHeadersDirty = true;
   }
 
+  void parseTlmMarker(Uint8List markerPayload) {
+    if (markerPayload.length < 4) {
+      throw ArgumentError('TLM marker payload must be at least 4 bytes');
+    }
+
+    final view = ByteData.view(
+      markerPayload.buffer,
+      markerPayload.offsetInBytes,
+      markerPayload.lengthInBytes,
+    );
+
+    final ltlm = view.getUint16(0);
+    if (ltlm < 4 || ltlm > markerPayload.length) {
+      throw ArgumentError('Invalid TLM marker length: $ltlm');
+    }
+
+    final ztlm = view.getUint8(2);
+    final stlm = view.getUint8(3);
+    final tileIndexBytes = (stlm >> 4) & 0x3;
+    if (tileIndexBytes == 3) {
+      throw StateError('TLM marker uses unsupported tile index field width');
+    }
+
+    final tilePartLengthBytes = (((stlm >> 6) & 0x1) + 1) * 2;
+    final entrySize = tileIndexBytes + tilePartLengthBytes;
+    if (entrySize == 0) {
+      throw StateError('Derived TLM entry size is zero');
+    }
+
+    final payloadBytes = ltlm - 4;
+    if (payloadBytes <= 0 || payloadBytes % entrySize != 0) {
+      throw StateError(
+        'TLM marker length $ltlm is incompatible with entry size $entrySize',
+      );
+    }
+
+    final entryCount = payloadBytes ~/ entrySize;
+    if (entryCount == 0) {
+      return;
+    }
+
+    final record =
+        headerInfo.tlm.putIfAbsent(ztlm, () => headerInfo.getNewTLM());
+    final startingIndex = record.entries.length;
+    record
+      ..ltlm = ltlm
+      ..ztlm = ztlm
+      ..stlm = stlm;
+
+    var offset = 4;
+    for (var i = 0; i < entryCount; i++) {
+      final implicitIndex = startingIndex + i;
+      final tileIndex = () {
+        switch (tileIndexBytes) {
+          case 0:
+            return implicitIndex;
+          case 1:
+            if (offset + 1 > markerPayload.length) {
+              throw StateError('TLM marker truncated while reading tile index');
+            }
+            final value = view.getUint8(offset);
+            offset += 1;
+            return value;
+          case 2:
+            if (offset + 2 > markerPayload.length) {
+              throw StateError('TLM marker truncated while reading tile index');
+            }
+            final value = view.getUint16(offset);
+            offset += 2;
+            return value;
+          default:
+            throw StateError(
+                'Unsupported tile index field length: $tileIndexBytes');
+        }
+      }();
+
+      final tilePartLength = () {
+        if (tilePartLengthBytes == 2) {
+          if (offset + 2 > markerPayload.length) {
+            throw StateError('TLM marker truncated while reading tile length');
+          }
+          final value = view.getUint16(offset);
+          offset += 2;
+          return value;
+        }
+        if (offset + 4 > markerPayload.length) {
+          throw StateError('TLM marker truncated while reading tile length');
+        }
+        final value = view.getUint32(offset);
+        offset += 4;
+        return value;
+      }();
+
+      record.entries.add(
+        HeaderInfoTLMEntry(
+          tileIndex: tileIndex,
+          length: tilePartLength,
+        ),
+      );
+    }
+  }
+
   void parsePpmMarker(Uint8List markerPayload) {
     FacilityManager.getMsgLogger().printmsg(
       MsgLogger.info,
@@ -1281,7 +1561,8 @@ class HeaderDecoder {
     final zppm = view.getUint8(2);
     final dataLength = lppm - 3;
     if (markerPayload.length < 3 + dataLength) {
-      throw ArgumentError('PPM marker truncated: expected ${3 + dataLength} bytes');
+      throw ArgumentError(
+          'PPM marker truncated: expected ${3 + dataLength} bytes');
     }
 
     final data = markerPayload.sublist(3, 3 + dataLength);
@@ -1318,11 +1599,13 @@ class HeaderDecoder {
     final zppt = view.getUint8(2);
     final dataLength = lppt - 3;
     if (markerPayload.length < 3 + dataLength) {
-      throw ArgumentError('PPT marker truncated: expected ${3 + dataLength} bytes');
+      throw ArgumentError(
+          'PPT marker truncated: expected ${3 + dataLength} bytes');
     }
 
     final data = markerPayload.sublist(3, 3 + dataLength);
-    final tileMap = _tilePartInfo.putIfAbsent(tileIdx, () => <int, _TilePartInfo>{});
+    final tileMap =
+        _tilePartInfo.putIfAbsent(tileIdx, () => <int, _TilePartInfo>{});
     final info = tileMap.putIfAbsent(tilePartIdx, () => _TilePartInfo());
     info.pptSegments[zppt] = Uint8List.fromList(data);
     decSpec.pphs.setTileDef(tileIdx, true);
@@ -1347,7 +1630,8 @@ class HeaderDecoder {
         if (_tilePartTiles.isEmpty) {
           throw StateError('PPM markers parsed but tile-part order is unknown');
         }
-        final view = ByteData.view(ppmData.buffer, ppmData.offsetInBytes, ppmData.lengthInBytes);
+        final view = ByteData.view(
+            ppmData.buffer, ppmData.offsetInBytes, ppmData.lengthInBytes);
         var offset = 0;
         for (final tile in _tilePartTiles) {
           if (offset + 4 > ppmData.length) {
@@ -1356,10 +1640,12 @@ class HeaderDecoder {
           final length = view.getUint32(offset);
           offset += 4;
           if (length < 0) {
-            throw StateError('Negative packet header length encountered in PPM data');
+            throw StateError(
+                'Negative packet header length encountered in PPM data');
           }
           if (offset + length > ppmData.length) {
-            throw StateError('PPM segment overruns payload while assigning headers');
+            throw StateError(
+                'PPM segment overruns payload while assigning headers');
           }
           final builder = builders.putIfAbsent(tile, () => BytesBuilder());
           if (length > 0) {
@@ -1376,7 +1662,8 @@ class HeaderDecoder {
     }
 
     builders.forEach((tile, builder) {
-      if (_packedHeaders.containsKey(tile) && _packedHeaders[tile]!.isNotEmpty) {
+      if (_packedHeaders.containsKey(tile) &&
+          _packedHeaders[tile]!.isNotEmpty) {
         return;
       }
       _packedHeaders[tile] = builder.toBytes();
@@ -1511,7 +1798,8 @@ class HeaderDecoder {
       throw StringFormatException("Invalid integer for 'm_quit': $raw");
     }
     if (value == 0 || value < -1) {
-      throw StringFormatException("'m_quit' must be -1 or a positive integer (found $value)");
+      throw StringFormatException(
+          "'m_quit' must be -1 or a positive integer (found $value)");
     }
     return value;
   }
@@ -1530,8 +1818,10 @@ class HeaderDecoder {
     return buffer;
   }
 
-  static HeaderInfoSIZ _parseSizMarker(Uint8List payload, HeaderInfo headerInfo) {
-    final view = ByteData.view(payload.buffer, payload.offsetInBytes, payload.lengthInBytes);
+  static HeaderInfoSIZ _parseSizMarker(
+      Uint8List payload, HeaderInfo headerInfo) {
+    final view = ByteData.view(
+        payload.buffer, payload.offsetInBytes, payload.lengthInBytes);
     final length = view.getUint16(0);
     if (length < 38) {
       throw StateError('SIZ marker too short: $length bytes');
@@ -1565,7 +1855,8 @@ class HeaderDecoder {
       final xrsiz = view.getUint8(offset++);
       final yrsiz = view.getUint8(offset++);
       if (xrsiz == 0 || yrsiz == 0) {
-        throw StateError('SIZ marker contains zero subsampling factor for component $i');
+        throw StateError(
+            'SIZ marker contains zero subsampling factor for component $i');
       }
       siz.ssiz[i] = ssiz;
       siz.xrsiz[i] = xrsiz;
@@ -1577,10 +1868,12 @@ class HeaderDecoder {
     return siz;
   }
 
-  static void _skipUnknownMarker(RandomAccessIO input, int marker, MsgLogger logger) {
+  static void _skipUnknownMarker(
+      RandomAccessIO input, int marker, MsgLogger logger) {
     final length = input.readUnsignedShort();
     if (length < 2) {
-      throw StateError('Invalid marker segment length for 0x${marker.toRadixString(16)}');
+      throw StateError(
+          'Invalid marker segment length for 0x${marker.toRadixString(16)}');
     }
     if (length > 2) {
       input.seek(input.getPos() + length - 2);

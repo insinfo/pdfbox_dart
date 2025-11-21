@@ -387,6 +387,7 @@ class PktDecoder {
 
         for (var n = 0; n < row.length; n++) {
           final coord = row[n];
+          if (coord == null) continue;
           final coordIdx = coord.idx;
           if (coordIdx.x >= lblockRow.length) {
             continue;

@@ -10,6 +10,7 @@ import 'string_utils.dart';
 import 'model/crl/certificate_list_data.dart';
 import 'model/crl/certificate_revoke_list_data.dart';
 import 'model/crl/crl_entry_extensions_data.dart';
+import 'model/crl/crl_extensions.dart';
 import 'model/crl/crl_reason.dart';
 import 'model/crl/revoked_certificate.dart';
 import 'model/csr/certificate_signing_request_data.dart';
@@ -133,6 +134,18 @@ class X509Utils {
     'SHA-384',
     'SHA-512'
   ];
+
+  static const Map<String, String> _digestNamesByOid = {
+    '1.2.840.113549.2.2': 'MD2',
+    '1.2.840.113549.2.5': 'MD5',
+    '1.3.14.3.2.26': 'SHA-1',
+    '2.16.840.1.101.3.4.2.4': 'SHA-224',
+    '2.16.840.1.101.3.4.2.1': 'SHA-256',
+    '2.16.840.1.101.3.4.2.2': 'SHA-384',
+    '2.16.840.1.101.3.4.2.3': 'SHA-512',
+    '2.16.840.1.101.3.4.2.5': 'SHA-512/224',
+    '2.16.840.1.101.3.4.2.6': 'SHA-512/256',
+  };
 
   ///
   /// Formats the given [key] by chunking the [key] and adding the [begin] and [end] to the [key].
@@ -280,6 +293,13 @@ class X509Utils {
       default:
         return 'SHA-256';
     }
+  }
+
+  static String? _getDigestFromOid(String? oid) {
+    if (oid == null) {
+      return null;
+    }
+    return _digestNamesByOid[oid];
   }
 
   ///
@@ -1040,8 +1060,10 @@ class X509Utils {
         var digestWrapper = parameterSeq.elements!.elementAt(0);
         var digestSeq = ASN1Sequence.fromBytes(digestWrapper.valueBytes!);
         var digestOi = digestSeq.elements!.elementAt(0) as ASN1ObjectIdentifier;
-        digestOi.readableName = 'SHA-256'; // TODO REMOVE LATER
-        pssDigest = digestOi.readableName;
+        var digestName =
+          _getDigestFromOid(digestOi.objectIdentifierAsString) ?? 'SHA-256';
+        digestOi.readableName = digestName;
+        pssDigest = digestName;
         // Get Salt
         var el = parameterSeq.elements!.elementAt(2);
         var aInteger = ASN1Integer.fromBytes(el.valueBytes!);
@@ -1616,9 +1638,14 @@ class X509Utils {
 
     // GET REVOKED CERTIFICATES
     var rCertificates = <RevokedCertificate>[];
-    if (tbsCertList.elements!.elementAt(5) is ASN1Sequence) {
+    const revokedIndex = 5;
+    final hasRevokedSequence =
+      tbsCertList.elements!.length > revokedIndex &&
+        _isRevokedCertificatesSequence(
+          tbsCertList.elements!.elementAt(revokedIndex));
+    if (hasRevokedSequence) {
       var revokedCertificates =
-          tbsCertList.elements!.elementAt(5) as ASN1Sequence;
+        tbsCertList.elements!.elementAt(revokedIndex) as ASN1Sequence;
       for (var e in revokedCertificates.elements!) {
         var revoked = RevokedCertificate();
         var data = e as ASN1Sequence;
@@ -1649,7 +1676,14 @@ class X509Utils {
     certificateList.revokedCertificates = rCertificates;
 
     // GET EXTENSIONS
-    // TODO PARSE
+    var extensionIndex = hasRevokedSequence ? revokedIndex + 1 : revokedIndex;
+    if (tbsCertList.elements!.length > extensionIndex) {
+      var extensionObject = tbsCertList.elements!.elementAt(extensionIndex);
+      var extensions = _getCrlExtensionsFromObject(extensionObject);
+      if (extensions != null) {
+        certificateList.extensions = extensions;
+      }
+    }
 
     // GET SIGNATURE ALGORITHM
     var pubKeyOid = sigSeq.elements!.elementAt(0) as ASN1ObjectIdentifier;
@@ -1690,6 +1724,102 @@ class X509Utils {
       default:
         return CrlReason.unspecified;
     }
+  }
+
+  static bool _isRevokedCertificatesSequence(dynamic object) {
+    if (object is! ASN1Sequence || object.elements == null) {
+      return false;
+    }
+    if (object.elements!.isEmpty) {
+      return false;
+    }
+    var first = object.elements!.first;
+    if (first is! ASN1Sequence || first.elements == null) {
+      return false;
+    }
+    if (first.elements!.isEmpty) {
+      return false;
+    }
+    return first.elements!.first is ASN1Integer;
+  }
+
+  static CrlExtensions? _getCrlExtensionsFromObject(dynamic extensionObject) {
+    ASN1Sequence? extSequence;
+    if (extensionObject is ASN1Sequence) {
+      extSequence = extensionObject;
+    } else if (extensionObject is ASN1Object &&
+        extensionObject.valueBytes != null) {
+      var parser = ASN1Parser(extensionObject.valueBytes);
+      var next = parser.nextObject();
+      if (next is ASN1Sequence) {
+        extSequence = next;
+      }
+    }
+    if (extSequence == null || extSequence.elements == null) {
+      return null;
+    }
+
+    CrlExtensions? extensions;
+    for (var subseq in extSequence.elements!) {
+      if (subseq is! ASN1Sequence || subseq.elements == null) {
+        continue;
+      }
+      if (subseq.elements!.isEmpty) {
+        continue;
+      }
+      var oid = subseq.elements!.elementAt(0) as ASN1ObjectIdentifier;
+      var valueIndex = subseq.elements!.length - 1;
+      if (valueIndex < 1 ||
+          subseq.elements!.elementAt(valueIndex) is! ASN1OctetString) {
+        continue;
+      }
+      var octet =
+          subseq.elements!.elementAt(valueIndex) as ASN1OctetString;
+      var parser = ASN1Parser(octet.octets);
+      if (!parser.hasNext()) {
+        continue;
+      }
+      var valueObject = parser.nextObject();
+      switch (oid.objectIdentifierAsString) {
+        case '2.5.29.35':
+          var keyIdBytes = _extractAuthorityKeyIdentifierBytes(valueObject);
+          if (keyIdBytes != null) {
+            extensions ??= CrlExtensions();
+            extensions.authorityKeyIdentifier = _bytesAsString(keyIdBytes);
+          }
+          break;
+        case '2.5.29.20':
+          if (valueObject is ASN1Integer) {
+            extensions ??= CrlExtensions();
+            extensions.crlNumber = valueObject.integer?.toInt();
+          }
+          break;
+      }
+    }
+    return extensions;
+  }
+
+  static Uint8List? _extractAuthorityKeyIdentifierBytes(dynamic valueObject) {
+    if (valueObject == null) {
+      return null;
+    }
+    if (valueObject is ASN1OctetString) {
+      return valueObject.octets;
+    }
+    if (valueObject is ASN1Sequence && valueObject.elements != null) {
+      for (var element in valueObject.elements!) {
+        if (element is ASN1OctetString) {
+          return element.octets;
+        }
+        if (element.valueBytes != null) {
+          return Uint8List.fromList(element.valueBytes!);
+        }
+      }
+    }
+    if (valueObject is ASN1Object && valueObject.valueBytes != null) {
+      return Uint8List.fromList(valueObject.valueBytes!);
+    }
+    return null;
   }
 
   ///

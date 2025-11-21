@@ -37,27 +37,10 @@ class ASN1Sequence extends ASN1Object {
 
   @override
   Uint8List _encode() {
-    _valueByteLength = _childLength();
+    _valueByteLength = _encodedLengthOfChildren(elements);
     super._encodeHeader();
-    var i = _valueStartPosition;
-    // encode each element
-    for (var obj in elements) {
-      var b = obj.encodedBytes;
-      encodedBytes.setRange(i, i + b.length, b);
-      i += b.length;
-    }
+    _writeEncodedChildren(elements, this);
     return _encodedBytes!;
-  }
-
-  ///
-  /// Calculate encoded length of all children
-  ///
-  int _childLength() {
-    var l = 0;
-    for (var obj in elements) {
-      l += obj._encode().length;
-    }
-    return l;
   }
 
   void _decodeSeq() {
@@ -68,10 +51,7 @@ class ASN1Sequence extends ASN1Object {
       // now we know our value - but we need to scan for further embedded elements...
        */
     var parser = ASN1Parser(valueBytes());
-
-    while (parser.hasNext()) {
-      elements.add(parser.nextObject());
-    }
+    _decodeElements(parser, elements.add);
   }
 
   @override
@@ -83,5 +63,28 @@ class ASN1Sequence extends ASN1Object {
     }
     b.write(']');
     return b.toString();
+  }
+}
+
+int _encodedLengthOfChildren(Iterable<ASN1Object> children) {
+  var length = 0;
+  for (final child in children) {
+    length += child._encode().length;
+  }
+  return length;
+}
+
+void _writeEncodedChildren(Iterable<ASN1Object> children, ASN1Object target) {
+  var offset = target._valueStartPosition;
+  for (final child in children) {
+    final bytes = child.encodedBytes;
+    target.encodedBytes.setRange(offset, offset + bytes.length, bytes);
+    offset += bytes.length;
+  }
+}
+
+void _decodeElements(ASN1Parser parser, void Function(ASN1Object) addElement) {
+  while (parser.hasNext()) {
+    addElement(parser.nextObject());
   }
 }

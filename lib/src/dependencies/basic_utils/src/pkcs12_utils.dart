@@ -183,9 +183,9 @@ class Pkcs12Utils {
     }
 
     // CREATE AUTHENTICATED SAFE WITH CONTENTINFO ( CERT AND KEY )
-  // Colocar o KeyBag antes dos CertBags é um arranjo comum e evita ambiguidades
-  // em alguns consumidores de PKCS#12.
-  var authSafe = ASN1AuthenticatedSafe([contentInfoKey, contentInfoCert]);
+    // Colocar o KeyBag antes dos CertBags é um arranjo comum e evita ambiguidades
+    // em alguns consumidores de PKCS#12.
+    var authSafe = ASN1AuthenticatedSafe([contentInfoKey, contentInfoCert]);
 
     // WRAP AUTHENTICATED SAFE WITHIN A CONTENTINFO
     var T = ASN1ContentInfo.forData(
@@ -626,12 +626,13 @@ class Pkcs12Utils {
     parser = ASN1Parser(authSafeContent.valueBytes);
     wrapperSeq = parser.nextObject() as ASN1Sequence;
     if (wrapperSeq.elements == null || wrapperSeq.elements!.isEmpty) {
-      // TODO
+      return pems;
     }
     for (var e in wrapperSeq.elements!) {
       if (e is ASN1Sequence) {
         if (e.elements == null || e.elements!.isEmpty) {
-          // TODO
+          throw StateError(
+              'Encountered an empty ContentInfo inside authenticated safe.');
         }
         var contentInfo = ASN1ContentInfo.fromSequence(e);
 
@@ -674,7 +675,6 @@ class Pkcs12Utils {
                 });
                 break;
             }
-            print('');
             break;
           case '1.2.840.113549.1.7.1': // data (PKCS #7)
 
@@ -724,13 +724,33 @@ class Pkcs12Utils {
                     digestAlgorithm,
                   );
                   var s = ASN1Sequence.fromBytes(decryptedContent);
+                  final header = CryptoUtils.BEGIN_PRIVATE_KEY;
+                  final footer = CryptoUtils.END_PRIVATE_KEY;
+                  // Simple heuristic: ECPrivateKey sequences start with version + curve params (object identifier)
+                  if (s.elements != null && s.elements!.isNotEmpty) {
+                    final firstElement = s.elements!.first;
+                    if (firstElement is ASN1Integer &&
+                        s.elements!.length >= 3 &&
+                        s.elements![2] is ASN1ObjectIdentifier) {
+                      pems.insert(
+                        0,
+                        X509Utils.encodeASN1ObjectToPem(
+                          s,
+                          CryptoUtils.BEGIN_EC_PRIVATE_KEY,
+                          CryptoUtils.END_EC_PRIVATE_KEY,
+                        ),
+                      );
+                      break;
+                    }
+                  }
                   pems.insert(
                     0,
                     X509Utils.encodeASN1ObjectToPem(
-                        s,
-                        CryptoUtils.BEGIN_PRIVATE_KEY,
-                        CryptoUtils.END_PRIVATE_KEY),
-                  ); // TODO ECC ?
+                      s,
+                      header,
+                      footer,
+                    ),
+                  );
                   break;
                 case "1.2.840.113549.1.12.10.1.1": // pkcs-12-keyBag
                   var seq = bagValueSeq.elements!.elementAt(1) as ASN1Sequence;

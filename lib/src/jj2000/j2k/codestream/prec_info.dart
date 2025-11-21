@@ -14,7 +14,7 @@ class PrecInfo {
     this.rgh,
   ) {
     final bands = r == 0 ? 1 : 4;
-    cblk = List.generate(bands, (_) => <List<CBlkCoordInfo>>[]);
+    cblk = List.generate(bands, (_) => <List<CBlkCoordInfo?>>[]);
     nblk = List.filled(bands, 0);
   }
 
@@ -28,7 +28,7 @@ class PrecInfo {
   int h;
   int r;
 
-  late List<List<List<CBlkCoordInfo>>> cblk;
+  late List<List<List<CBlkCoordInfo?>>> cblk;
   late List<int> nblk;
 
   @override

@@ -148,8 +148,7 @@ class PDFTextStripper extends LegacyPDFStreamEngine {
     }
 
     for (PDPage page in pages) {
-      // if (page.hasContents()) // TODO: implement hasContents
-      {
+      if (page.hasContents) {
         processPage(page);
       }
       currentPageNo++;

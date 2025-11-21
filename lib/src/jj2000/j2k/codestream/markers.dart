@@ -77,6 +77,7 @@ class Markers {
   static const int COD = cod;
   static const int COC = coc;
   static const int RGN = rgn;
+  static const int SRGN_IMPLICIT = srgnImplicit;
   static const int QCD = qcd;
   static const int QCC = qcc;
   static const int POC = poc;

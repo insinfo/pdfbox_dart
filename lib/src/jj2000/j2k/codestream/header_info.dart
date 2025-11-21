@@ -23,6 +23,7 @@ class HeaderInfo {
   final Map<String, HeaderInfoQCC> qcc = <String, HeaderInfoQCC>{};
   final Map<String, HeaderInfoPOC> poc = <String, HeaderInfoPOC>{};
   final Map<String, HeaderInfoCOM> com = <String, HeaderInfoCOM>{};
+  final Map<int, HeaderInfoTLM> tlm = <int, HeaderInfoTLM>{};
 
   HeaderInfoCRG? crg;
   int _comCount = 0;
@@ -36,6 +37,7 @@ class HeaderInfo {
   HeaderInfoQCC getNewQCC() => HeaderInfoQCC();
   HeaderInfoPOC getNewPOC() => HeaderInfoPOC();
   HeaderInfoCRG getNewCRG() => HeaderInfoCRG();
+  HeaderInfoTLM getNewTLM() => HeaderInfoTLM();
   HeaderInfoCOM getNewCOM() {
     _comCount++;
     return HeaderInfoCOM();
@@ -162,6 +164,16 @@ class HeaderInfo {
       final entry = com['main_$i'];
       if (entry != null) {
         sb.write(entry);
+      }
+    }
+
+    if (tlm.isNotEmpty) {
+      final sortedIds = tlm.keys.toList()..sort();
+      for (final id in sortedIds) {
+        final entry = tlm[id];
+        if (entry != null) {
+          sb.write(entry);
+        }
       }
     }
     return sb.toString();
@@ -317,8 +329,7 @@ class HeaderInfoSIZ {
   int getCompImgWidth(int c) {
     _compWidth ??= List<int>.filled(csiz, 0);
     if (_compWidth![c] == 0) {
-      _compWidth![c] =
-          _ceilDiv(xsiz, xrsiz[c]) - _ceilDiv(x0siz, xrsiz[c]);
+      _compWidth![c] = _ceilDiv(xsiz, xrsiz[c]) - _ceilDiv(x0siz, xrsiz[c]);
     }
     return _compWidth![c];
   }
@@ -328,8 +339,7 @@ class HeaderInfoSIZ {
     if (_maxCompWidth == -1) {
       for (var c = 0; c < csiz; c++) {
         if (_compWidth![c] == 0) {
-          _compWidth![c] =
-              _ceilDiv(xsiz, xrsiz[c]) - _ceilDiv(x0siz, xrsiz[c]);
+          _compWidth![c] = _ceilDiv(xsiz, xrsiz[c]) - _ceilDiv(x0siz, xrsiz[c]);
         }
         if (_compWidth![c] > _maxCompWidth) {
           _maxCompWidth = _compWidth![c];
@@ -342,8 +352,7 @@ class HeaderInfoSIZ {
   int getCompImgHeight(int c) {
     _compHeight ??= List<int>.filled(csiz, 0);
     if (_compHeight![c] == 0) {
-      _compHeight![c] =
-          _ceilDiv(ysiz, yrsiz[c]) - _ceilDiv(y0siz, yrsiz[c]);
+      _compHeight![c] = _ceilDiv(ysiz, yrsiz[c]) - _ceilDiv(y0siz, yrsiz[c]);
     }
     return _compHeight![c];
   }
@@ -375,16 +384,15 @@ class HeaderInfoSIZ {
 
   bool isOrigSigned(int c) {
     _origSigned ??= List<bool>.filled(csiz, false);
-    _origSigned![c] = _origSigned![c] ||
-        ((ssiz[c] >> Markers.SSIZ_DEPTH_BITS) & 0x1) == 1;
+    _origSigned![c] =
+        _origSigned![c] || ((ssiz[c] >> Markers.SSIZ_DEPTH_BITS) & 0x1) == 1;
     return _origSigned![c];
   }
 
   int getOrigBitDepth(int c) {
     _origBitDepth ??= List<int>.filled(csiz, 0);
     if (_origBitDepth![c] == 0) {
-      _origBitDepth![c] =
-          (ssiz[c] & ((1 << Markers.SSIZ_DEPTH_BITS) - 1)) + 1;
+      _origBitDepth![c] = (ssiz[c] & ((1 << Markers.SSIZ_DEPTH_BITS) - 1)) + 1;
     }
     return _origBitDepth![c];
   }
@@ -415,8 +423,7 @@ class HeaderInfoSIZ {
     sb.writeln(' Capabilities : $rsiz');
     sb.writeln(
         ' Image dim.   : ${xsiz - x0siz}x${ysiz - y0siz}, (off=$x0siz,$y0siz)');
-    sb.writeln(
-        ' Tile dim.    : ${xtsiz}x${ytsiz}, (off=$xt0siz,$yt0siz)');
+    sb.writeln(' Tile dim.    : ${xtsiz}x${ytsiz}, (off=$xt0siz,$yt0siz)');
     sb.writeln(' Component(s) : $csiz');
     sb.write(' Orig. depth  : ');
     for (var i = 0; i < csiz; i++) {
@@ -695,8 +702,8 @@ class HeaderInfoQCD {
       for (var r = 0; r < spqcd.length; r++) {
         for (var s = 0; s < spqcd[r].length; s++) {
           if ((r == 0 && s == 0) || (r != 0 && s > 0)) {
-            final exp = (spqcd[r][s] >> Markers.SQCX_EXP_SHIFT) &
-                Markers.SQCX_EXP_MASK;
+            final exp =
+                (spqcd[r][s] >> Markers.SQCX_EXP_SHIFT) & Markers.SQCX_EXP_MASK;
             sb.writeln('\tr=$r${s == 0 ? '' : ',s=$s'} : $exp');
           }
         }
@@ -708,8 +715,7 @@ class HeaderInfoQCD {
           if ((r == 0 && s == 0) || (r != 0 && s > 0)) {
             final exp = (spqcd[r][s] >> 11) & 0x1f;
             final mantissa =
-                (-1.0 - (spqcd[r][s] & 0x07ff) / math.pow(2, 11)) /
-                    (-1 << exp);
+                (-1.0 - (spqcd[r][s] & 0x07ff) / math.pow(2, 11)) / (-1 << exp);
             sb.writeln('\tr=$r${s == 0 ? '' : ',s=$s'} : $exp / $mantissa');
           }
         }
@@ -764,8 +770,8 @@ class HeaderInfoQCC {
       for (var r = 0; r < spqcc.length; r++) {
         for (var s = 0; s < spqcc[r].length; s++) {
           if ((r == 0 && s == 0) || (r != 0 && s > 0)) {
-            final exp = (spqcc[r][s] >> Markers.SQCX_EXP_SHIFT) &
-                Markers.SQCX_EXP_MASK;
+            final exp =
+                (spqcc[r][s] >> Markers.SQCX_EXP_SHIFT) & Markers.SQCX_EXP_MASK;
             sb.writeln('\tr=$r${s == 0 ? '' : ',s=$s'} : $exp');
           }
         }
@@ -777,8 +783,7 @@ class HeaderInfoQCC {
           if ((r == 0 && s == 0) || (r != 0 && s > 0)) {
             final exp = (spqcc[r][s] >> 11) & 0x1f;
             final mantissa =
-                (-1.0 - (spqcc[r][s] & 0x07ff) / math.pow(2, 11)) /
-                    (-1 << exp);
+                (-1.0 - (spqcc[r][s] & 0x07ff) / math.pow(2, 11)) / (-1 << exp);
             sb.writeln('\tr=$r${s == 0 ? '' : ',s=$s'} : $exp / $mantissa');
           }
         }
@@ -867,6 +872,44 @@ class HeaderInfoCOM {
       sb.writeln(' Text         : ${String.fromCharCodes(ccom)}');
     } else {
       sb.writeln(' Registration : Unknown');
+    }
+    sb.writeln();
+    return sb.toString();
+  }
+}
+
+class HeaderInfoTLMEntry {
+  const HeaderInfoTLMEntry({
+    required this.tileIndex,
+    required this.length,
+  });
+
+  final int tileIndex;
+  final int length;
+}
+
+class HeaderInfoTLM {
+  int ltlm = 0;
+  int ztlm = 0;
+  int stlm = 0;
+  final List<HeaderInfoTLMEntry> entries = <HeaderInfoTLMEntry>[];
+
+  int get tileIndexFieldBytes => (stlm >> 4) & 0x3;
+  int get tilePartLengthFieldBytes => (((stlm >> 6) & 0x1) + 1) * 2;
+
+  @override
+  String toString() {
+    final sb = StringBuffer();
+    sb.writeln('\n --- TLM ($ltlm bytes) ---');
+    sb.writeln(' Marker index   : $ztlm');
+    final tileLabel = tileIndexFieldBytes == 0
+        ? 'implicit'
+        : '${tileIndexFieldBytes} byte${tileIndexFieldBytes == 1 ? '' : 's'}';
+    sb.writeln(' Tile field     : $tileLabel');
+    sb.writeln(' Length field   : ${tilePartLengthFieldBytes} bytes');
+    for (var i = 0; i < entries.length; i++) {
+      final entry = entries[i];
+      sb.writeln('  [${i + 1}] tile=${entry.tileIndex} length=${entry.length}');
     }
     sb.writeln();
     return sb.toString();

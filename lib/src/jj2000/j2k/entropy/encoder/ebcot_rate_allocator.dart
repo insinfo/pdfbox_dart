@@ -85,7 +85,7 @@ class EBCOTRateAllocator extends PostCompRateAllocator {
   /// <li>2nd dim: component index.</li>
   /// <li>3nd dim: resolution level index.</li>
   /// </ul>
-  List<List<List<img.Coord?>>>? numPrec;
+  List<List<List<img.Coord>>>? numPrec;
 
   /// Array containing the layers information.
   late List<EBCOTLayer> layers;
@@ -237,10 +237,10 @@ class EBCOTRateAllocator extends PostCompRateAllocator {
 
         // Initialize maximum number of precincts per resolution array
         if (numPrec == null) {
-          numPrec = List.generate(nt, (_) => List.generate(nc, (_) => <img.Coord?>[]));
+          numPrec = List.generate(nt, (_) => List.generate(nc, (_) => <img.Coord>[]));
         }
         if (numPrec![t][c].isEmpty) {
-          numPrec![t][c] = List<img.Coord?>.filled(mrl, null);
+          numPrec![t][c] = List.generate(mrl, (_) => img.Coord(0, 0));
         }
 
         // Subsampling factors
@@ -276,19 +276,17 @@ class EBCOTRateAllocator extends PostCompRateAllocator {
           double twoppy = encSpec.pss.getPPY(t, c, r).toDouble();
           numPrec![t][c][r] = img.Coord(0, 0);
           if (trx1 > trx0) {
-            numPrec![t][c][r]!.x = ((trx1 - cb0x) / twoppx).ceil() -
-                ((trx0 - cb0x) / twoppx).floor();
+          numPrec![t][c][r].x = ((trx1 - cb0x) / twoppx).ceil() -
+              ((trx0 - cb0x) / twoppx).floor();
           } else {
-            numPrec![t][c][r]!.x = 0;
+            numPrec![t][c][r].x = 0;
           }
           if (try1 > try0) {
-            numPrec![t][c][r]!.y = ((try1 - cb0y) / twoppy).ceil() -
+            numPrec![t][c][r].y = ((try1 - cb0y) / twoppy).ceil() -
                 ((try0 - cb0y) / twoppy).floor();
           } else {
-            numPrec![t][c][r]!.y = 0;
-          }
-
-          minsbi = (r == 0) ? 0 : 1;
+            numPrec![t][c][r].y = 0;
+          }          minsbi = (r == 0) ? 0 : 1;
           maxsbi = (r == 0) ? 1 : 4;
 
           cblks[t][c][r] = List.generate(maxsbi, (_) => [], growable: false);
@@ -318,7 +316,7 @@ class EBCOTRateAllocator extends PostCompRateAllocator {
     } // End loop on tiles
 
     //Initialize the packet encoder
-    pktEnc = PktEncoder(src, encSpec, numPrec, pl);
+    pktEnc = PktEncoder(src, encSpec, numPrec!, pl);
 
     // The layers array has to be initialized after the constructor since
     // it is needed that the bit stream header has been entirely written
@@ -409,7 +407,7 @@ class EBCOTRateAllocator extends PostCompRateAllocator {
           // component/tile/resolution level, we get the maximum
           // number of packets
           for (int rl = 0; rl < numLvls; rl++) {
-            maxpkt = numPrec![t][c][rl]!.x * numPrec![t][c][rl]!.y;
+            maxpkt = numPrec![t][c][rl].x * numPrec![t][c][rl].y;
             totenclength += numLayers * avgPktLen * maxpkt;
           }
         }
@@ -447,7 +445,7 @@ class EBCOTRateAllocator extends PostCompRateAllocator {
         } else {
           // Precinct partition is used
           for (int rl = 0; rl < numLvls; rl++) {
-            maxpkt = numPrec![t][c][rl]!.x * numPrec![t][c][rl]!.y;
+            maxpkt = numPrec![t][c][rl].x * numPrec![t][c][rl].y;
             minlsz += MIN_AVG_PACKET_SZ * maxpkt;
           }
         }
@@ -734,7 +732,7 @@ class EBCOTRateAllocator extends PostCompRateAllocator {
           for (int r = 0; r < mrl; r++) {
             // loop on resolution levels
 
-            nPrec = numPrec![t][c][r]!.x * numPrec![t][c][r]!.y;
+            nPrec = numPrec![t][c][r].x * numPrec![t][c][r].y;
             for (int p = 0; p < nPrec; p++) {
               // loop on precincts
 
@@ -890,7 +888,7 @@ class EBCOTRateAllocator extends PostCompRateAllocator {
           // If no more decomposition levels for this component
           if (r > mrl[c]) continue;
 
-          nPrec = numPrec![t][c][r]!.x * numPrec![t][c][r]!.y;
+          nPrec = numPrec![t][c][r].x * numPrec![t][c][r].y;
           for (int p = 0; p < nPrec; p++) {
             // loop on precincts
 
@@ -973,7 +971,7 @@ class EBCOTRateAllocator extends PostCompRateAllocator {
           if (r >= lys[c].length) continue;
           if (l < lys[c][r]) continue;
 
-          nPrec = numPrec![t][c][r]!.x * numPrec![t][c][r]!.y;
+          nPrec = numPrec![t][c][r].x * numPrec![t][c][r].y;
           for (int p = 0; p < nPrec; p++) {
             // loop on precincts
 
@@ -1078,7 +1076,7 @@ class EBCOTRateAllocator extends PostCompRateAllocator {
         if (r < lys[c].length && lys[c][r] < minlys) {
           minlys = lys[c][r];
         }
-        p = numPrec![t][c][r]!.y * numPrec![t][c][r]!.x - 1;
+        p = numPrec![t][c][r].y * numPrec![t][c][r].x - 1;
         for (; p >= 0; p--) {
           prec = pktEnc.getPrecInfo(t, c, r, p);
           if (prec.rgulx != tx0) {
@@ -1121,7 +1119,7 @@ class EBCOTRateAllocator extends PostCompRateAllocator {
             // Resolution levels
             if (r > mrl) continue;
             if (nextPrec[c][r] >=
-                numPrec![t][c][r]!.x * numPrec![t][c][r]!.y) {
+                numPrec![t][c][r].x * numPrec![t][c][r].y) {
               continue;
             }
             prec = pktEnc.getPrecInfo(t, c, r, nextPrec[c][r]);
@@ -1181,7 +1179,7 @@ class EBCOTRateAllocator extends PostCompRateAllocator {
       mrl = src.getAnSubbandTree(t, c).resLvl;
       for (int r = rs; r < re; r++) {
         if (r > mrl) continue;
-        if (nextPrec[c][r] < numPrec![t][c][r]!.x * numPrec![t][c][r]!.y - 1) {
+        if (nextPrec[c][r] < numPrec![t][c][r].x * numPrec![t][c][r].y - 1) {
           throw Error(); // "JJ2000 bug: One precinct at least has not been written..."
         }
       }
@@ -1257,7 +1255,7 @@ class EBCOTRateAllocator extends PostCompRateAllocator {
         if (r < lys[c].length && lys[c][r] < minlys) {
           minlys = lys[c][r];
         }
-        p = numPrec![t][c][r]!.y * numPrec![t][c][r]!.x - 1;
+        p = numPrec![t][c][r].y * numPrec![t][c][r].x - 1;
         for (; p >= 0; p--) {
           prec = pktEnc.getPrecInfo(t, c, r, p);
           if (prec.rgulx != tx0) {
@@ -1300,7 +1298,7 @@ class EBCOTRateAllocator extends PostCompRateAllocator {
             // Resolution levels
             if (r > mrl) continue;
             if (nextPrec[c][r] >=
-                numPrec![t][c][r]!.x * numPrec![t][c][r]!.y) {
+                numPrec![t][c][r].x * numPrec![t][c][r].y) {
               continue;
             }
             prec = pktEnc.getPrecInfo(t, c, r, nextPrec[c][r]);
@@ -1360,7 +1358,7 @@ class EBCOTRateAllocator extends PostCompRateAllocator {
       mrl = src.getAnSubbandTree(t, c).resLvl;
       for (int r = rs; r < re; r++) {
         if (r > mrl) continue;
-        if (nextPrec[c][r] < numPrec![t][c][r]!.x * numPrec![t][c][r]!.y - 1) {
+        if (nextPrec[c][r] < numPrec![t][c][r].x * numPrec![t][c][r].y - 1) {
           throw Error(); // "JJ2000 bug: One precinct at least has not been written..."
         }
       }
@@ -1420,7 +1418,7 @@ class EBCOTRateAllocator extends PostCompRateAllocator {
         if (r < lys[c].length && lys[c][r] < minlys) {
           minlys = lys[c][r];
         }
-        p = numPrec![t][c][r]!.y * numPrec![t][c][r]!.x - 1;
+        p = numPrec![t][c][r].y * numPrec![t][c][r].x - 1;
         for (; p >= 0; p--) {
           prec = pktEnc.getPrecInfo(t, c, r, p);
           if (prec.rgulx != tx0) {
@@ -1463,7 +1461,7 @@ class EBCOTRateAllocator extends PostCompRateAllocator {
             // Resolution levels
             if (r > mrl) continue;
             if (nextPrec[c][r] >=
-                numPrec![t][c][r]!.x * numPrec![t][c][r]!.y) {
+                numPrec![t][c][r].x * numPrec![t][c][r].y) {
               continue;
             }
             prec = pktEnc.getPrecInfo(t, c, r, nextPrec[c][r]);
@@ -1523,7 +1521,7 @@ class EBCOTRateAllocator extends PostCompRateAllocator {
       mrl = src.getAnSubbandTree(t, c).resLvl;
       for (int r = rs; r < re; r++) {
         if (r > mrl) continue;
-        if (nextPrec[c][r] < numPrec![t][c][r]!.x * numPrec![t][c][r]!.y - 1) {
+        if (nextPrec[c][r] < numPrec![t][c][r].x * numPrec![t][c][r].y - 1) {
           throw Error(); // "JJ2000 bug: One precinct at least has not been written..."
         }
       }
@@ -1636,7 +1634,7 @@ class EBCOTRateAllocator extends PostCompRateAllocator {
           sb = sb.getSubbandByIdx(0, 0) as SubbandAn;
           //loop on resolution levels
           for (int r = 0; r < numLvls; r++) {
-            nPrec = numPrec![t][c][r]!.x * numPrec![t][c][r]!.y;
+            nPrec = numPrec![t][c][r].x * numPrec![t][c][r].y;
             for (int p = 0; p < nPrec; p++) {
               findTruncIndices(layerIdx, c, r, t, sb, ft, p);
               hBuff = pktEnc.encodePacket(layerIdx + 1, c, r, t, cblks[t][c][r],
@@ -1745,10 +1743,11 @@ class EBCOTRateAllocator extends PostCompRateAllocator {
       for (int y = 0; y < yend; y++) {
         xend = prec.cblk[s][y].length;
         for (int x = 0; x < xend; x++) {
-          cbCoord = prec.cblk[s][y][x].idx;
-          b = cbCoord.x + cbCoord.y * sb.numCb!.x;
-
           //Get the current code-block
+          var cbInfo = prec.cblk[s][y][x];
+          if (cbInfo == null) continue;
+          cbCoord = cbInfo.idx;
+          b = cbCoord.x + cbCoord.y * sb.numCb!.x;
           cur_cblk = cblks[tileIdx][compIdx][lvlIdx][s][b];
           for (n = 0; n < cur_cblk.nVldTrunc; n++) {
             if (cur_cblk.truncSlopes[n] < fthresh) {

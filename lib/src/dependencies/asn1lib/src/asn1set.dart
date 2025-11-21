@@ -4,7 +4,7 @@ part of '../asn1lib.dart';
 /// An ASN1Set.
 ///
 class ASN1Set extends ASN1Object {
-  Set<ASN1Object> elements = {};
+  final Set<ASN1Object> elements = <ASN1Object>{};
 
   ///
   /// Create a set from the bytes
@@ -25,33 +25,15 @@ class ASN1Set extends ASN1Object {
   ///
   void add(ASN1Object o) {
     elements.add(o);
+    _encodedBytes = null;
   }
 
   @override
   Uint8List _encode() {
-    _valueByteLength = _childLength();
-    //super._encode();
-
+    _valueByteLength = _encodedLengthOfChildren(elements);
     super._encodeHeader();
-    var i = _valueStartPosition;
-    for (var obj in elements) {
-      var b = obj.encodedBytes;
-      encodedBytes.setRange(i, i + b.length, b);
-      i += b.length;
-    }
+    _writeEncodedChildren(elements, this);
     return _encodedBytes!;
-  }
-
-  ///
-  /// TODO: Merge with Sequence code
-  ///
-  int _childLength() {
-    var l = 0;
-    for (var obj in elements) {
-      obj._encode();
-      l += obj.encodedBytes.length;
-    }
-    return l;
   }
 
   void _decodeSet() {
@@ -62,10 +44,7 @@ class ASN1Set extends ASN1Object {
       // now we know our value - but we need to scan for further embedded elements...
        */
     var parser = ASN1Parser(valueBytes());
-
-    while (parser.hasNext()) {
-      elements.add(parser.nextObject());
-    }
+    _decodeElements(parser, elements.add);
   }
 
   @override

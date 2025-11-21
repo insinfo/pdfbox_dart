@@ -190,6 +190,23 @@ class PDPage implements PDContentStream {
     }
   }
 
+  /// Returns true if the page dictionary references at least one content stream.
+  bool get hasContents {
+    final contents = _dictionary.getDictionaryObject(COSName.contents);
+    if (contents == null || contents == COSNull.instance) {
+      return false;
+    }
+    if (contents is COSArray) {
+      for (final entry in contents) {
+        if (_asStream(entry) != null) {
+          return true;
+        }
+      }
+      return false;
+    }
+    return _asStream(contents) != null;
+  }
+
   /// Replaces the page contents with [stream], removing any existing content.
   set contents(PDStream? stream) => setContentStream(stream);
 

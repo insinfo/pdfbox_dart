@@ -90,6 +90,14 @@ Future<PortableImage> _decodeCodestream(
       throw StateError('Decoder returned exit code ${decoder.exitCode} for ${codestream.path}');
     }
 
+    if (!outputFile.existsSync()) {
+      final component1 = File(outputFile.path.replaceFirst(normalizedExtension, '-1$normalizedExtension'));
+      if (component1.existsSync()) {
+         final image = await _loadPortableImage(component1);
+         return image;
+      }
+    }
+
     final image = await _loadPortableImage(outputFile);
     return image;
   } finally {

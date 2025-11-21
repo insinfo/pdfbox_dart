@@ -3,8 +3,7 @@ library crypto_keys.algorithms;
 import 'dart:math' show Random;
 import 'dart:typed_data';
 
-import 'package:pointycastle/export.dart' as pc; // TODO
-import 'package:pointycastle/pointycastle.dart';
+import 'package:pointycastle/export.dart' as pc;
 
 import 'pointycastle_ext.dart' as pce;
 
@@ -92,7 +91,7 @@ class HybridEncAlgorithms extends Identifier {
   AlgorithmIdentifier withParameters(
       {required keySize,
       required Identifier curve,
-      required AlgorithmIdentifier<Digest> hkdfHash}) {
+      required AlgorithmIdentifier<pc.Digest> hkdfHash}) {
     return AlgorithmIdentifier._(
         'enc/hybrid', () => pc.HKDFKeyDerivator(hkdfHash.factory()));
   }
