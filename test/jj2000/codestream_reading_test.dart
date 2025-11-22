@@ -1,9 +1,9 @@
 import 'dart:io';
 import 'package:test/test.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/codestream/reader/header_decoder.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/codestream/header_info.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/io/be_buffered_random_access_file.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/fileformat/file_format_reader.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/codestream/reader/header_decoder.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/codestream/header_info.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/io/be_buffered_random_access_file.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/fileformat/file_format_reader.dart';
 
 void main() {
   group('Codestream Reading Tests', () {

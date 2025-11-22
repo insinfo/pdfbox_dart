@@ -2,11 +2,11 @@ import 'dart:typed_data';
 
 import 'package:test/test.dart';
 
-import 'package:pdfbox_dart/src/jj2000/j2k/codestream/header_info.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/codestream/markers.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/codestream/reader/header_decoder.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/image/invcomptransf/inv_comp_transf.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/util/is_random_access_io.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/codestream/header_info.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/codestream/markers.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/codestream/reader/header_decoder.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/image/invcomptransf/inv_comp_transf.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/is_random_access_io.dart';
 
 void main() {
   group('HeaderDecoder.readMainHeader', () {

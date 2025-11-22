@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 import 'package:test/test.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/wavelet/synthesis/syn_wt_filter_float_lift9x7.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/wavelet/synthesis/syn_wt_filter_float_lift9x7.dart';
 
 void main() {
   group('SynWTFilterFloatLift9x7 Tests', () {

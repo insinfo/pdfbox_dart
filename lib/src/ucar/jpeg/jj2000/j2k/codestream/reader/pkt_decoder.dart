@@ -475,6 +475,15 @@ class PktDecoder {
             final baseLengthBits = lblockRow[coordIdx.x] + MathUtil.log2(newTruncPoints);
             final segmentCount = _computeSegmentCount(blockInfo, newTruncPoints, options);
 
+            if (DecoderInstrumentation.isEnabled()) {
+              DecoderInstrumentation.log(
+                'PktDecoder',
+                'pkt=$_packetIndex tile=$tileIdx comp=$component res=$resolution band=$subband '
+                'block=${coordIdx.x}x${coordIdx.y} layer=$layer newTruncPoints=$newTruncPoints '
+                'lblock=${lblockRow[coordIdx.x]} baseBits=$baseLengthBits segments=$segmentCount',
+              );
+            }
+
             if (segmentCount == 1) {
               blockInfo.len[layer] = reader.readBits(baseLengthBits);
               if (_packetIndex == 90) print('Pkt90: CB($m,$n) len=${blockInfo.len[layer]}');
@@ -534,6 +543,15 @@ class PktDecoder {
                   );
                 }
               }
+            }
+
+            if (DecoderInstrumentation.isEnabled()) {
+              DecoderInstrumentation.log(
+                'PktDecoder',
+                'pkt=$_packetIndex tile=$tileIdx comp=$component res=$resolution band=$subband '
+                'block=${coordIdx.x}x${coordIdx.y} layer=$layer payload=${blockInfo.len[layer]} '
+                'segLen=${blockInfo.segLen[layer]}',
+              );
             }
 
             if (isTruncMode && maxCB == -1) {

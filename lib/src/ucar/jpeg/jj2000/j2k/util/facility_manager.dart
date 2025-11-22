@@ -8,9 +8,10 @@ import 'stream_msg_logger.dart';
 class FacilityManager {
   // TODO(jj2000): Revisit the scoping strategy once decoder threading is ported.
   static final Map<Zone, MsgLogger> _loggers = <Zone, MsgLogger>{};
-  static MsgLogger _defaultLogger = StreamMsgLogger.stdout();
+  static MsgLogger _defaultLogger = StreamMsgLogger.stdout(lineWidth: 512);
 
-  static final Map<Zone, ProgressWatch> _progressWatches = <Zone, ProgressWatch>{};
+  static final Map<Zone, ProgressWatch> _progressWatches =
+      <Zone, ProgressWatch>{};
   static ProgressWatch? _defaultProgressWatch;
 
   static void registerMsgLogger(MsgLogger logger, {Zone? zone}) {

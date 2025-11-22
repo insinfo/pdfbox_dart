@@ -4,7 +4,7 @@ import '../codestream/header_info.dart';
 import '../codestream/reader/bitstream_reader_agent.dart';
 import '../codestream/reader/header_decoder.dart';
 import '../entropy/decoder/entropy_decoder.dart';
-import '../entropy/decoder/std_entropy_decoder.dart';
+import '../entropy/decoder/StdEntropyDecoder.dart';
 import '../fileformat/file_format_reader.dart';
 import '../io/be_buffered_random_access_file.dart';
 import '../io/random_access_io.dart';

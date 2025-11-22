@@ -2,17 +2,17 @@ import 'dart:typed_data';
 
 import 'package:test/test.dart';
 
-import 'package:pdfbox_dart/src/jj2000/j2k/image/blk_img_data_src.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/image/coord.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/image/data_blk.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/image/data_blk_float.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/image/data_blk_int.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/quantization/dequantizer/cblk_quant_data_src_dec.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/roi/max_shift_spec.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/roi/rect_roi_spec.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/roi/rectangular_roi.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/roi/roi_de_scaler.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/wavelet/synthesis/subband_syn.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/image/blk_img_data_src.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/image/coord.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/image/data_blk.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/image/data_blk_float.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/image/data_blk_int.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/quantization/dequantizer/cblk_quant_data_src_dec.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/roi/max_shift_spec.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/roi/rect_roi_spec.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/roi/rectangular_roi.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/roi/roi_de_scaler.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/wavelet/synthesis/subband_syn.dart';
 
 void main() {
   group('ROIDeScaler', () {

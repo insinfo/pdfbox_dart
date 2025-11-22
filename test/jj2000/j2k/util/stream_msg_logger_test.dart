@@ -1,5 +1,5 @@
-import 'package:pdfbox_dart/src/jj2000/j2k/util/msg_logger.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/util/stream_msg_logger.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/msg_logger.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/stream_msg_logger.dart';
 import 'package:test/test.dart';
 
 void main() {

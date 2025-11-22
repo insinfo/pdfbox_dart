@@ -151,8 +151,10 @@ class InvCompTransfImgDataSrc extends ImgDataAdapter implements BlkImgDataSrc {
         final int crVal = crData[crPos];
 
         final int g = yVal - ((cbVal + crVal) >> 2);
-        final int r = yVal + crVal;
-        final int b = yVal + cbVal;
+        // For the reversible transform the chroma components are defined
+        // relative to green, so rebuild red/blue from the recovered green.
+        final int r = g + crVal;
+        final int b = g + cbVal;
 
         if (_componentDebugCountdown[component] > 0) {
           if (_componentDebugCountdown[component] == 5) {

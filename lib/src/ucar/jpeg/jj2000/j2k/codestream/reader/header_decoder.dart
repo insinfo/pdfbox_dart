@@ -4,7 +4,7 @@ import 'dart:typed_data';
 import '../../decoder/decoder_specs.dart';
 import '../../entropy/decoder/coded_cblk_data_src_dec.dart';
 import '../../entropy/decoder/entropy_decoder.dart';
-import '../../entropy/decoder/std_entropy_decoder.dart';
+import '../../entropy/decoder/StdEntropyDecoder.dart';
 import '../../image/coord.dart';
 import '../../image/invcomptransf/inv_comp_transf.dart';
 import '../../io/random_access_io.dart';

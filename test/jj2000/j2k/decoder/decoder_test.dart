@@ -5,12 +5,12 @@ import 'dart:math' as math;
 import 'package:test/test.dart';
 import 'package:crypto/crypto.dart' show sha256;
 
-import 'package:pdfbox_dart/src/jj2000/j2k/codestream/markers.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/decoder/decoder.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/util/decoder_instrumentation.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/util/facility_manager.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/util/parameter_list.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/util/stream_msg_logger.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/codestream/markers.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/decoder/decoder.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/decoder_instrumentation.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/facility_manager.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/parameter_list.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/stream_msg_logger.dart';
 
 import '../codestream/test_utils.dart';
 

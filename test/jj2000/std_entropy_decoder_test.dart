@@ -1,12 +1,12 @@
-import 'package:pdfbox_dart/src/jj2000/j2k/decoder/decoder_specs.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/entropy/decoder/coded_cblk_data_src_dec.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/entropy/decoder/dec_lyrd_cblk.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/entropy/decoder/std_entropy_decoder.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/image/coord.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/decoder/decoder_specs.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/entropy/decoder/coded_cblk_data_src_dec.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/entropy/decoder/dec_lyrd_cblk.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/entropy/decoder/StdEntropyDecoder.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/image/coord.dart';
 
-import 'package:pdfbox_dart/src/jj2000/j2k/image/data_blk_int.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/wavelet/subband.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/wavelet/synthesis/subband_syn.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/image/data_blk_int.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/wavelet/subband.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/wavelet/synthesis/subband_syn.dart';
 import 'package:test/test.dart';
 
 void main() {

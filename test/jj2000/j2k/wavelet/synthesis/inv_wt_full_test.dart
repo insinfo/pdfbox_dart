@@ -2,13 +2,13 @@ import 'dart:typed_data';
 
 import 'package:test/test.dart';
 
-import 'package:pdfbox_dart/src/jj2000/j2k/decoder/decoder_specs.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/image/coord.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/image/data_blk.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/image/data_blk_int.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/wavelet/synthesis/c_blk_wt_data_src_dec.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/wavelet/synthesis/inverse_wt.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/wavelet/synthesis/subband_syn.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/decoder/decoder_specs.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/image/coord.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/image/data_blk.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/image/data_blk_int.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/wavelet/synthesis/c_blk_wt_data_src_dec.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/wavelet/synthesis/inverse_wt.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/wavelet/synthesis/subband_syn.dart';
 
 void main() {
   group('InvWTFull', () {

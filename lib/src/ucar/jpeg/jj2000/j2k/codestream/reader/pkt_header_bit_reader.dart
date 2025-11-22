@@ -23,7 +23,8 @@ class PktHeaderBitReader {
   int _bitPos = 0;
   int _nextBitBuffer = 0;
 
-  /// Reads a single bit from the underlying source.
+  /// Reads a single bit from the underlying source, applying JPEG 2000 bit
+  /// unstuffing rules.
   int readBit() {
     if (_bitPos == 0) {
       if (_bitBuffer != 0xff) {
@@ -35,17 +36,12 @@ class PktHeaderBitReader {
       } else {
         _bitBuffer = _nextBitBuffer;
         _bitPos = 7;
-        if (_bitBuffer == 0xff) {
-          _nextBitBuffer = _readByte();
-        }
       }
     }
-    _bitPos--;
-    return (_bitBuffer >> _bitPos) & 0x01;
+    return (_bitBuffer >> --_bitPos) & 0x01;
   }
 
-  /// Reads [count] bits (up to 31) and returns them in the least-significant
-  /// bits of the resulting integer.
+  /// Reads [count] bits (up to 31) into the least-significant bits of the return value.
   int readBits(int count) {
     if (count < 0 || count > 31) {
       throw ArgumentError.value(count, 'count', 'Must be between 0 and 31');
@@ -60,11 +56,10 @@ class PktHeaderBitReader {
 
     var remaining = count;
     var bits = 0;
-    while (remaining > _bitPos) {
-      final available = _bitPos;
-      bits <<= available;
-      remaining -= available;
-      bits |= readBits(available);
+    do {
+      bits <<= _bitPos;
+      remaining -= _bitPos;
+      bits |= readBits(_bitPos);
       if (_bitBuffer != 0xff) {
         _bitBuffer = _readByte();
         _bitPos = 8;
@@ -74,14 +69,12 @@ class PktHeaderBitReader {
       } else {
         _bitBuffer = _nextBitBuffer;
         _bitPos = 7;
-        if (_bitBuffer == 0xff) {
-          _nextBitBuffer = _readByte();
-        }
       }
-    }
+    } while (remaining > _bitPos);
 
+    bits <<= remaining;
     _bitPos -= remaining;
-    bits = (bits << remaining) | ((_bitBuffer >> _bitPos) & ((1 << remaining) - 1));
+    bits |= (_bitBuffer >> _bitPos) & ((1 << remaining) - 1);
     return bits;
   }
 

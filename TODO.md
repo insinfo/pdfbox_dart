@@ -14,7 +14,7 @@ e concertar a versão dart
 
 ## Em Andamento
 - [ ] Levantar testes existentes em `jj2000/src/test` (Java).
-- [ ] Mapear testes equivalentes em `lib/src/jj2000` (Dart) C:\MyDartProjects\pdfbox_dart\test\jj2000.
+- [ ] Mapear testes equivalentes em `lib/src/ucar/jpeg/jj2000` (Dart) C:\MyDartProjects\pdfbox_dart\test\jj2000.
 - [ ] Executar suites Java relevantes via `mvn -pl jj2000 test`.
 - [ ] Executar suites Dart relevantes via `dart test test/jj2000/`.
 - [ ] Registrar diferencas observadas entre saidas Java e Dart.

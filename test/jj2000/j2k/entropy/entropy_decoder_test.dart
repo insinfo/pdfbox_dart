@@ -3,23 +3,23 @@ import 'dart:math' as math;
 
 import 'package:test/test.dart';
 import 'package:path/path.dart' as p;
-import 'package:pdfbox_dart/src/jj2000/j2k/codestream/header_info.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/codestream/reader/bitstream_reader_agent.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/codestream/reader/header_decoder.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/decoder/decoder.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/entropy/decoder/entropy_decoder.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/fileformat/file_format_reader.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/image/data_blk_int.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/io/be_buffered_random_access_file.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/io/random_access_io.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/util/decoder_instrumentation.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/util/facility_manager.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/util/parameter_list.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/util/stream_msg_logger.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/wavelet/synthesis/subband_syn.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/wavelet/synthesis/syn_wt_filter.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/wavelet/synthesis/syn_wt_filter_float_lift9x7.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/wavelet/synthesis/syn_wt_filter_int_lift5x3.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/codestream/header_info.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/codestream/reader/bitstream_reader_agent.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/codestream/reader/header_decoder.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/decoder/decoder.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/entropy/decoder/entropy_decoder.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/fileformat/file_format_reader.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/image/data_blk_int.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/io/be_buffered_random_access_file.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/io/random_access_io.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/decoder_instrumentation.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/facility_manager.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/parameter_list.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/stream_msg_logger.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/wavelet/synthesis/subband_syn.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/wavelet/synthesis/syn_wt_filter.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/wavelet/synthesis/syn_wt_filter_float_lift9x7.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/wavelet/synthesis/syn_wt_filter_int_lift5x3.dart';
 
 void main() {
   List<List<SynWTFilter>> createDefaultFilters(int decompositionLevels, bool reversible) {

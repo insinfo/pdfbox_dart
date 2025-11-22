@@ -1,9 +1,9 @@
 import 'package:test/test.dart';
 
-import 'package:pdfbox_dart/src/jj2000/j2k/module_spec.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/quantization/quant_step_size_spec.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/quantization/dequantizer/std_dequantizer_params.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/util/parameter_list.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/module_spec.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/quantization/quant_step_size_spec.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/quantization/dequantizer/std_dequantizer_params.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/parameter_list.dart';
 
 void main() {
   group('QuantStepSizeSpec', () {

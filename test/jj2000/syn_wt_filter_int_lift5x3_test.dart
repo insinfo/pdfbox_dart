@@ -1,5 +1,5 @@
 import 'package:test/test.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/wavelet/synthesis/syn_wt_filter_int_lift5x3.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/wavelet/synthesis/syn_wt_filter_int_lift5x3.dart';
 
 void main() {
   group('SynWTFilterIntLift5x3 Tests', () {

@@ -1,14 +1,15 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
-import 'package:pdfbox_dart/src/jj2000/j2k/decoder/decoder_specs.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/entropy/decoder/coded_cblk_data_src_dec.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/entropy/decoder/dec_lyrd_cblk.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/entropy/decoder/std_entropy_decoder.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/image/coord.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/image/data_blk_int.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/no_next_element_exception.dart';
-import 'package:pdfbox_dart/src/jj2000/j2k/wavelet/synthesis/subband_syn.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/decoder/decoder_specs.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/entropy/decoder/coded_cblk_data_src_dec.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/entropy/decoder/dec_lyrd_cblk.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/entropy/decoder/StdEntropyDecoder.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/image/coord.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/image/data_blk_int.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/no_next_element_exception.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/wavelet/synthesis/subband_syn.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/decoder_instrumentation.dart';
 import 'package:test/test.dart';
 
 import 'fixtures/std_entropy/std_entropy_fixture.dart';
@@ -19,6 +20,8 @@ void main() {
       final fixture = StdEntropyFixture.load(
         'test/jj2000/fixtures/std_entropy/rainbowbars_comp1.json',
       );
+
+      DecoderInstrumentation.configure(true);
 
       final specs = _buildSpecs(fixture);
       final block = fixture.toCodeBlock();
@@ -50,11 +53,56 @@ void main() {
       final ints = decoded as DataBlkInt;
       expect(ints.w, equals(block.w));
       expect(ints.h, equals(block.h));
-      expect(ints.data, equals(fixture.coefficients));
-    },
-        skip:
-            'StdEntropyDecoder parity gap: fixture coefficients do not yet match Java output');
+      final actual = ints.data;
+      expect(actual, isNotNull);
+      final expected = fixture.coefficients;
+      final diffs = <String>[];
+      if (actual!.length == expected.length) {
+        for (var i = 0; i < actual.length; i++) {
+          if (actual[i] != expected[i]) {
+            diffs
+                .add('[$i] actual=${actual[i]} expected=${expected[i]}');
+            if (diffs.length >= 12) {
+              break;
+            }
+          }
+        }
+      }
+      final reason = diffs.isEmpty ? 'all coefficients match' : diffs.join(', ');
+      if (diffs.isNotEmpty) {
+        _dumpPreview('actual', actual, ints.w, previewRows: 4, previewCols: 8);
+        _dumpPreview('expected', expected, ints.w,
+            previewRows: 4, previewCols: 8);
+      }
+      expect(actual, equals(expected), reason: reason);
+    });
   });
+}
+
+void _dumpPreview(
+  String label,
+  List<int> data,
+  int width, {
+  int previewRows = 4,
+  int previewCols = 8,
+}) {
+  final rows = <String>[];
+  final maxRows = previewRows < data.length ~/ width
+      ? previewRows
+      : data.length ~/ width;
+  for (var row = 0; row < maxRows; row++) {
+    final base = row * width;
+    final cols = <String>[];
+    final maxCols = previewCols < width ? previewCols : width;
+    for (var col = 0; col < maxCols; col++) {
+      cols.add(data[base + col].toString());
+    }
+    rows.add(cols.join(', '));
+  }
+  // ignore: avoid_print
+  print('$label preview (${maxRows}x${previewCols < width ? previewCols : width}):');
+  // ignore: avoid_print
+  print(rows.join('\n'));
 }
 
 DecoderSpecs _buildSpecs(StdEntropyFixture fixture) {

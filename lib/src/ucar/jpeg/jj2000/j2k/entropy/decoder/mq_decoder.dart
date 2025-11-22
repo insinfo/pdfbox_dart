@@ -442,111 +442,75 @@ class MQDecoder {
 
   /// Decodes a single symbol using [context].
   int decodeSymbol(int context) {
-    final idx = _states[context];
-    final q = _qe[idx];
+    final index = _states[context];
+    final q = _qe[index];
     _interval -= q;
-    final chigh = _codeRegister >>> 16;
-    
-   
+    int decision;
 
-    if (chigh < _interval) {
-     
+    if ((_codeRegister >>> 16) < _interval) {
       if (_interval >= 0x8000) {
-        final decision = _mps[context];
-        _recordTrace(context, decision);
-        return decision;
-      }
-      var localInterval = _interval;
-      var localCode = _codeRegister;
-      var localBits = _codeBits;
-      var localIdx = idx;
-      var decision = 0;
-
-      if (localInterval >= q) {
         decision = _mps[context];
-        _states[context] = _nextMps[localIdx];
-        if (localBits == 0) {
-          _codeRegister = localCode;
-          _byteIn();
-          localCode = _codeRegister;
-          localBits = _codeBits;
-        }
-        localInterval <<= 1;
-        localCode = Int32Utils.mask32(localCode << 1);
-        localBits--;
       } else {
+        var la = _interval;
+        if (la >= q) {
+          decision = _mps[context];
+          _states[context] = _nextMps[index];
+          if (_codeBits == 0) {
+            _byteIn();
+          }
+          la <<= 1;
+          _codeRegister = Int32Utils.mask32(_codeRegister << 1);
+          _codeBits--;
+        } else {
+          decision = 1 - _mps[context];
+          if (_switchLM[index] == 1) {
+            _mps[context] = 1 - _mps[context];
+          }
+          _states[context] = _nextLps[index];
+          do {
+            if (_codeBits == 0) {
+              _byteIn();
+            }
+            la <<= 1;
+            _codeRegister = Int32Utils.mask32(_codeRegister << 1);
+            _codeBits--;
+          } while (la < 0x8000);
+        }
+        _interval = la;
+      }
+    } else {
+      var la = _interval;
+      _codeRegister = Int32Utils.mask32(_codeRegister - (la << 16));
+      if (la < q) {
+        la = q;
+        decision = _mps[context];
+        _states[context] = _nextMps[index];
+        if (_codeBits == 0) {
+          _byteIn();
+        }
+        la <<= 1;
+        _codeRegister = Int32Utils.mask32(_codeRegister << 1);
+        _codeBits--;
+      } else {
+        la = q;
         decision = 1 - _mps[context];
-        if (_switchLM[localIdx] == 1) {
+        if (_switchLM[index] == 1) {
           _mps[context] = 1 - _mps[context];
         }
-        _states[context] = _nextLps[localIdx];
+        _states[context] = _nextLps[index];
         do {
-          if (localBits == 0) {
-            _codeRegister = localCode;
+          if (_codeBits == 0) {
             _byteIn();
-            localCode = _codeRegister;
-            localBits = _codeBits;
           }
-          localInterval <<= 1;
-          localCode = Int32Utils.mask32(localCode << 1);
-          localBits--;
-        } while (localInterval < 0x8000);
+          la <<= 1;
+          _codeRegister = Int32Utils.mask32(_codeRegister << 1);
+          _codeBits--;
+        } while (la < 0x8000);
       }
-
-      _interval = localInterval;
-      _codeRegister = localCode;
-      _codeBits = localBits;
-      _recordTrace(context, decision);
-      
-      return decision;
+      _interval = la;
     }
 
-    var localInterval = _interval;
-    var localCode = Int32Utils.mask32(_codeRegister - (_interval << 16));
-    var localBits = _codeBits;
-    var localIdx = idx;
-    var decision = 0;
-
-    if (localInterval < q) {
-      localInterval = q;
-      decision = _mps[context];
-      _states[context] = _nextMps[localIdx];
-      if (localBits == 0) {
-        _codeRegister = localCode;
-        _byteIn();
-        localCode = _codeRegister;
-        localBits = _codeBits;
-      }
-      localInterval <<= 1;
-      localCode = Int32Utils.mask32(localCode << 1);
-      localBits--;
-    } else {
-     
-      localInterval = q;
-      decision = 1 - _mps[context];
-    
-      if (_switchLM[localIdx] == 1) {
-        _mps[context] = 1 - _mps[context];
-      }
-      _states[context] = _nextLps[localIdx];
-      do {
-        if (localBits == 0) {
-          _codeRegister = localCode;
-          _byteIn();
-          localCode = _codeRegister;
-          localBits = _codeBits;
-        }
-        localInterval <<= 1;
-        localCode = Int32Utils.mask32(localCode << 1);
-        localBits--;
-      } while (localInterval < 0x8000);
-    }
-
-    _interval = localInterval;
-    _codeRegister = localCode;
-    _codeBits = localBits;
     _recordTrace(context, decision);
-    
     return decision;
   }
 
