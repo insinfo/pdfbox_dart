@@ -72,13 +72,7 @@ void main() {
     final expectedCoeffs = fixtureExpectations[p.basename(input.path)];
     expect(expectedCoeffs, isNotNull, reason: 'No expectations found for ${p.basename(input.path)}');
 
-    final params = ParameterList();
-    // Populate defaults
-    for (final entry in Decoder.getParameterInfo()) {
-      if (entry.length >= 4) {
-        params.put(entry[0], entry[3]);
-      }
-    }
+    final params = ParameterList(Decoder.buildDefaultParameterList());
     for (final entry in EntropyDecoder.parameterInfo) {
       if (entry.length >= 4) {
         params.put(entry[0], entry[3]);

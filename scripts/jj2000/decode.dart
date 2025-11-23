@@ -1,31 +1,56 @@
+import 'dart:io';
+
 import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/decoder/decoder.dart';
 import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/ParameterList.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/StringFormatException.dart';
 
 void main(List<String> args) {
-  // Parse command line arguments
-  final defaults = ParameterList();
-  for (final entry in Decoder.getParameterInfo()) {
-    if (entry.length >= 4 && entry[3].isNotEmpty) {
-      defaults.put(entry[0], entry[3]);
-    }
-  }
+  final baseDefaults = Decoder.buildDefaultParameterList();
+  var params = ParameterList(baseDefaults);
+  _parseArgs(params, args);
 
-  final params = ParameterList(defaults);
-  
-  // Parse args
-  for (var i = 0; i < args.length; i++) {
-    if (args[i].startsWith('-')) {
-      final key = args[i].substring(1);
-      if (i + 1 < args.length && !args[i + 1].startsWith('-')) {
-        params.put(key, args[i + 1]);
-        i++;
-      } else {
-        params.put(key, 'on');
-      }
-    }
+  final pfile = params.getParameter('pfile');
+  if (pfile != null && pfile.isNotEmpty) {
+    final fileBackedDefaults = ParameterList(baseDefaults);
+    _loadParameterFile(fileBackedDefaults, pfile);
+
+    params = ParameterList(fileBackedDefaults);
+    _parseArgs(params, args);
   }
 
   final decoder = Decoder(params);
   decoder.run();
+  if (decoder.exitCode != 0) {
+    stderr.writeln('Decoder failed with exit code ${decoder.exitCode}.');
+    exit(decoder.exitCode);
+  }
+}
+
+void _parseArgs(ParameterList target, List<String> args) {
+  try {
+    target.parseArgs(args);
+  } on StringFormatException catch (error) {
+    stderr.writeln('Invalid arguments: ${error.message}');
+    exit(64);
+  }
+}
+
+void _loadParameterFile(ParameterList target, String path) {
+  final file = File(path);
+  if (!file.existsSync()) {
+    stderr.writeln("Argument file '$path' not found.");
+    exit(66);
+  }
+
+  try {
+    target.loadFromString(file.readAsStringSync());
+    target.remove('pfile');
+  } on IOException catch (error) {
+    stderr.writeln('Failed to read argument file $path: $error');
+    exit(74);
+  } on StringFormatException catch (error) {
+    stderr.writeln('Invalid entry in argument file $path: ${error.message}');
+    exit(65);
+  }
 }
 

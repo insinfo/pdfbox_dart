@@ -2,10 +2,13 @@ import 'dart:typed_data';
 import '../../j2k/io/RandomAccessIO.dart';
 import '../ColorSpaceException.dart';
 import '../../icc/IccProfile.dart';
-import 'Jp2Box.dart';
+import 'JP2Box.dart';
 
 class PaletteBox extends JP2Box {
-  static int type = 0x70636c72; // 'pclr'
+  static const int boxType = 0x70636c72; // 'pclr'
+
+  @override
+  int get type => boxType;
 
   int nentries = 0;
   int ncolumns = 0;
@@ -21,15 +24,15 @@ class PaletteBox extends JP2Box {
     int i, j, b, m;
 
     // Read the number of palette entries and columns per entry.
-    in_io!.seek(dataStart);
-    in_io!.readFully(bfr, 0, 3);
+    in_io.seek(dataStart);
+    in_io.readFully(bfr, 0, 3);
     nentries = ICCProfile.getShort(bfr, 0) & 0x0000ffff;
     ncolumns = bfr[2] & 0x0000ffff;
 
     // Read the bitdepths for each column
     bitdepth = List.filled(ncolumns, 0);
     bfr = Uint8List(ncolumns);
-    in_io!.readFully(bfr, 0, ncolumns);
+    in_io.readFully(bfr, 0, ncolumns);
     for (i = 0; i < ncolumns; ++i) {
       bitdepth![i] = (bfr[i] & 0x00fff);
     }
@@ -44,12 +47,12 @@ class PaletteBox extends JP2Box {
 
         switch (getEntrySize(j)) {
           case 1: // 8 bit entries
-            in_io!.readFully(bfr, 0, 1);
+            in_io.readFully(bfr, 0, 1);
             b = bfr[0];
             break;
 
           case 2: // 16 bits
-            in_io!.readFully(bfr, 0, 2);
+            in_io.readFully(bfr, 0, 2);
             b = ICCProfile.getShort(bfr, 0);
             break;
 

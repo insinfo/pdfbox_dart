@@ -46,6 +46,32 @@ void main() {
       expect(params.getParameter('Shared'), 'value');
     });
 
+    test('propertyNames merges defaults and local entries', () {
+      final defaults = ParameterList()
+        ..put('DefaultOnly', 'a')
+        ..put('Shared', 'default');
+      final params = ParameterList(defaults)
+        ..put('Shared', 'local')
+        ..put('LocalOnly', 'b');
+
+      final names = params.propertyNames().toList();
+      expect(names, containsAll(<String>['DefaultOnly', 'Shared', 'LocalOnly']));
+      expect(params.getParameter('Shared'), equals('local'));
+    });
+
+    test('loadFromString handles comments and continuations', () {
+      final params = ParameterList();
+      params.loadFromString('''
+# Comment line
+alpha = 1 \\
+  2
+beta=value
+''');
+
+      expect(params.getParameter('alpha'), equals('1 2'));
+      expect(params.getParameter('beta'), equals('value'));
+    });
+
     test('checkListSingle accepts valid prefixed options', () {
       final params = ParameterList()
         ..put('Mfoo', '1')

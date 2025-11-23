@@ -4,6 +4,16 @@ import 'package:test/test.dart';
 import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/decoder/decoder.dart';
 import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/ParameterList.dart';
 
+ParameterList _baseDecoderParameters() {
+  final params = ParameterList(Decoder.buildDefaultParameterList());
+  params
+    ..put('u', 'off')
+    ..put('v', 'off')
+    ..put('verbose', 'off')
+    ..put('debug', 'off');
+  return params;
+}
+
 void main() {
   group('Decoder Reference Comparison Tests', () {
     test('Decode and compare with OpenJPEG output', () {
@@ -19,20 +29,9 @@ void main() {
       final dartOutputPath = '${dartOutputDir.path}/output.ppm';
 
       try {
-        final defaults = ParameterList();
-        for (final entry in Decoder.getParameterInfo()) {
-          if (entry.length >= 4 && entry[3].isNotEmpty) {
-            defaults.put(entry[0], entry[3]);
-          }
-        }
-
-        final params = ParameterList(defaults);
-        params.put('u', 'off');
-        params.put('v', 'off');
-        params.put('verbose', 'off');
-        params.put('debug', 'off');
-        params.put('i', inputPath);
-        params.put('o', dartOutputPath);
+        final params = _baseDecoderParameters()
+          ..put('i', inputPath)
+          ..put('o', dartOutputPath);
 
         final decoder = Decoder(params);
         decoder.run();
@@ -137,20 +136,9 @@ void main() {
         try {
           final outputPath = '${outputDir.path}/output.ppm';
 
-          final defaults = ParameterList();
-          for (final entry in Decoder.getParameterInfo()) {
-            if (entry.length >= 4 && entry[3].isNotEmpty) {
-              defaults.put(entry[0], entry[3]);
-            }
-          }
-
-          final params = ParameterList(defaults);
-          params.put('u', 'off');
-          params.put('v', 'off');
-          params.put('verbose', 'off');
-          params.put('debug', 'off');
-          params.put('i', imagePath);
-          params.put('o', outputPath);
+          final params = _baseDecoderParameters()
+            ..put('i', imagePath)
+            ..put('o', outputPath);
 
           final decoder = Decoder(params);
           decoder.run();
@@ -189,20 +177,9 @@ void main() {
       try {
         final outputPath = '${outputDir.path}/output.ppm';
 
-        final defaults = ParameterList();
-        for (final entry in Decoder.getParameterInfo()) {
-          if (entry.length >= 4 && entry[3].isNotEmpty) {
-            defaults.put(entry[0], entry[3]);
-          }
-        }
-
-        final params = ParameterList(defaults);
-        params.put('u', 'off');
-        params.put('v', 'off');
-        params.put('verbose', 'off');
-        params.put('debug', 'off');
-        params.put('i', inputPath);
-        params.put('o', outputPath);
+        final params = _baseDecoderParameters()
+          ..put('i', inputPath)
+          ..put('o', outputPath);
 
         final decoder = Decoder(params);
         decoder.run();
@@ -272,20 +249,9 @@ void main() {
         try {
           final dartOutputPath = '${dartOutputDir.path}/output.ppm';
 
-          final defaults = ParameterList();
-          for (final entry in Decoder.getParameterInfo()) {
-            if (entry.length >= 4 && entry[3].isNotEmpty) {
-              defaults.put(entry[0], entry[3]);
-            }
-          }
-
-          final params = ParameterList(defaults);
-          params.put('u', 'off');
-          params.put('v', 'off');
-          params.put('verbose', 'off');
-          params.put('debug', 'off');
-          params.put('i', j2kPath);
-          params.put('o', dartOutputPath);
+          final params = _baseDecoderParameters()
+            ..put('i', j2kPath)
+            ..put('o', dartOutputPath);
 
           final decoder = Decoder(params);
           decoder.run();
@@ -380,20 +346,9 @@ void main() {
         try {
           final dartOutputPath = '${dartOutputDir.path}/output.ppm';
 
-          final defaults = ParameterList();
-          for (final entry in Decoder.getParameterInfo()) {
-            if (entry.length >= 4 && entry[3].isNotEmpty) {
-              defaults.put(entry[0], entry[3]);
-            }
-          }
-
-          final params = ParameterList(defaults);
-          params.put('u', 'off');
-          params.put('v', 'off');
-          params.put('verbose', 'off');
-          params.put('debug', 'off');
-          params.put('i', jp2Path);
-          params.put('o', dartOutputPath);
+          final params = _baseDecoderParameters()
+            ..put('i', jp2Path)
+            ..put('o', dartOutputPath);
 
           final decoder = Decoder(params);
           decoder.run();

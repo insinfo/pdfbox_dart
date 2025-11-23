@@ -21,13 +21,7 @@ void main() {
       '-debug', 'off',
     ];
     
-    final defaults = ParameterList();
-    for (final opt in Decoder.getParameterInfo()) {
-        if (opt.length > 3) {
-            defaults.put(opt[0], opt[3]);
-        }
-    }
-    
+    final defaults = Decoder.buildDefaultParameterList();
     final pl = ParameterList(defaults);
     pl.parseArgs(args);
     

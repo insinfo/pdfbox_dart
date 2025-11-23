@@ -1,13 +1,16 @@
 import 'dart:typed_data';
 import '../../j2k/io/RandomAccessIO.dart';
 import '../../icc/IccProfile.dart';
-import 'Jp2Box.dart';
+import 'JP2Box.dart';
 
 class ChannelDefinitionBox extends JP2Box {
-  static int type = 0x63646566; // 'cdef'
+  static const int boxType = 0x63646566; // 'cdef'
+
+  @override
+  int get type => boxType;
 
   int ndefs = 0;
-  Map<int, List<int>> definitions = {};
+  final Map<int, List<int>> definitions = <int, List<int>>{};
 
   ChannelDefinitionBox(RandomAccessIO in_io, int boxStart)
       : super(in_io, boxStart) {
@@ -17,16 +20,16 @@ class ChannelDefinitionBox extends JP2Box {
   void readBox() {
     Uint8List bfr = Uint8List(8);
 
-    in_io!.seek(dataStart);
-    in_io!.readFully(bfr, 0, 2);
+    in_io.seek(dataStart);
+    in_io.readFully(bfr, 0, 2);
     ndefs = ICCProfile.getShort(bfr, 0) & 0x0000ffff;
 
     int offset = dataStart + 2;
-    in_io!.seek(offset);
+    in_io.seek(offset);
     for (int i = 0; i < ndefs; ++i) {
-      in_io!.readFully(bfr, 0, 6);
+      in_io.readFully(bfr, 0, 6);
       // int channel = ICCProfile.getShort(bfr, 0); // Unused
-      List<int> channel_def = List.filled(3, 0);
+      final channel_def = List<int>.filled(3, 0, growable: false);
       channel_def[0] = _getCn(bfr);
       channel_def[1] = _getTyp(bfr);
       channel_def[2] = _getAsoc(bfr);
@@ -47,14 +50,18 @@ class ChannelDefinitionBox extends JP2Box {
   }
 
   int getTyp(int channel) {
-    List<int>? bfr = definitions[channel];
-    if (bfr == null) return 0; // Or throw exception?
+    final bfr = definitions[channel];
+    if (bfr == null) {
+      throw StateError('No channel definition for index $channel');
+    }
     return _getTypFromIntArray(bfr);
   }
 
   int getAsoc(int channel) {
-    List<int>? bfr = definitions[channel];
-    if (bfr == null) return 0; // Or throw exception?
+    final bfr = definitions[channel];
+    if (bfr == null) {
+      throw StateError('No channel definition for index $channel');
+    }
     return _getAsocFromIntArray(bfr);
   }
 

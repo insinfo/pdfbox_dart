@@ -104,7 +104,7 @@ class MatrixBasedTransformTosRGB {
   /// Construct a 3 component transform based on an input RestricedICCProfile
   /// This transform will pass the input throught a floating point lut (LookUpTableFP),
   /// apply a matrix to the output and finally pass the intermediate buffer through
-  /// a 8-bit lut (LookUpTable8).  This operation will be designated (LFP*M*L8) * Data
+  /// a 32-bit lut (LookUpTable32LinearSRGBtoSRGB).  This operation will be designated (LFP*M*L32) * Data
   /// The operators (LFP*M*L8) are constructed here.  Although the data for
   /// only one component is returned, the transformation must be done for all
   /// components, because the matrix application involves a linear combination of
@@ -181,7 +181,7 @@ class MatrixBasedTransformTosRGB {
 
   /// Performs the transform.  Pass the input throught the LookUpTableFP, apply the
   /// matrix to the output and finally pass the intermediate buffer through the
-  /// LookUpTable8.  This operation is designated (LFP*M*L8) * Data are already
+  /// LookUpTable32LinearSRGBtoSRGB.  This operation is designated (LFP*M*L32) * Data are already
   /// constructed.  Although the data for only one component is returned, the
   /// transformation must be done for all components, because the matrix application
   /// involves a linear combination of component input to produce the output.
@@ -278,7 +278,7 @@ class MatrixBasedTransformTosRGB {
 
   /// Performs the transform.  Pass the input throught the LookUpTableFP, apply the
   /// matrix to the output and finally pass the intermediate buffer through the
-  /// LookUpTable8.  This operation is designated (LFP*M*L8) * Data are already
+  /// LookUpTable32LinearSRGBtoSRGB.  This operation is designated (LFP*M*L32) * Data are already
   /// constructed.  Although the data for only one component is returned, the
   /// transformation must be done for all components, because the matrix application
   /// involves a linear combination of component input to produce the output.

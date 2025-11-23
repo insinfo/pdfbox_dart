@@ -67,14 +67,7 @@ Future<PortableImage> _decodeCodestream(
   final outputFile = File('${tempDir.path}/decoded$normalizedExtension');
 
   try {
-    final defaults = ParameterList();
-    for (final entry in Decoder.getParameterInfo()) {
-      if (entry.length >= 4 && entry[3].isNotEmpty) {
-        defaults.put(entry[0], entry[3]);
-      }
-    }
-
-    final params = ParameterList(defaults)
+    final params = ParameterList(Decoder.buildDefaultParameterList())
       ..put('i', codestream.path)
       ..put('o', outputFile.path)
       ..put('u', 'off')

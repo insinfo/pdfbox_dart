@@ -1,10 +1,13 @@
 import 'dart:typed_data';
 import '../../j2k/io/RandomAccessIO.dart';
 import '../../icc/IccProfile.dart';
-import 'Jp2Box.dart';
+import 'JP2Box.dart';
 
 class ImageHeaderBox extends JP2Box {
-  static int type = 0x69686472; // 'ihdr'
+  static const int boxType = 0x69686472; // 'ihdr'
+
+  @override
+  int get type => boxType;
 
   int height = 0;
   int width = 0;
@@ -34,7 +37,7 @@ class ImageHeaderBox extends JP2Box {
     rep.write(JP2Box.eol);
     rep.write("  ");
 
-    rep.write("image colorspace is ${unk ? "known" : "unknown"}");
+    rep.write('image colorspace is ${unk ? "known" : "unknown"}');
     rep.write(", the image ${ipr ? "contains " : "does not contain "}");
     rep.write("intellectual property]");
 
@@ -43,8 +46,8 @@ class ImageHeaderBox extends JP2Box {
 
   void readBox() {
     Uint8List bfr = Uint8List(14);
-    in_io!.seek(dataStart);
-    in_io!.readFully(bfr, 0, 14);
+    in_io.seek(dataStart);
+    in_io.readFully(bfr, 0, 14);
 
     height = ICCProfile.getInt(bfr, 0);
     width = ICCProfile.getInt(bfr, 4);

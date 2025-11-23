@@ -1,13 +1,16 @@
 import 'dart:typed_data';
 import '../../j2k/io/RandomAccessIO.dart';
 import '../../icc/IccProfile.dart';
-import 'Jp2Box.dart';
+import 'JP2Box.dart';
 
 class ComponentMappingBox extends JP2Box {
-  static int type = 0x636d6170; // 'cmap'
+  static const int boxType = 0x636d6170; // 'cmap'
+
+  @override
+  int get type => boxType;
 
   int nChannels = 0;
-  List<Uint8List> map = [];
+  final List<Uint8List> map = <Uint8List>[];
 
   ComponentMappingBox(RandomAccessIO in_io, int boxStart)
       : super(in_io, boxStart) {
@@ -16,10 +19,10 @@ class ComponentMappingBox extends JP2Box {
 
   void readBox() {
     nChannels = ((boxEnd - dataStart) / 4).floor();
-    in_io!.seek(dataStart);
+    in_io.seek(dataStart);
     for (int offset = dataStart; offset < boxEnd; offset += 4) {
       Uint8List mapping = Uint8List(4);
-      in_io!.readFully(mapping, 0, 4);
+      in_io.readFully(mapping, 0, 4);
       map.add(mapping);
     }
   }

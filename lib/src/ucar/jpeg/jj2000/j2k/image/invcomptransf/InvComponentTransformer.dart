@@ -14,14 +14,17 @@ class InvCompTransfImgDataSrc extends ImgDataAdapter implements BlkImgDataSrc {
   static const String _logSource = 'InvCompTransf';
   InvCompTransfImgDataSrc(
     BlkImgDataSrc source,
-    this.compTransfSpec,
-  )   : _source = source,
+    this.compTransfSpec, {
+    bool enableComponentTransforms = true,
+  })  : _source = source,
+        _componentTransformEnabled = enableComponentTransforms,
         super(source);
 
   static final List<int> _componentDebugCountdown = <int>[5, 5, 5];
 
   final BlkImgDataSrc _source;
   final CompTransfSpec compTransfSpec;
+  final bool _componentTransformEnabled;
 
   final List<DataBlkInt?> _intScratch = List<DataBlkInt?>.filled(3, null);
   final List<DataBlkFloat?> _floatScratch = List<DataBlkFloat?>.filled(3, null);
@@ -62,6 +65,11 @@ class InvCompTransfImgDataSrc extends ImgDataAdapter implements BlkImgDataSrc {
   }
 
   DataBlk _maybeTransform(DataBlk block, int component, bool intern) {
+    if (!_componentTransformEnabled) {
+      return intern
+          ? _source.getInternCompData(block, component)
+          : _source.getCompData(block, component);
+    }
     final tileIdx = getTileIdx();
     final transform = compTransfSpec.getSpec(tileIdx, component) ?? InvCompTransf.none;
     if (_componentDebugCountdown[component] > 0) {

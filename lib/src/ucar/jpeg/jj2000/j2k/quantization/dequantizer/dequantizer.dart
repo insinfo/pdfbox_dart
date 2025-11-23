@@ -13,6 +13,8 @@ import 'CBlkQuantDataSrcDec.dart';
 /// Base class for dequantizers operating on quantized wavelet code-blocks.
 abstract class Dequantizer extends MultiResImgDataAdapter
   implements CBlkWTDataSrcDec {
+  /// JJ2000 option prefix used to scope dequantizer-specific CLI parameters.
+  static const String optionPrefix = 'Q';
   Dequantizer(
     this.src,
     List<int> utrb,

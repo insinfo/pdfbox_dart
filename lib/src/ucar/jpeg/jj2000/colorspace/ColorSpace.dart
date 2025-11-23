@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import '../j2k/util/ParameterList.dart';
 import '../j2k/codestream/reader/HeaderDecoder.dart';
 import '../j2k/io/RandomAccessIO.dart';
@@ -20,10 +22,13 @@ class ColorSpace {
   static const int BLUE = 3;
 
   /** Parameter Specs */
-  ParameterList? pl;
+  final ParameterList pl;
 
-  /** Parameter Specs */
-  HeaderDecoder? hd;
+  /** Header decoder */
+  final HeaderDecoder hd;
+
+  /** Input image */
+  final RandomAccessIO input;
 
   /* Image box structure as pertains to colorspacees. */
   PaletteBox? pbox;
@@ -31,59 +36,52 @@ class ColorSpace {
   ColorSpecificationBox? csbox;
   ChannelDefinitionBox? cdbox;
   ImageHeaderBox? ihbox;
-  List<ColorSpecificationBox>? csboxes;
-
-  /** Input image */
-  RandomAccessIO? in_io;
+  final List<ColorSpecificationBox> csboxes = <ColorSpecificationBox>[];
 
   /**
      * Retrieve the ICC profile from the images as
      * a byte array.
      * @return the ICC Profile as a byte [].
      */
-  List<int>? getICCProfile() {
-    return csbox?.getICCProfile();
-  }
+  Uint8List? getICCProfile() => csbox?.getICCProfile();
 
   /** Indent a String that contains newlines. */
   static String indent(String ident, String instr) {
-    StringBuffer tgt = StringBuffer(instr);
-    // char eolChar = eol.charAt(0); // Assuming \n
-    String eolChar = '\n';
-    int i = tgt.length;
-    while (--i > 0) {
-      if (tgt.toString()[i] == eolChar) {
-        // This is inefficient in Dart strings, but okay for now
-        String s = tgt.toString();
-        tgt = StringBuffer(s.substring(0, i + 1) + ident + s.substring(i + 1));
+    final buffer = StringBuffer()..write(ident);
+    for (var i = 0; i < instr.length; i++) {
+      final ch = instr[i];
+      buffer.write(ch);
+      if (ch == '\n' && i + 1 < instr.length) {
+        buffer.write(ident);
       }
     }
-    return ident + tgt.toString();
+    return buffer.toString();
   }
 
-  ColorSpace(this.in_io, this.hd, this.pl) {
-    getBoxes();
+  ColorSpace(this.input, this.hd, this.pl) {
+    _getBoxes();
   }
 
   /**
      * Retrieve the various boxes from the JP2 file.
      * @exception ColorSpaceException, IOException
      */
-  void getBoxes() {
+  void _getBoxes() {
     int type;
-    int len = 0;
-    int boxStart = 0;
-    List<int> boxHeader = List.filled(16, 0);
-    int i = 0;
+    var len = 0;
+    var boxStart = 0;
+    final boxHeader = Uint8List(16);
+    var i = 0;
+    var headerUsesExtendedLength = false;
 
     // Search the toplevel boxes for the header box
     while (true) {
-      in_io!.seek(boxStart);
-      in_io!.readFully(boxHeader, 0, 16);
-      len = ICCProfile.getInt(boxHeader as dynamic, 0); // Cast to dynamic or Uint8List
-      if (len == 1)
-        len = ICCProfile.getLong(boxHeader as dynamic, 8); // Extended length
-      type = ICCProfile.getInt(boxHeader as dynamic, 4);
+      input.seek(boxStart);
+      input.readFully(boxHeader, 0, 16);
+      final rawLen = ICCProfile.getInt(boxHeader, 0);
+      headerUsesExtendedLength = rawLen == 1;
+      len = headerUsesExtendedLength ? ICCProfile.getLong(boxHeader, 8) : rawLen;
+      type = ICCProfile.getInt(boxHeader, 4);
 
       // Verify the contents of the file so far.
       if (i == 0 && type != FileFormatBoxes.jp2SignatureBox) {
@@ -103,66 +101,78 @@ class ColorSpace {
 
     // boxStart indexes the start of the JP2_HEADER_BOX,
     // make headerBoxEnd index the end of the box.
-    int headerBoxEnd = boxStart + len;
+    final headerBoxEnd = boxStart + len;
 
-    if (len == 1) boxStart += 8; // Extended length header
+    if (headerUsesExtendedLength) {
+      boxStart += 8; // Extended length header
+    }
 
     for (boxStart += 8; boxStart < headerBoxEnd; boxStart += len) {
-      in_io!.seek(boxStart);
-      in_io!.readFully(boxHeader, 0, 16);
-      len = ICCProfile.getInt(boxHeader as dynamic, 0);
-      if (len == 1)
-        throw ColorSpaceException("Extended length boxes not supported");
-      type = ICCProfile.getInt(boxHeader as dynamic, 4);
+      input.seek(boxStart);
+      input.readFully(boxHeader, 0, 16);
+      final rawLen = ICCProfile.getInt(boxHeader, 0);
+      if (rawLen == 1) {
+        throw ColorSpaceException('Extended length boxes not supported');
+      }
+      len = rawLen;
+      type = ICCProfile.getInt(boxHeader, 4);
 
       switch (type) {
         case FileFormatBoxes.imageHeaderBox:
-          ihbox = ImageHeaderBox(in_io!, boxStart);
+          ihbox = ImageHeaderBox(input, boxStart);
           break;
         case FileFormatBoxes.colourSpecificationBox:
-          csbox = ColorSpecificationBox(in_io!, boxStart);
-          if (csboxes == null) {
-            csboxes = [];
-          }
-          csboxes!.add(csbox!);
+          csbox = ColorSpecificationBox(input, boxStart);
+          csboxes.add(csbox!);
           break;
         case FileFormatBoxes.channelDefinitionBox:
-          cdbox = ChannelDefinitionBox(in_io!, boxStart);
+          cdbox = ChannelDefinitionBox(input, boxStart);
           break;
         case FileFormatBoxes.componentMappingBox:
-          cmbox = ComponentMappingBox(in_io!, boxStart);
+          cmbox = ComponentMappingBox(input, boxStart);
           break;
         case FileFormatBoxes.paletteBox:
-          pbox = PaletteBox(in_io!, boxStart);
+          pbox = PaletteBox(input, boxStart);
           break;
         default:
           break;
       }
     }
 
-    if (ihbox == null) throw ColorSpaceException("image header box not found");
+    if (ihbox == null) {
+      throw ColorSpaceException('image header box not found');
+    }
 
-    if ((pbox == null && cmbox != null) || (pbox != null && cmbox == null))
+    final hasPalette = pbox != null;
+    final hasComponentMap = cmbox != null;
+    if (hasPalette != hasComponentMap) {
       throw ColorSpaceException(
-          "palette box and component mapping box inconsistency");
+          'palette box and component mapping box inconsistency');
+    }
   }
 
   /** Return the channel definition of the input component. */
   int getChannelDefinition(int c) {
-    if (cdbox == null)
-      return c;
-    else
-      return cdbox!.getCn(c + 1);
+    final defs = cdbox;
+    return defs == null ? c : defs.getCn(c + 1);
   }
 
   /** Return the colorspace method (Profiled, enumerated, or palettized). */
   MethodEnum getMethod() {
-    return csbox!.getMethod();
+    final spec = csbox;
+    if (spec == null) {
+      throw StateError('Color specification box not found');
+    }
+    return spec.getMethod();
   }
 
   /** Return the colorspace (sYCC, sRGB, sGreyScale). */
   CSEnum getColorSpace() {
-    return csbox!.getColorSpace();
+    final spec = csbox;
+    if (spec == null) {
+      throw StateError('Color specification box not found');
+    }
+    return spec.getColorSpace();
   }
 
   /** Return number of channels in the palette. */
@@ -170,9 +180,8 @@ class ColorSpace {
     return pbox;
   }
 
-  List<ColorSpecificationBox> getColorSpecificationBoxes() {
-    return csboxes == null ? [] : csboxes!;
-  }
+  List<ColorSpecificationBox> getColorSpecificationBoxes() =>
+      List.unmodifiable(csboxes);
 
   /** Return number of channels in the palette. */
   int getPaletteChannels() {
@@ -202,16 +211,20 @@ class ColorSpace {
   /** Signed output predicate. */
   bool isOutputSigned(int channel) {
     return (pbox != null)
-        ? pbox!.isSigned(channel)
-        : hd!.isOriginalSigned(channel);
+      ? pbox!.isSigned(channel)
+      : hd.isOriginalSigned(channel);
   }
 
   @override
   String toString() {
-    StringBuffer rep = StringBuffer("[ColorSpace is ");
-    rep.write(csbox!.getMethodString());
+    final spec = csbox;
+    if (spec == null) {
+      return '[ColorSpace missing color specification]';
+    }
+    final rep = StringBuffer("[ColorSpace is ");
+    rep.write(spec.getMethodString());
     rep.write(isPalettized() ? "  and palettized " : " ");
-    rep.write(getMethod() == ENUMERATED ? csbox!.getColorSpaceString() : "");
+    rep.write(getMethod() == ENUMERATED ? spec.getColorSpaceString() : "");
     if (ihbox != null) {
       rep.write(eol);
       rep.write(indent("    ", ihbox.toString()));
@@ -241,8 +254,8 @@ class ColorSpace {
      * @return yes or no
      */
   bool debugging() {
-    return pl!.getParameter("colorspace_debug") != null &&
-        pl!.getParameter("colorspace_debug")!.toLowerCase() == "on";
+    final flag = pl.getParameter('colorspace_debug');
+    return flag != null && flag.toLowerCase() == 'on';
   }
 
   /* Enumeration Class */

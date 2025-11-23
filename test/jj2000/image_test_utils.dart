@@ -146,14 +146,7 @@ Future<PortableImage> decodeCodestreamWithJj2000(
 
   late final PortableImage decoded;
   try {
-    final defaults = ParameterList();
-    for (final entry in Decoder.getParameterInfo()) {
-      if (entry.length >= 4 && entry[3].isNotEmpty) {
-        defaults.put(entry[0], entry[3]);
-      }
-    }
-
-    final params = ParameterList(defaults);
+    final params = ParameterList(Decoder.buildDefaultParameterList());
     params.put('u', 'off');
     params.put('v', 'off');
     params.put('verbose', 'off');

@@ -1,10 +1,16 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import '../../../colorspace/ChannelDefinitionMapper.dart';
+import '../../../colorspace/ColorSpace.dart';
+import '../../../colorspace/ColorSpaceMapper.dart';
+import '../../../colorspace/PalettizedColorSpaceMapper.dart';
+import '../../../colorspace/Resampler.dart';
 import '../../decoder/DecoderSpecs.dart';
 import '../../entropy/decoder/CodedCBlkDataSrcDec.dart';
 import '../../entropy/decoder/EntropyDecoder.dart';
 import '../../entropy/decoder/StdEntropyDecoder.dart';
+import '../../image/BlkImgDataSrc.dart';
 import '../../image/Coord.dart';
 import '../../image/invcomptransf/InvCompTransf.dart';
 import '../../io/RandomAccessIO.dart';
@@ -25,6 +31,7 @@ class _TilePartInfo {
   int? length;
   int? dataOffset;
   int? bodyLength;
+  int? headerLength;
   Uint8List? packedHeaders;
   final Map<int, Uint8List> pptSegments = <int, Uint8List>{};
 }
@@ -53,6 +60,8 @@ class HeaderDecoder {
   static const int _maxCodLogs = 4;
   static const int _maxQuantLogs = 6;
   static int _sizLogCount = 0;
+  /// JJ2000 option prefix reserved for header decoder parameters.
+  static const String optionPrefix = 'H';
   static int _codLogCount = 0;
   static int _quantLogCount = 0;
 
@@ -76,6 +85,7 @@ class HeaderDecoder {
     required RandomAccessIO input,
     required HeaderInfo headerInfo,
   }) {
+    final codestreamStart = input.getPos();
     final logger = FacilityManager.getMsgLogger();
     final soc = input.readUnsignedShort();
     if (soc != Markers.SOC) {
@@ -237,6 +247,8 @@ class HeaderDecoder {
     if (result == null) {
       throw StateError('Main header parsing did not produce a HeaderDecoder');
     }
+    result._codestreamStart = codestreamStart;
+    result._mainHeaderLength = input.getPos() - codestreamStart;
     return result;
   }
 
@@ -308,6 +320,8 @@ class HeaderDecoder {
   final Coord tilingOrigin;
   bool precinctPartitionFlag;
   final DecoderSpecs decSpec;
+  int _codestreamStart = 0;
+  int _mainHeaderLength = 0;
 
   /// Number of tile-parts per tile. Populated by the codestream reader.
   List<int> nTileParts = <int>[];
@@ -319,6 +333,9 @@ class HeaderDecoder {
   final List<int> _tilePartTiles = <int>[];
   bool _packedHeadersDirty = false;
   bool _ppmSeen = false;
+
+  int get codestreamStart => _codestreamStart;
+  int get mainHeaderLength => _mainHeaderLength;
 
   int getNumComps() => numComps;
   int getImgWidth() => imgWidth;
@@ -604,8 +621,9 @@ class HeaderDecoder {
 
           final dataOffset = input.getPos();
           registerTilePartDataOffset(sot.isot, sot.tpsot, dataOffset);
+          final headerBytes = dataOffset - sotStart;
+          registerTilePartHeaderLength(sot.isot, sot.tpsot, headerBytes);
           if (sot.psot != 0) {
-            final headerBytes = dataOffset - sotStart;
             final bodyLength = sot.psot - headerBytes;
             registerTilePartBodyLength(sot.isot, sot.tpsot, bodyLength);
           }
@@ -1287,6 +1305,18 @@ class HeaderDecoder {
     info.bodyLength = math.max(0, bodyLength);
   }
 
+  void registerTilePartHeaderLength(
+      int tileIdx, int tilePartIdx, int headerLength) {
+    if (tileIdx < 0 || tilePartIdx < 0) {
+      throw ArgumentError(
+          'Tile index and tile-part index must be non-negative');
+    }
+    final tileMap =
+        _tilePartInfo.putIfAbsent(tileIdx, () => <int, _TilePartInfo>{});
+    final info = tileMap.putIfAbsent(tilePartIdx, () => _TilePartInfo());
+    info.headerLength = math.max(0, headerLength);
+  }
+
   int? getTileTotalLength(int tileIdx) {
     final tileMap = _tilePartInfo[tileIdx];
     if (tileMap == null || tileMap.isEmpty) {
@@ -1374,6 +1404,24 @@ class HeaderDecoder {
         return null;
       }
       lengths.add(length);
+    }
+    return lengths;
+  }
+
+  List<int>? getTilePartHeaderLengths(int tileIdx) {
+    final tileMap = _tilePartInfo[tileIdx];
+    if (tileMap == null || tileMap.isEmpty) {
+      return null;
+    }
+    final ordered = tileMap.entries.toList()
+      ..sort((a, b) => a.key.compareTo(b.key));
+    final lengths = <int>[];
+    for (final entry in ordered) {
+      final headerLen = entry.value.headerLength;
+      if (headerLen == null) {
+        return null;
+      }
+      lengths.add(headerLen);
     }
     return lengths;
   }
@@ -1617,6 +1665,8 @@ class HeaderDecoder {
     _packedHeadersDirty = true;
   }
 
+  List<int> getTilePartTileOrder() => List<int>.unmodifiable(_tilePartTiles);
+
   void _ensurePackedPacketHeadersResolved() {
     if (!_packedHeadersDirty) {
       return;
@@ -1752,6 +1802,38 @@ class HeaderDecoder {
       );
     }
     return StdDequantizer(source, rangeBits, decSpec);
+  }
+
+  /// Creates the color space mapper that applies enumerated/ICC transforms.
+  BlkImgDataSrc? createColorSpaceMapper(
+    BlkImgDataSrc source,
+    ColorSpace csMap,
+  ) {
+    return ColorSpaceMapper.createInstance(source, csMap);
+  }
+
+  /// Creates the channel-definition mapper that remaps logical channels.
+  BlkImgDataSrc createChannelDefinitionMapper(
+    BlkImgDataSrc source,
+    ColorSpace csMap,
+  ) {
+    return ChannelDefinitionMapper.createInstance(source, csMap);
+  }
+
+  /// Creates a mapper that expands palette indices into full samples.
+  BlkImgDataSrc createPalettizedColorSpaceMapper(
+    BlkImgDataSrc source,
+    ColorSpace csMap,
+  ) {
+    return PalettizedColorSpaceMapper.createInstance(source, csMap);
+  }
+
+  /// Creates a resampler that upsamples subsampled components to full size.
+  BlkImgDataSrc createResampler(
+    BlkImgDataSrc source,
+    ColorSpace csMap,
+  ) {
+    return Resampler.createInstance(source, csMap);
   }
 
   bool isOriginalSigned(int component) {

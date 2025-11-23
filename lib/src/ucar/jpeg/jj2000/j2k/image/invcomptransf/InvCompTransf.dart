@@ -7,6 +7,8 @@ abstract class InvCompTransf {
   static const int none = 0;
   static const int invRct = 1;
   static const int invIct = 2;
+  /// JJ2000 option prefix reserved for inverse component transform toggles.
+  static const String optionPrefix = 'M';
 
   /// Computes the bit depths of components after applying the inverse
   /// component transform designated by [ttype].

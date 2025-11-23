@@ -30,6 +30,12 @@ class _ProgressionSegment {
 /// constructor parameters and marks the pending work.
 class FileBitstreamReaderAgent extends BitstreamReaderAgent {
   static final Map<int, int> _debugCblkPreviewCounts = <int, int>{};
+  static const int _maxBudget = 0x7fffffff;
+
+  late final bool _isParsingMode;
+  late final bool _usePocQuit;
+  late final bool _limitToSingleTilePart;
+  late final int _ncbQuitTarget;
 
   FileBitstreamReaderAgent(
     HeaderDecoder header,
@@ -44,12 +50,10 @@ class FileBitstreamReaderAgent extends BitstreamReaderAgent {
         _codestreamInfo = codestreamInfo,
         _headerInfo = headerInfo,
         super(header, decoderSpecs) {
-    final truncation = _parameters.getParameter('trunc');
-    final isTruncMode = truncation == 'on';
-    final maxCbParam = _parameters.getParameter('ncb_quit');
-    final maxCodeBlocks = maxCbParam == null ? -1 : int.tryParse(maxCbParam) ?? -1;
+    _initializeOptionState();
+      _isTruncationMode = !_isParsingMode;
     _pktDecoder = pktDecoderFactory?.call(this) ??
-        PktDecoder(decoderSpecs, header, input, this, isTruncMode, maxCodeBlocks);
+        PktDecoder(decoderSpecs, header, input, this, _isTruncationMode, _ncbQuitTarget);
     
     // Parse all tile parts to populate offsets
     try {
@@ -68,7 +72,8 @@ class FileBitstreamReaderAgent extends BitstreamReaderAgent {
       }
     }
 
-      _initialiseTargetResolution();
+    _prepareTileBudgets();
+    _initialiseTargetResolution();
   }
 
   final RandomAccessIO _input;
@@ -80,6 +85,104 @@ class FileBitstreamReaderAgent extends BitstreamReaderAgent {
 
   _CodeBlockGrid? cbI;
   int lQuit = -1;
+  late final bool _isTruncationMode;
+  late final List<int> _tileBudgets;
+  late final List<int> _tileBudgetRemaining;
+  late final List<int> _tileBytesConsumed;
+  late final List<int> _tileBodyLengths;
+  late final List<int> _tileHeaderLengths;
+  late final List<int> _tileTotalLengths;
+  late final List<List<int>> _tilePartBodyLengths;
+  late final List<List<int>> _tilePartHeaderLengths;
+  int _totalTileHeaderBytes = 0;
+
+  void _initializeOptionState() {
+    _isParsingMode = _readBooleanOption('parsing', defaultValue: true);
+
+    var targetRate = _readDoubleOption('rate', defaultValue: -1.0);
+    if (targetRate == -1) {
+      targetRate = double.maxFinite;
+    }
+    var targetBytes = _readIntOption('nbytes', defaultValue: -1);
+    final defaults = _parameters.getDefaultParameterList();
+    final defaultNbytes = defaults?.getParameter('nbytes');
+    final hasLocalNbytes = _parameters.containsKey('nbytes');
+    final resolvedNbytes = _parameters.getParameter('nbytes') ?? defaultNbytes;
+    final usesNbytes = hasLocalNbytes ||
+        (resolvedNbytes != null && defaultNbytes != null && resolvedNbytes != defaultNbytes);
+
+    if (usesNbytes && resolvedNbytes != null) {
+      tnbytes = targetBytes <= 0 ? _maxBudget : targetBytes;
+      trate = tnbytes * 8.0 / hd.getMaxCompImgWidth() / hd.getMaxCompImgHeight();
+    } else {
+      trate = targetRate;
+      if (targetRate >= double.maxFinite / 2) {
+        tnbytes = _maxBudget;
+      } else {
+        final computedBytes =
+            targetRate * hd.getMaxCompImgWidth() * hd.getMaxCompImgHeight() / 8.0;
+        tnbytes = computedBytes.isFinite
+            ? math.max(0, computedBytes.floor())
+            : _maxBudget;
+      }
+    }
+    if (tnbytes <= 0) {
+      tnbytes = _maxBudget;
+    }
+
+    DecoderInstrumentation.log(
+      'FileBitstreamReaderAgent',
+      'Resolved target rate=${trate.toStringAsFixed(4)} bpp, bytes=$tnbytes, parsing=${_isParsingMode ? 'on' : 'off'}',
+    );
+
+    _ncbQuitTarget = _readIntOption('ncb_quit', defaultValue: -1);
+    if (_ncbQuitTarget != -1 && _isParsingMode) {
+      throw StringFormatException(
+          "Cannot enable 'ncb_quit' when parsing mode is active (set parsing=off)");
+    }
+
+    lQuit = _readIntOption('l_quit', defaultValue: -1);
+    _usePocQuit = _readBooleanOption('poc_quit', defaultValue: false);
+    _limitToSingleTilePart = _readBooleanOption('one_tp', defaultValue: false);
+  }
+
+  bool _readBooleanOption(String name, {required bool defaultValue}) {
+    final raw = _parameters.getParameter(name);
+    if (raw == null) {
+      return defaultValue;
+    }
+    if (raw == 'on') {
+      return true;
+    }
+    if (raw == 'off') {
+      return false;
+    }
+    throw StringFormatException("Invalid value for '$name': $raw");
+  }
+
+  int _readIntOption(String name, {required int defaultValue}) {
+    final raw = _parameters.getParameter(name);
+    if (raw == null) {
+      return defaultValue;
+    }
+    final parsed = int.tryParse(raw);
+    if (parsed == null) {
+      throw StringFormatException("Invalid integer for '$name': $raw");
+    }
+    return parsed;
+  }
+
+  double _readDoubleOption(String name, {required double defaultValue}) {
+    final raw = _parameters.getParameter(name);
+    if (raw == null) {
+      return defaultValue;
+    }
+    final parsed = double.tryParse(raw);
+    if (parsed == null) {
+      throw StringFormatException("Invalid floating-point value for '$name': $raw");
+    }
+    return parsed;
+  }
 
   void _initialiseTargetResolution() {
     final minAvailable = decSpec.dls.getMin();
@@ -108,6 +211,290 @@ class FileBitstreamReaderAgent extends BitstreamReaderAgent {
     }
 
     targetRes = parsed;
+  }
+
+  void _prepareTileBudgets() {
+    if (nt <= 0) {
+      _tileBudgets = const <int>[];
+      _tileBudgetRemaining = const <int>[];
+      _tileBytesConsumed = const <int>[];
+      _tilePartBodyLengths = const <List<int>>[];
+      _tilePartHeaderLengths = const <List<int>>[];
+      _tileBodyLengths = const <int>[];
+      _tileHeaderLengths = const <int>[];
+      _tileTotalLengths = const <int>[];
+      _totalTileHeaderBytes = 0;
+      return;
+    }
+
+    _buildTilePartCaches();
+    _tileBytesConsumed = List<int>.filled(nt, 0, growable: false);
+
+    if (_isTruncationMode) {
+      _allocateTruncationBudgets();
+    } else {
+      _allocateParsingBudgets();
+    }
+  }
+
+  void _buildTilePartCaches() {
+    _tilePartBodyLengths =
+        List<List<int>>.generate(nt, (_) => <int>[], growable: false);
+    _tilePartHeaderLengths =
+        List<List<int>>.generate(nt, (_) => <int>[], growable: false);
+    _tileBodyLengths = List<int>.filled(nt, 0, growable: false);
+    _tileHeaderLengths = List<int>.filled(nt, 0, growable: false);
+    _tileTotalLengths = List<int>.filled(nt, 0, growable: false);
+    _totalTileHeaderBytes = 0;
+
+    for (var tile = 0; tile < nt; tile++) {
+      final rawBodies = hd.getTilePartBodyLengths(tile) ?? const <int>[];
+      final rawHeaders = hd.getTilePartHeaderLengths(tile) ?? const <int>[];
+      final rawLengths = hd.getTilePartLengths(tile) ?? const <int>[];
+      var partCount = rawBodies.length;
+      if (rawHeaders.length > partCount) {
+        partCount = rawHeaders.length;
+      }
+      if (rawLengths.length > partCount) {
+        partCount = rawLengths.length;
+      }
+      if (_limitToSingleTilePart && partCount > 1) {
+        partCount = 1;
+      }
+
+      if (partCount == 0) {
+        _tilePartBodyLengths[tile] = <int>[_maxBudget];
+        _tilePartHeaderLengths[tile] = <int>[0];
+        _tileBodyLengths[tile] = _maxBudget;
+        _tileHeaderLengths[tile] = 0;
+        _tileTotalLengths[tile] = _maxBudget;
+        continue;
+      }
+
+      final bodies = <int>[];
+      final headers = <int>[];
+      for (var part = 0; part < partCount; part++) {
+        final headerLen = part < rawHeaders.length
+            ? rawHeaders[part]
+            : part < rawLengths.length && part < rawBodies.length
+                ? math.max(0, rawLengths[part] - rawBodies[part])
+                : 0;
+        final bodyLen = part < rawBodies.length
+            ? rawBodies[part]
+            : part < rawLengths.length
+                ? math.max(0, rawLengths[part] - headerLen)
+                : _maxBudget;
+        bodies.add(bodyLen);
+        headers.add(headerLen);
+      }
+
+      _tilePartBodyLengths[tile] = bodies;
+      _tilePartHeaderLengths[tile] = headers;
+
+      var bodyTotal = 0;
+      var bodyUnlimited = false;
+      for (final length in bodies) {
+        if (length >= _maxBudget) {
+          bodyUnlimited = true;
+          break;
+        }
+        bodyTotal += length;
+      }
+      _tileBodyLengths[tile] = bodyUnlimited ? _maxBudget : bodyTotal;
+
+      final headerTotal = headers.fold<int>(0, (sum, value) => sum + value);
+      _tileHeaderLengths[tile] = headerTotal;
+      _totalTileHeaderBytes += headerTotal;
+
+      if (bodyUnlimited) {
+        _tileTotalLengths[tile] = _maxBudget;
+      } else {
+        final combined = bodyTotal + headerTotal;
+        _tileTotalLengths[tile] = combined >= _maxBudget ? _maxBudget : combined;
+      }
+    }
+  }
+
+  void _allocateParsingBudgets() {
+    final stopOff = tnbytes <= 0 ? _maxBudget : tnbytes;
+    final baseHeaders = _ncbQuitTarget == -1
+        ? hd.mainHeaderLength + _totalTileHeaderBytes
+        : 0;
+    anbytes = baseHeaders;
+
+    if (stopOff == _maxBudget) {
+      _tileBudgets = List<int>.filled(nt, _maxBudget, growable: false);
+      _tileBudgetRemaining = List<int>.filled(nt, _maxBudget, growable: false);
+      return;
+    }
+
+    const eocBytes = 2;
+    if (baseHeaders + eocBytes > stopOff) {
+      throw StateError('Requested bitrate is too small for parsing mode');
+    }
+
+    final totalTileLength = _tileTotalLengths.fold<int>(0, (sum, value) {
+      if (sum >= _maxBudget || value >= _maxBudget) {
+        return _maxBudget;
+      }
+      return sum + value;
+    });
+
+    if (totalTileLength == 0 || totalTileLength >= _maxBudget) {
+      _tileBudgets = List<int>.filled(nt, _maxBudget, growable: false);
+      _tileBudgetRemaining = List<int>.filled(nt, _maxBudget, growable: false);
+      anbytes += eocBytes;
+      return;
+    }
+
+    _tileBudgets = List<int>.filled(nt, 0, growable: false);
+    var rem = stopOff - (baseHeaders + eocBytes);
+    final totnByte = rem;
+    for (var tile = nt - 1; tile > 0; tile--) {
+      final weight = _tileTotalLengths[tile];
+      final allocation = weight == 0
+          ? 0
+          : (totnByte * weight / totalTileLength).floor();
+      _tileBudgets[tile] = math.max(0, allocation);
+      rem -= _tileBudgets[tile];
+      if (rem < 0) {
+        rem = 0;
+      }
+    }
+    _tileBudgets[0] = math.max(0, rem);
+    _tileBudgetRemaining = List<int>.from(_tileBudgets, growable: false);
+    anbytes += eocBytes;
+  }
+
+  void _allocateTruncationBudgets() {
+    final target = tnbytes <= 0 ? _maxBudget : tnbytes;
+    final unlimited = target >= _maxBudget;
+    final headerBase = _ncbQuitTarget == -1 ? hd.mainHeaderLength : 0;
+
+    if (nt <= 0) {
+      _tileBudgets = const <int>[];
+      _tileBudgetRemaining = const <int>[];
+      anbytes = math.min(headerBase, target);
+      return;
+    }
+
+    if (unlimited) {
+      _tileBudgets = List<int>.filled(nt, _maxBudget, growable: false);
+      _tileBudgetRemaining =
+          List<int>.filled(nt, _maxBudget, growable: false);
+      anbytes = headerBase;
+      return;
+    }
+
+    if (headerBase > target) {
+      throw StateError('Requested bitrate is too small for codestream headers');
+    }
+
+    _tileBudgets = List<int>.filled(nt, 0, growable: false);
+    _tileBudgetRemaining = List<int>.filled(nt, 0, growable: false);
+
+    final traversal = _buildTilePartTraversal();
+    final cursors = List<int>.filled(nt, 0, growable: false);
+    var headerConsumed = headerBase;
+
+    for (final tile in traversal) {
+      if (tile < 0 || tile >= nt) {
+        continue;
+      }
+      final partIdx = cursors[tile];
+      if (_limitToSingleTilePart && partIdx > 0) {
+        continue;
+      }
+
+      final headerLen = _getTilePartHeaderLength(tile, partIdx);
+      final bodyLen = _getTilePartBodyLength(tile, partIdx);
+
+      final tilePartFitsCompletely = () {
+        if (bodyLen >= _maxBudget) {
+          return false;
+        }
+        final projected = headerConsumed + headerLen + bodyLen;
+        return projected <= target;
+      }();
+
+      if (!tilePartFitsCompletely) {
+        final headerCap = headerConsumed + headerLen;
+        if (headerCap > target) {
+          throw StateError(
+              'Requested bitrate exhausted while reading tile-part headers');
+        }
+        final remainingAfterHeader = target - headerCap;
+        if (remainingAfterHeader > 0) {
+          final allocation = bodyLen >= _maxBudget
+              ? remainingAfterHeader
+              : math.min(bodyLen, remainingAfterHeader);
+          _tileBudgets[tile] += allocation;
+        }
+        headerConsumed = headerCap;
+        break;
+      }
+
+      headerConsumed += headerLen;
+      if (bodyLen >= _maxBudget) {
+        _tileBudgets[tile] = _maxBudget;
+        break;
+      }
+      _tileBudgets[tile] += bodyLen;
+      cursors[tile] = partIdx + 1;
+    }
+
+    for (var tile = 0; tile < nt; tile++) {
+      _tileBudgetRemaining[tile] = _tileBudgets[tile];
+    }
+    anbytes = math.min(headerConsumed, target);
+  }
+
+  List<int> _buildTilePartTraversal() {
+    final order = hd.getTilePartTileOrder();
+    if (order.isNotEmpty) {
+      return order;
+    }
+    final traversal = <int>[];
+    for (var tile = 0; tile < nt; tile++) {
+      final partCount = _tilePartBodyLengths[tile].isEmpty
+          ? 1
+          : _tilePartBodyLengths[tile].length;
+      final limit = _limitToSingleTilePart
+          ? math.min(1, partCount)
+          : partCount;
+      for (var part = 0; part < limit; part++) {
+        traversal.add(tile);
+      }
+    }
+    return traversal;
+  }
+
+  int _getTilePartBodyLength(int tileIdx, int tilePartIdx) {
+    if (tileIdx < 0 || tileIdx >= _tilePartBodyLengths.length) {
+      return _maxBudget;
+    }
+    final parts = _tilePartBodyLengths[tileIdx];
+    if (parts.isEmpty) {
+      return _maxBudget;
+    }
+    if (tilePartIdx < 0 || tilePartIdx >= parts.length) {
+      return _maxBudget;
+    }
+    return parts[tilePartIdx];
+  }
+
+  int _getTilePartHeaderLength(int tileIdx, int tilePartIdx) {
+    if (tileIdx < 0 || tileIdx >= _tilePartHeaderLengths.length) {
+      return 0;
+    }
+    final parts = _tilePartHeaderLengths[tileIdx];
+    if (parts.isEmpty) {
+      return 0;
+    }
+    if (tilePartIdx < 0 || tilePartIdx >= parts.length) {
+      return 0;
+    }
+    return parts[tilePartIdx];
   }
 
   bool Function(
@@ -502,10 +889,24 @@ class FileBitstreamReaderAgent extends BitstreamReaderAgent {
   }
 
   void _decodeTilePackets(int tileIdx) {
+    if (_tileBudgets.isEmpty) {
+      _prepareTileBudgets();
+    }
+
+    final tileBudget = tileIdx < _tileBudgets.length ? _tileBudgets[tileIdx] : _maxBudget;
+    if (tileBudget <= 0) {
+      DecoderInstrumentation.log(
+        'FileBitstreamReaderAgent',
+        'Tile $tileIdx budget exhausted before decoding; skipping packets.',
+      );
+      return;
+    }
+
     final numLayersValue = decSpec.nls.getTileDef(tileIdx) ?? decSpec.nls.getDefault();
     if (numLayersValue == null) {
       throw StateError('Number of layers undefined for tile $tileIdx');
     }
+
     final maxLevels = List<int>.generate(
       nc,
       (component) {
@@ -533,48 +934,27 @@ class FileBitstreamReaderAgent extends BitstreamReaderAgent {
       }
     }
 
-    // final dataLength = packedHeaderData?.length ?? 0;
-    // print('Tile $tileIdx packedHeaders=$packedHeaders headerBytes=$dataLength');
-
     if (numLayersValue <= 0) {
       cbI = _pktDecoder.restart(nc, maxLevels, 0, cbI, packedHeaders, null);
       return;
     }
 
-    final declaredTiles = _headerInfo.siz?.getNumTiles() ?? nt;
-    final listSize = math.max(declaredTiles, tileIdx + 1);
-    final remainingBytes = List<int>.filled(listSize > 0 ? listSize : 1, 0x7fffffff, growable: false);
-    final tileBudget = hd.getTileTotalLength(tileIdx);
-    final tilePartLengths = hd.getTilePartLengths(tileIdx);
-    final tilePartBodyLengths = hd.getTilePartBodyLengths(tileIdx);
     final tilePartOffsets = hd.getTilePartDataOffsets(tileIdx);
-
-    final budgets = <int>[];
-    if (tilePartBodyLengths != null && tilePartBodyLengths.isNotEmpty) {
-      for (final length in tilePartBodyLengths) {
-        budgets.add(_normalizeTilePartBudget(length));
-      }
-    } else if (tilePartLengths != null && tilePartLengths.isNotEmpty) {
-      for (final length in tilePartLengths) {
-        budgets.add(_normalizeTilePartBudget(length));
-      }
-    } else if (tileBudget != null) {
-      budgets.add(_normalizeTilePartBudget(tileBudget));
-    }
-
-    if (budgets.isEmpty) {
-      budgets.add(0x7fffffff);
-    }
-
-    if (tilePartBodyLengths != null || tilePartLengths != null) {
-      // final rawLengths = tilePartBodyLengths ?? tilePartLengths ?? const <int>[];
-      // print('Tile $tileIdx tile-part budgets=${rawLengths.join(',')} normalized=${budgets.join(',')}');
-    }
-
     if (tilePartOffsets != null && tilePartOffsets.isNotEmpty) {
       _input.seek(tilePartOffsets.first);
     }
 
+    final partBudgets = tileIdx < _tilePartBodyLengths.length
+        ? _tilePartBodyLengths[tileIdx]
+        : const <int>[];
+    final budgets = partBudgets.isNotEmpty
+        ? List<int>.from(partBudgets, growable: true)
+        : <int>[_maxBudget];
+    if (_limitToSingleTilePart && budgets.length > 1) {
+      budgets.removeRange(1, budgets.length);
+    }
+
+    final remainingBytes = List<int>.filled(nt > 0 ? nt : 1, 0, growable: false);
     remainingBytes[tileIdx] = budgets.first;
 
     final grid = _pktDecoder.restart(
@@ -588,6 +968,9 @@ class FileBitstreamReaderAgent extends BitstreamReaderAgent {
 
     cbI = grid;
     _pktDecoder.syncHeaderReader();
+
+    _tileBudgetRemaining[tileIdx] = tileBudget >= _maxBudget ? _maxBudget : tileBudget;
+    _tileBytesConsumed[tileIdx] = 0;
 
     final maxResolutionsInTile = maxLevels.isEmpty ? 0 : maxLevels.reduce(math.max) + 1;
     final precinctGrid = _buildPrecinctGridCache(maxLevels, maxResolutionsInTile);
@@ -614,8 +997,9 @@ class FileBitstreamReaderAgent extends BitstreamReaderAgent {
         precinctGrid,
       );
       if (truncated) {
-        final exhausted = remainingBytes[tileIdx] <= 0;
-        if (exhausted && tilePartIdx + 1 < budgets.length) {
+        final partExhausted = remainingBytes[tileIdx] <= 0;
+        final budgetDepleted = _tileBudgetRemaining[tileIdx] <= 0;
+        if (partExhausted && tilePartIdx + 1 < budgets.length && !budgetDepleted) {
           tilePartIdx++;
           remainingBytes[tileIdx] = budgets[tilePartIdx];
           if (tilePartOffsets != null && tilePartIdx < tilePartOffsets.length) {
@@ -629,13 +1013,14 @@ class FileBitstreamReaderAgent extends BitstreamReaderAgent {
       _updateLayerStarts(layerStarts, segment, numLayersValue, maxLevels);
       segmentIdx++;
     }
-  }
 
-  int _normalizeTilePartBudget(int length) {
-    if (length <= 0) {
-      return 0x7fffffff;
+    if (tileIdx < _tileBytesConsumed.length) {
+      final consumedData = _tileBytesConsumed[tileIdx];
+      if (consumedData > 0) {
+        anbytes += consumedData;
+        _tileBytesConsumed[tileIdx] = 0;
+      }
     }
-    return length;
   }
 
   List<List<Coord?>> _buildPrecinctGridCache(List<int> maxLevels, int maxResolutions) {
@@ -1014,6 +1399,9 @@ class FileBitstreamReaderAgent extends BitstreamReaderAgent {
         ),
       );
     }
+    if (_usePocQuit && segments.isNotEmpty) {
+      return <_ProgressionSegment>[segments.first];
+    }
     return segments;
   }
 
@@ -1121,15 +1509,21 @@ class FileBitstreamReaderAgent extends BitstreamReaderAgent {
     List<int> remainingBytes,
     _CodeBlockGrid grid,
   ) {
+    final tileIdx = getTileIdx();
+    final before = remainingBytes[tileIdx];
+
     if (_packetOverride != null) {
       if (_packetOverrideCount > 0 && _packetOverrideInvocations >= _packetOverrideCount) {
-        return true;
+        return _finalizePacket(tileIdx, before, remainingBytes, true);
       }
       _packetOverrideInvocations++;
-      return _packetOverride!(layer, resolution, component, precinct, remainingBytes);
+      final forced =
+          _packetOverride!(layer, resolution, component, precinct, remainingBytes);
+      return _finalizePacket(tileIdx, before, remainingBytes, forced);
     }
+
     if (_pktDecoder.readSOPMarker(remainingBytes, precinct, component, resolution)) {
-      return true;
+      return _finalizePacket(tileIdx, before, remainingBytes, true);
     }
 
     List<List<List<CBlkInfo?>?>?>? subbandBlocks;
@@ -1140,14 +1534,88 @@ class FileBitstreamReaderAgent extends BitstreamReaderAgent {
       }
     }
 
-    if (_pktDecoder.readPktHead(layer, resolution, component, precinct, subbandBlocks, remainingBytes)) {
-      return true;
+    if (_pktDecoder.readPktHead(
+        layer, resolution, component, precinct, subbandBlocks, remainingBytes)) {
+      return _finalizePacket(tileIdx, before, remainingBytes, true);
     }
-    if (_pktDecoder.readPktBody(layer, resolution, component, precinct, subbandBlocks, remainingBytes)) {
-      return true;
+    if (_pktDecoder.readPktBody(
+        layer, resolution, component, precinct, subbandBlocks, remainingBytes)) {
+      return _finalizePacket(tileIdx, before, remainingBytes, true);
     }
-    return false;
+    return _finalizePacket(tileIdx, before, remainingBytes, false);
   }
+
+  bool _finalizePacket(
+    int tileIdx,
+    int before,
+    List<int> tilePartBudgets,
+    bool truncated,
+  ) {
+    if (tileIdx < 0 || tileIdx >= tilePartBudgets.length) {
+      return truncated;
+    }
+    final after = tilePartBudgets[tileIdx];
+    final consumed = before - after;
+    if (consumed > 0 && tileIdx < _tileBytesConsumed.length) {
+      _tileBytesConsumed[tileIdx] += consumed;
+      if (tileIdx < _tileBudgetRemaining.length) {
+        final updated = _tileBudgetRemaining[tileIdx] - consumed;
+        _tileBudgetRemaining[tileIdx] = updated <= 0 ? 0 : updated;
+      }
+    }
+    if (tileIdx < _tileBudgetRemaining.length && _tileBudgetRemaining[tileIdx] <= 0) {
+      tilePartBudgets[tileIdx] = 0;
+      return true;
+    }
+    return truncated;
+  }
+
+  @visibleForTesting
+  List<int> debugGetTileBudgets() => List<int>.from(_tileBudgets);
+
+  @visibleForTesting
+  List<List<int>> debugGetCachedTilePartBodyLengths() =>
+      _tilePartBodyLengths.map((parts) => List<int>.from(parts)).toList(growable: false);
+
+  @visibleForTesting
+  int debugGetPktDecoderMaxCodeBlocks() => _pktDecoder.maxCB;
+
+  @visibleForTesting
+  int debugGetNcbQuitTarget() => _ncbQuitTarget;
+
+  @visibleForTesting
+  List<Map<String, int>> debugDescribeProgressionSegments() {
+    if (nc == 0) {
+      return const <Map<String, int>>[];
+    }
+    final tileIdx = getTileIdx();
+    final numLayers =
+        decSpec.nls.getTileDef(tileIdx) ?? decSpec.nls.getDefault() ?? 0;
+    final maxLevels = List<int>.generate(
+      nc,
+      (component) =>
+          decSpec.dls.getTileCompVal(tileIdx, component) ??
+          decSpec.dls.getCompDef(component) ??
+          decSpec.dls.getDefault() ??
+          0,
+      growable: false,
+    );
+    final maxResolutions =
+        maxLevels.isEmpty ? 0 : maxLevels.reduce(math.max) + 1;
+    final segments =
+        _buildProgressionSegments(tileIdx, numLayers, maxLevels, maxResolutions);
+    return segments
+        .map((segment) => <String, int>{
+              'progression': segment.progression,
+              'layerEnd': segment.layerEnd,
+              'resStart': segment.resStart,
+              'resEnd': segment.resEnd,
+              'compStart': segment.compStart,
+              'compEnd': segment.compEnd,
+            })
+        .toList(growable: false);
+  }
+
   void debugSetPacketSimulation(
     int packetCount,
     bool Function(

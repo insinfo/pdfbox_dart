@@ -2,11 +2,14 @@ import 'dart:typed_data';
 import '../../j2k/io/RandomAccessIO.dart';
 import '../ColorSpaceException.dart';
 import '../../icc/IccProfile.dart';
-import 'Jp2Box.dart';
+import 'JP2Box.dart';
 import '../ColorSpace.dart';
 
 class ColorSpecificationBox extends JP2Box {
-  static int type = 0x636f6c72; // 'colr'
+  static const int boxType = 0x636f6c72; // 'colr'
+
+  @override
+  int get type => boxType;
 
   MethodEnum? method;
   CSEnum? colorSpace;
@@ -22,12 +25,13 @@ class ColorSpecificationBox extends JP2Box {
 
   void readBox() {
     Uint8List boxHeader = Uint8List(256);
-    in_io!.seek(dataStart);
-    in_io!.readFully(boxHeader, 0, 11);
+    in_io.seek(dataStart);
+    in_io.readFully(boxHeader, 0, 11);
     rawmethod = boxHeader[0];
     approxAccuracy = boxHeader[2];
     switch (rawmethod) {
       case 1:
+        method = ColorSpace.ENUMERATED;
         cs = ICCProfile.getInt(boxHeader, 3);
         switch (cs) {
           case 16:
@@ -40,8 +44,9 @@ class ColorSpecificationBox extends JP2Box {
             colorSpace = ColorSpace.sYCC;
             break;
           default:
-            // FacilityManager.getMsgLogger().printmsg(MsgLogger.WARNING, "Unknown enumerated colorspace ($cs) in color specification box");
-            print("Unknown enumerated colorspace ($cs) in color specification box");
+            // TODO: pipe warning through FacilityManager equivalent once available.
+            print(
+              "Unknown enumerated colorspace ($cs) in color specification box");
             colorSpace = ColorSpace.Unknown;
         }
         break;
@@ -50,8 +55,8 @@ class ColorSpecificationBox extends JP2Box {
         cs = -1;
         int size = ICCProfile.getInt(boxHeader, 3);
         iccProfile = Uint8List(size);
-        in_io!.seek(dataStart + 3);
-        in_io!.readFully(iccProfile!, 0, size);
+        in_io.seek(dataStart + 3);
+        in_io.readFully(iccProfile!, 0, size);
         break;
       default:
         throw ColorSpaceException(

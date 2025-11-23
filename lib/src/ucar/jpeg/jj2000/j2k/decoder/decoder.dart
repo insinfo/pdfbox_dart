@@ -7,11 +7,14 @@ import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/DecoderDebugConfig.dar
 import '../codestream/HeaderInfo.dart';
 import '../codestream/reader/BitstreamReaderAgent.dart';
 import '../codestream/reader/HeaderDecoder.dart';
+import '../../colorspace/ColorSpace.dart';
+import '../../colorspace/ColorSpaceMapper.dart';
 import '../entropy/decoder/EntropyDecoder.dart';
 import '../entropy/decoder/StdEntropyDecoder.dart';
 import '../fileformat/FileFormatReader.dart';
 import '../io/BeBufferedRandomAccessFile.dart';
 import '../io/RandomAccessIO.dart';
+import '../quantization/dequantizer/Dequantizer.dart';
 import '../quantization/dequantizer/StdDequantizer.dart';
 import '../roi/RoiDeScaler.dart';
 import '../util/DecoderInstrumentation.dart';
@@ -89,6 +92,11 @@ class Decoder implements Runnable {
 
   /// Optional inverse component transform stage (ICT/RCT).
   InvCompTransfImgDataSrc? componentTransformer;
+  ColorSpace? _colorSpace;
+  BlkImgDataSrc? _channelDefinitionMapper;
+  BlkImgDataSrc? _resamplerStage;
+  BlkImgDataSrc? _palettizedMapper;
+  BlkImgDataSrc? _colorSpaceMapperStage;
   ImgDataConverter? writerDataConverter;
   IOSink? _mqTraceSink;
   TraceBlockFilter? _traceFilter;
@@ -101,51 +109,148 @@ class Decoder implements Runnable {
 
   /// Active codestream handle retained for downstream stages.
   RandomAccessIO? _codestream;
+  bool _jp2WrapperUsed = false;
 
   /// Provides the current image data source after all instantiated stages.
     BlkImgDataSrc? get imageDataSource =>
-      writerDataConverter ?? componentTransformer ?? imageDataConverter ?? inverseWT;
+      writerDataConverter ??
+      _colorSpaceMapperStage ??
+      _palettizedMapper ??
+      _resamplerStage ??
+      _channelDefinitionMapper ??
+      componentTransformer ??
+      imageDataConverter ??
+      inverseWT;
 
   /// Static option descriptors used by command-line front ends.
-  static const List<List<String>> pinfo = <List<String>>[
-    <String>['u', '[on|off]', 'Prints usage information.', 'off'],
-    <String>['v', '[on|off]', 'Prints version information.', 'off'],
-    <String>['verbose', '[on|off]', 'Emits codestream diagnostics.', 'on'],
-    <String>['i', '<filename or url>', 'Input JPEG 2000 codestream/JP2.', ''],
-    <String>['o', '<filename>', 'Output image filename.', ''],
-    <String>['debug', '[on|off]', 'Print debugging stack traces.', 'off'],
-    <String>['instrument', '[on|off]', 'Emits decoder instrumentation logs.', 'off'],
-    <String>[
+  static const List<List<String?>> pinfo = <List<String?>>[
+    <String?>['u', '[on|off]', 'Prints usage information.', 'off'],
+    <String?>['v', '[on|off]', 'Prints version information.', 'off'],
+    <String?>['verbose', '[on|off]', 'Emits codestream diagnostics.', 'on'],
+    <String?>[
+      'pfile',
+      '<filename>',
+      'Loads decoder arguments from a text file (one key=value pair per line; lines ending with '
+          'a backslash continue). Command line options override file entries.\n'
+          'Nested pfile declarations inside the file are ignored.',
+      null,
+    ],
+    <String?>[
+      'res',
+      '<resolution level index>',
+      'Reconstructs up to the specified resolution level (0 = lowest available).',
+      null,
+    ],
+    <String?>['i', '<filename or url>', 'Input JPEG 2000 codestream/JP2.', null],
+    <String?>['o', '<filename>', 'Output image filename.', null],
+    <String?>[
+      'rate',
+      '<decoding rate in bpp>',
+      'Target decoding rate (bits per pixel). Use -1 to decode the full codestream. '
+          'Use -nbytes to specify the target in bytes.',
+      '-1',
+    ],
+    <String?>[
+      'nbytes',
+      '<decoding rate in bytes>',
+      'Target decoding rate (bytes). Use -1 to decode the full codestream. '
+          'Use -rate to specify the target in bits per pixel.',
+      '-1',
+    ],
+    <String?>[
+      'parsing',
+      '[on|off]',
+      'Controls whether virtual parsing is used when truncating the codestream '
+          'with -rate or -nbytes.',
+      'on',
+    ],
+    <String?>[
+      'ncb_quit',
+      '<max number of code blocks>',
+      'Maximum number of code-blocks to parse before quitting when paired with lbody limits.',
+      '-1',
+    ],
+    <String?>[
+      'l_quit',
+      '<max number of layers>',
+      'Maximum layer index to decode for any code-block.',
+      '-1',
+    ],
+    <String?>[
+      'm_quit',
+      '<max number of bit planes>',
+      'Maximum bit-plane index to decode for any code-block.',
+      '-1',
+    ],
+    <String?>[
+      'poc_quit',
+      '[on|off]',
+      'If enabled, decoding stops after the first progression order completes.',
+      'off',
+    ],
+    <String?>[
+      'one_tp',
+      '[on|off]',
+      'If enabled, only the first tile-part of each tile is decoded.',
+      'off',
+    ],
+    <String?>[
+      'comp_transf',
+      '[on|off]',
+      'Applies the inverse component transform (RCT/ICT) indicated by the codestream metadata.',
+      'on',
+    ],
+    <String?>['debug', '[on|off]', 'Print debugging stack traces.', 'off'],
+    <String?>[
+      'cdstr_info',
+      '[on|off]',
+      'Prints codestream marker segments, tile-part lengths, and offsets while parsing.',
+      'off',
+    ],
+    <String?>[
+      'nocolorspace',
+      '[on|off]',
+      'Ignore JP2 color specification boxes and emit raw components.',
+      'off',
+    ],
+    <String?>[
+      'colorspace_debug',
+      '[on|off]',
+      'Print debugging messages when the JP2 colorspace mapper is configured.',
+      'off',
+    ],
+    <String?>['instrument', '[on|off]', 'Emits decoder instrumentation logs.', 'off'],
+    <String?>[
       'inst_block',
       '<tile,comp,res,band,cblkY,cblkX>',
       'Restricts instrumentation to a single code-block (use -1 as wildcard).',
-      '',
+      null,
     ],
-    <String>[
+    <String?>[
       'inst_mq_log',
       '<path>',
       'Appends MQ trace dumps to <path> when instrumentation is enabled.',
-      '',
+      null,
     ],
-    <String>[
+    <String?>[
       'inst_ll_dump',
       '<path>',
       'Writes LL band snapshots (JSON) using <path> as the filename prefix.',
-      '',
+      null,
     ],
-    <String>[
+    <String?>[
       'inst_ll_tile_index',
       '<index>',
       'Tile index used for LL snapshots (default 0).',
       '0',
     ],
-    <String>[
+    <String?>[
       'inst_ll_component',
       '<index>',
       'Component index used for LL snapshots (default 0).',
       '0',
     ],
-    <String>[
+    <String?>[
       'inst_ll_stage',
       '[pre|post|both]',
       'Stage where LL snapshots are captured (StdDequantizer, InvWTFull, or both).',
@@ -153,12 +258,43 @@ class Decoder implements Runnable {
     ],
   ];
 
-  static const List<int> vprfxs =
-      <int>[]; // Decoder-specific prefixes handled elsewhere.
+  static final List<int> vprfxs = <int>[
+    BitstreamReaderAgent.optPrefix.codeUnitAt(0),
+    EntropyDecoder.optionPrefix.codeUnitAt(0),
+    ROIDeScaler.optionPrefix.codeUnitAt(0),
+    Dequantizer.optionPrefix.codeUnitAt(0),
+    InvCompTransf.optionPrefix.codeUnitAt(0),
+    HeaderDecoder.optionPrefix.codeUnitAt(0),
+    ColorSpaceMapper.OPT_PREFIX.codeUnitAt(0),
+  ];
 
   MsgLogger get _logger => FacilityManager.getMsgLogger();
 
-  static List<List<String>> getParameterInfo() => pinfo;
+  static List<List<String?>> getParameterInfo() => pinfo;
+
+  /// Builds a ParameterList populated with this decoder's default option values.
+  static ParameterList buildDefaultParameterList() {
+    final defaults = ParameterList();
+    for (final option in pinfo) {
+      if (option.isEmpty) {
+        continue;
+      }
+      final name = option[0];
+      if (name == null || name.isEmpty) {
+        continue;
+      }
+      final hasDefault = option.length > 3;
+      if (!hasDefault) {
+        continue;
+      }
+      final defaultValue = option[3];
+      if (defaultValue == null || defaultValue.isEmpty) {
+        continue;
+      }
+      defaults.put(name, defaultValue);
+    }
+    return defaults;
+  }
 
   @override
   void run() {
@@ -210,6 +346,7 @@ class Decoder implements Runnable {
     try {
       final ff = FileFormatReader(file);
       ff.readFileFormat();
+      _jp2WrapperUsed = ff.JP2FFUsed;
       final codestreamOffset = ff.JP2FFUsed ? ff.getFirstCodeStreamPos() : 0;
       if (codestreamOffset > 0) {
         file.seek(codestreamOffset);
@@ -335,13 +472,11 @@ class Decoder implements Runnable {
     }
 
     _codestream = input;
-    final bitstreamParams =
-        _subsetParametersByPrefix(pl, BitstreamReaderAgent.optPrefix);
     final emitCodestreamInfo = _getBooleanOption(pl, 'cdstr_info', false);
     bitstreamReader = BitstreamReaderAgent.createInstance(
       input,
       decoder,
-      bitstreamParams,
+      pl,
       decSpec!,
       emitCodestreamInfo,
       hi,
@@ -409,10 +544,12 @@ class Decoder implements Runnable {
       'Instantiated image data converter (fixed-point=$initialFixedPoint).',
     );
 
+    final componentTransformEnabled = _getBooleanOption(pl, 'comp_transf', true);
     if (decSpec!.cts.isCompTransfUsed()) {
       componentTransformer = InvCompTransfImgDataSrc(
         imageDataConverter!,
         decSpec!.cts,
+        enableComponentTransforms: componentTransformEnabled,
       );
       final transform = decSpec!.cts.getSpec(0, 0) ?? InvCompTransf.none;
       final label = transform == InvCompTransf.invRct
@@ -420,7 +557,7 @@ class Decoder implements Runnable {
           : (transform == InvCompTransf.invIct ? 'ICT' : 'custom');
       _logger.printmsg(
         MsgLogger.info,
-        'Instantiated inverse component transform ($label).',
+        'Instantiated inverse component transform ($label)${componentTransformEnabled ? '' : ' [disabled via comp_transf=off]'}.',
       );
     }
 
@@ -431,6 +568,77 @@ class Decoder implements Runnable {
       pipelineSource = imageDataConverter;
     } else if (inverseWT != null) {
       pipelineSource = inverseWT;
+    }
+
+    _colorSpace = null;
+    _resetColorPipelineStages();
+    if (_shouldApplyColorSpace() && pipelineSource != null) {
+      _logger.printmsg(
+        MsgLogger.info,
+        'JP2 colour metadata present; configuring colour pipeline.',
+      );
+      final colourSpace = _loadColorSpace(input, decoder);
+      _colorSpace = colourSpace;
+
+        var colourPipelineSource = pipelineSource;
+        _channelDefinitionMapper =
+          decoder.createChannelDefinitionMapper(colourPipelineSource, colourSpace);
+        colourPipelineSource = _channelDefinitionMapper!;
+      _logger.printmsg(
+        MsgLogger.info,
+        'Instantiated channel definition mapper.',
+      );
+
+      _resamplerStage = decoder.createResampler(colourPipelineSource, colourSpace);
+      colourPipelineSource = _resamplerStage!;
+      _logger.printmsg(
+        MsgLogger.info,
+        'Instantiated component resampler.',
+      );
+
+      _palettizedMapper = decoder.createPalettizedColorSpaceMapper(
+        colourPipelineSource,
+        colourSpace,
+      );
+      colourPipelineSource = _palettizedMapper!;
+      _logger.printmsg(
+        MsgLogger.info,
+        'Instantiated palette mapper.',
+      );
+
+      final mapped = decoder.createColorSpaceMapper(colourPipelineSource, colourSpace);
+      if (mapped != null) {
+        _colorSpaceMapperStage = mapped;
+        colourPipelineSource = _colorSpaceMapperStage!;
+        _logger.printmsg(
+          MsgLogger.info,
+          'Instantiated colour space mapper (${mapped.runtimeType}).',
+        );
+      } else {
+        _colorSpaceMapperStage = null;
+        _logger.printmsg(
+          MsgLogger.info,
+          'No enumerated/ICC color space mapper required.',
+        );
+      }
+
+      pipelineSource = colourPipelineSource;
+
+      if (colourSpace.debugging()) {
+        _logger.printmsg(MsgLogger.info, '$colourSpace');
+        if (_channelDefinitionMapper != null) {
+          _logger.printmsg(MsgLogger.info, '$_channelDefinitionMapper');
+        }
+        if (_resamplerStage != null) {
+          _logger.printmsg(MsgLogger.info, '$_resamplerStage');
+        }
+        if (_palettizedMapper != null) {
+          _logger.printmsg(MsgLogger.info, '$_palettizedMapper');
+        }
+        if (_colorSpaceMapperStage != null) {
+          _logger.printmsg(MsgLogger.info, '$_colorSpaceMapperStage');
+        }
+      }
     }
 
     if (pipelineSource != null) {
@@ -495,6 +703,11 @@ class Decoder implements Runnable {
         if (rangeBits > 8) {
           throw StateError(
             'Component $c has $rangeBits-bit samples; PPM writer only supports up to 8 bits.',
+          );
+        }
+        if (_isComponentSigned(source, c)) {
+          throw StateError(
+            'Component $c is signed; PPM writer expects unsigned samples.',
           );
         }
       }
@@ -582,10 +795,35 @@ class Decoder implements Runnable {
       // Component transforms produce unsigned output for ICT/RCT scenarios.
       return false;
     }
+    if (_colorSpace != null) {
+      return _colorSpace!.isOutputSigned(component);
+    }
     if (headerDecoder == null) {
       return false;
     }
     return headerDecoder!.isOriginalSigned(component);
+  }
+
+  void _resetColorPipelineStages() {
+    _channelDefinitionMapper = null;
+    _resamplerStage = null;
+    _palettizedMapper = null;
+    _colorSpaceMapperStage = null;
+  }
+
+  bool _shouldApplyColorSpace() {
+    final toggle = pl.getParameter('nocolorspace');
+    final disabled = toggle != null && toggle.toLowerCase() == 'on';
+    return _jp2WrapperUsed && !disabled;
+  }
+
+  ColorSpace _loadColorSpace(RandomAccessIO input, HeaderDecoder decoder) {
+    final bookmark = input.getPos();
+    try {
+      return ColorSpace(input, decoder, pl);
+    } finally {
+      input.seek(bookmark);
+    }
   }
 
   void _ensureWaveletFilters() {

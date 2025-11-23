@@ -23,6 +23,7 @@ import '../../util/FacilityManager.dart';
 import '../../util/MathUtil.dart';
 import '../../util/MsgLogger.dart';
 import '../../util/ParameterList.dart';
+import '../../util/StringFormatException.dart';
 import '../../wavelet/Subband.dart';
 import '../../wavelet/synthesis/SubbandSyn.dart';
 import '../../wavelet/WaveletFilter.dart';
@@ -34,6 +35,7 @@ import 'CBlkInfo.dart';
 
 part 'FileBitstreamReaderAgent.dart';
 part 'PktDecoder.dart';
+part 'PktDecoderHarness.dart';
 
 
 /// Base port of JJ2000's `BitstreamReaderAgent`.
@@ -287,8 +289,8 @@ abstract class BitstreamReaderAgent extends CodedCBlkDataSrcDec {
     bool codestreamInfo,
     HeaderInfo headerInfo,
   ) {
-    parameters.checkList(
-      <int>[optPrefix.codeUnitAt(0)],
+    parameters.checkListSingle(
+      optPrefix.codeUnitAt(0),
       ParameterList.toNameArray(BitstreamReaderAgent.getParameterInfo()),
     );
     return FileBitstreamReaderAgent(

@@ -6,49 +6,39 @@ import '../../icc/IccProfile.dart';
 
 abstract class JP2Box {
   /** Platform dependant line terminator */
-  static const String eol = '\n'; // System.getProperty ("line.separator");
-  /** Box type                           */
-  static int type = 0;
+  static const String eol = '\n';
 
   /** Return a String representation of the Box type. */
-  static String getTypeStringFromType(int t) {
-    return BoxType.get(t);
-  }
+  static String getTypeStringFromType(int t) => BoxType.get(t);
 
   /** Length of the box.             */
-  int length = 0;
+  late final int length;
   /** input file                     */
-  RandomAccessIO? in_io;
+  final RandomAccessIO in_io;
   /** offset to start of box         */
-  int boxStart = 0;
+  final int boxStart;
   /** offset to end of box           */
-  int boxEnd = 0;
+  late final int boxEnd;
   /** offset to start of data in box */
-  int dataStart = 0;
+  late final int dataStart;
 
-  JP2Box([RandomAccessIO? in_io, int? boxStart]) {
-    if (in_io != null && boxStart != null) {
-      Uint8List boxHeader = Uint8List(16);
-
-      this.in_io = in_io;
-      this.boxStart = boxStart;
-
-      this.in_io!.seek(this.boxStart);
-      this.in_io!.readFully(boxHeader, 0, 8);
-
-      this.dataStart = boxStart + 8;
-      this.length = ICCProfile.getInt(boxHeader, 0);
-      this.boxEnd = boxStart + length;
-      if (length == 1) {
-        throw ColorSpaceException("extended length boxes not supported");
-      }
+  JP2Box(this.in_io, this.boxStart) {
+    final boxHeader = Uint8List(16);
+    in_io.seek(boxStart);
+    in_io.readFully(boxHeader, 0, 8);
+    dataStart = boxStart + 8;
+    length = ICCProfile.getInt(boxHeader, 0);
+    boxEnd = boxStart + length;
+    if (length == 1) {
+      throw ColorSpaceException('extended length boxes not supported');
     }
   }
 
+  /// Returns the four-character box type marker.
+  int get type;
+
   /** Return the box type as a String. */
-  String getTypeString() {
-    return BoxType.get(JP2Box.type);
-  }
+  String getTypeString() => BoxType.get(type);
 }
 
 /** JP2 Box structure analysis help */

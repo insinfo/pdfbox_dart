@@ -1,16 +1,15 @@
-import '../j2k/image/ImgDataAdapter.dart';
+import '../icc/ICCProfiler.dart';
 import '../j2k/image/BlkImgDataSrc.dart';
 import '../j2k/image/DataBlk.dart';
-import '../j2k/image/DataBlkInt.dart';
 import '../j2k/image/DataBlkFloat.dart';
+import '../j2k/image/DataBlkInt.dart';
+import '../j2k/image/ImgDataAdapter.dart';
 import '../j2k/util/ParameterList.dart';
 import 'ColorSpace.dart';
 import 'ColorSpaceException.dart';
-// import '../icc/IccProfileException.dart';
-
-// import 'IccProfiler.dart';
-// import 'enumerated_ColorSpaceMapper.dart';
-// import 'sycc_ColorSpaceMapper.dart';
+import 'EnumeratedColorSpaceMapper.dart';
+import 'PalettizedColorSpaceMapper.dart';
+import 'SYccColorSpaceMapper.dart';
 
 abstract class ColorSpaceMapper extends ImgDataAdapter
     implements BlkImgDataSrc {
@@ -117,33 +116,29 @@ abstract class ColorSpaceMapper extends ImgDataAdapter
      * @return ColorSpaceMapper instance
      * @exception IOException profile access exception
      */
-  static BlkImgDataSrc? createInstance(
-      BlkImgDataSrc src, ColorSpace csMap) {
-    // Check parameters
-    // csMap.pl!.checkList(OPT_PREFIX, csMap.pl!.toNameArray(pinfo));
+  static BlkImgDataSrc? createInstance(BlkImgDataSrc src, ColorSpace csMap) {
+    csMap.pl.checkListSingle(
+        OPT_PREFIX.codeUnitAt(0), ParameterList.toNameArray(pinfo));
 
-    // Perform ICCProfiling or ColorSpace tranfsormation.
-    if (csMap.getMethod() == ColorSpace.ICC_PROFILED) {
-      // return ICCProfiler.createInstance(src, csMap);
-      throw UnimplementedError("ICCProfiler not implemented yet");
-    } else {
-      CSEnum colorspace = csMap.getColorSpace();
-
-      if (colorspace == ColorSpace.sRGB) {
-        // return EnumeratedColorSpaceMapper.createInstance(src, csMap);
-        throw UnimplementedError("EnumeratedColorSpaceMapper not implemented yet");
-      } else if (colorspace == ColorSpace.GreyScale) {
-        // return EnumeratedColorSpaceMapper.createInstance(src, csMap);
-        throw UnimplementedError("EnumeratedColorSpaceMapper not implemented yet");
-      } else if (colorspace == ColorSpace.sYCC) {
-        // return SYccColorSpaceMapper.createInstance(src, csMap);
-        throw UnimplementedError("SYccColorSpaceMapper not implemented yet");
-      } else if (colorspace == ColorSpace.Unknown) {
-        return null;
-      } else {
-        throw ColorSpaceException("Bad color space specification in image");
-      }
+    if (csMap.isPalettized()) {
+      return PalettizedColorSpaceMapper.createInstance(src, csMap);
     }
+
+    if (csMap.getMethod() == ColorSpace.ICC_PROFILED) {
+      return ICCProfiler.createInstance(src, csMap);
+    }
+
+    final colorspace = csMap.getColorSpace();
+    if (colorspace == ColorSpace.sRGB || colorspace == ColorSpace.GreyScale) {
+      return EnumeratedColorSpaceMapper.createInstance(src, csMap);
+    }
+    if (colorspace == ColorSpace.sYCC) {
+      return SYccColorSpaceMapper.createInstance(src, csMap);
+    }
+    if (colorspace == ColorSpace.Unknown) {
+      return null;
+    }
+    throw ColorSpaceException('Bad color space specification in image');
   }
 
   /**
