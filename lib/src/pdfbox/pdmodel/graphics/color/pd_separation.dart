@@ -1,3 +1,6 @@
+import 'package:pdfbox_dart/src/pdfbox/pdmodel/graphics/color/pd_color_space.dart';
+import 'package:pdfbox_dart/src/pdfbox/pdmodel/graphics/color/pd_special_color_space.dart';
+
 import '../../../cos/cos_array.dart';
 import '../../../cos/cos_base.dart';
 import '../../../cos/cos_name.dart';
@@ -5,8 +8,7 @@ import '../../pd_resources.dart';
 import '../../common/function/pdf_function.dart';
 import 'pd_color.dart';
 import 'pd_color_math.dart';
-import 'pd_color_space.dart';
-import 'pd_special_color_space.dart';
+
 
 class PDSeparation extends PDSpecialColorSpace {
   PDSeparation._(this._array, this._alternateColorSpace, this._tintTransform) {
@@ -86,3 +88,4 @@ class PDSeparation extends PDSpecialColorSpace {
   String toString() =>
       '${name}{"$colorantName" ${_alternateColorSpace.name} $tintTransform}';
 }
+

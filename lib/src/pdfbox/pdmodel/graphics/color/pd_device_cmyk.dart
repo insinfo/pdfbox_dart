@@ -1,6 +1,8 @@
+import 'package:pdfbox_dart/src/pdfbox/pdmodel/graphics/color/pd_color_space.dart';
+
 import 'pd_color.dart';
 import 'pd_color_math.dart';
-import 'pd_color_space.dart';
+
 
 /// DeviceCMYK colour space primarily used for print workflows.
 class PDDeviceCMYK extends PDDeviceColorSpace {
@@ -44,3 +46,4 @@ class PDDeviceCMYK extends PDDeviceColorSpace {
     return <double>[r, g, b];
   }
 }
+

@@ -1,5 +1,5 @@
 import '../image/coord.dart';
-import 'wavelet_filter.dart';
+import 'WaveletFilter.dart';
 
 /// Represents a node or leaf in the JJ2000 wavelet subband decomposition tree.
 abstract class Subband {
@@ -261,3 +261,4 @@ abstract class Subband {
   WaveletFilter getHorWFilter();
   WaveletFilter getVerWFilter();
 }
+

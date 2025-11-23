@@ -1,10 +1,12 @@
+import 'package:pdfbox_dart/src/pdfbox/pdmodel/graphics/color/pd_color_space.dart';
+
 import '../../../cos/cos_array.dart';
 import '../../../cos/cos_base.dart';
 import '../../../cos/cos_dictionary.dart';
 import '../../../cos/cos_name.dart';
 import '../../../cos/cos_stream.dart';
 import '../../graphics/color/pd_color.dart';
-import '../../graphics/color/pd_color_space.dart';
+
 import '../../graphics/color/pd_device_cmyk.dart';
 import '../../graphics/color/pd_device_gray.dart';
 import '../../graphics/color/pd_device_rgb.dart';
@@ -145,3 +147,4 @@ class PDAppearanceCharacteristicsDictionary implements COSObjectable {
     return null;
   }
 }
+

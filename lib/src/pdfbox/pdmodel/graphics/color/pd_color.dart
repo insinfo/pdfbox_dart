@@ -1,9 +1,11 @@
+import 'package:pdfbox_dart/src/pdfbox/pdmodel/graphics/color/pd_color_space.dart';
+
 import '../../../cos/cos_array.dart';
 import '../../../cos/cos_base.dart';
 import '../../../cos/cos_float.dart';
 import '../../../cos/cos_number.dart';
 
-import 'pd_color_space.dart';
+
 
 /// Represents a colour value within a [PDColorSpace].
 class PDColor implements COSObjectable {
@@ -49,3 +51,4 @@ class PDColor implements COSObjectable {
     return 0.0;
   }
 }
+

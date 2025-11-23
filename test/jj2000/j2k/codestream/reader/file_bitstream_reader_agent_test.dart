@@ -1,17 +1,20 @@
 import 'dart:typed_data';
 
+
+
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/IsRandomAccessIo.dart';
 import 'package:test/test.dart';
 
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/codestream/header_info.dart';
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/codestream/reader/bitstream_reader_agent.dart';
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/codestream/reader/header_decoder.dart';
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/decoder/decoder_specs.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/codestream/HeaderInfo.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/codestream/reader/BitstreamReaderAgent.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/codestream/reader/HeaderDecoder.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/decoder/DecoderSpecs.dart';
 import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/image/coord.dart';
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/quantization/dequantizer/std_dequantizer_params.dart';
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/is_random_access_io.dart';
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/parameter_list.dart';
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/wavelet/synthesis/syn_wt_filter.dart';
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/wavelet/synthesis/syn_wt_filter_int_lift5x3.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/quantization/dequantizer/StdDequantizerParams.dart';
+
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/ParameterList.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/wavelet/synthesis/SynWtFilter.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/wavelet/synthesis/SynWtFilterIntLift5x3.dart';
 
 void main() {
   group('FileBitstreamReaderAgent multi tile-part handling', () {
@@ -135,3 +138,4 @@ void main() {
     });
   });
 }
+

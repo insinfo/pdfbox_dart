@@ -1,10 +1,11 @@
 import 'dart:typed_data';
 
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/IsRandomAccessIo.dart';
 import 'package:test/test.dart';
 
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/fileformat/file_format_boxes.dart';
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/fileformat/file_format_reader.dart';
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/is_random_access_io.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/fileformat/FileFormatBoxes.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/fileformat/FileFormatReader.dart';
+
 
 void main() {
   group('FileFormatReader', () {
@@ -83,3 +84,4 @@ Uint8List _buildMinimalJp2() {
 
   return builder.takeBytes();
 }
+

@@ -2,15 +2,16 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'dart:math' as math;
 
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/StreamMsgLogger.dart';
 import 'package:test/test.dart';
 import 'package:crypto/crypto.dart' show sha256;
 
 import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/codestream/markers.dart';
 import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/decoder/decoder.dart';
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/decoder_instrumentation.dart';
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/facility_manager.dart';
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/parameter_list.dart';
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/stream_msg_logger.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/DecoderInstrumentation.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/FacilityManager.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/ParameterList.dart';
+
 
 import '../codestream/test_utils.dart';
 
@@ -125,11 +126,11 @@ void main() {
     });
   });
 
-  group('Decoder rainbowbars integration', skip: 'rainbowbars-color.jp2 must be present in repository root', () {
+  group('Decoder rainbowbars integration', () {
     test('produces non-black BMP output for rainbowbars codestream', () {
-      final input = File('rainbowbars-color.jp2');
+      final input = File('test_images/barras_rgb.jp2');
       expect(input.existsSync(), isTrue,
-          reason: 'rainbowbars-color.jp2 must be present in repository root');
+          reason: 'test_images/barras_rgb.jp2 must be present');
 
       final tempDir = Directory.systemTemp.createTempSync('rainbowbars_decode_');
       addTearDown(() => tempDir.deleteSync(recursive: true));
@@ -172,9 +173,9 @@ void main() {
 
   group('Decoder rainbowbars color fidelity', () {
     test('produces chroma-rich PPM output', () {
-      final input = File('rainbowbars-color.jp2');
+      final input = File('test_images/barras_rgb.jp2');
       expect(input.existsSync(), isTrue,
-          reason: 'rainbowbars-color.jp2 must be present in repository root');
+          reason: 'test_images/barras_rgb.jp2 must be present');
 
       final tempDir = Directory.systemTemp.createTempSync('rainbowbars_ppm_');
       addTearDown(() => tempDir.deleteSync(recursive: true));
@@ -208,7 +209,7 @@ void main() {
       expect(probe.uniqueChannelValues.length, greaterThan(3));
       expect(probe.hasChrominance, isTrue,
           reason: 'No chroma variation detected; decoder log:\n$diagnosticLog');
-    }, skip: 'Chroma components currently decode as grayscale; investigate entropy stage.');
+    });
   });
 
   group('Decoder instrumentation parity', () {
@@ -220,10 +221,10 @@ void main() {
       DecoderInstrumentation.configure(false);
     });
 
-    test('emits instrumentation logs when enabled', skip: 'rainbowbars-color.jp2 must be present in repository root', () {
-      final input = File('rainbowbars-color.jp2');
+    test('emits instrumentation logs when enabled', () {
+      final input = File('test_images/barras_rgb.jp2');
       expect(input.existsSync(), isTrue,
-          reason: 'rainbowbars-color.jp2 must be present in repository root');
+          reason: 'test_images/barras_rgb.jp2 must be present');
 
       final tempDir = Directory.systemTemp.createTempSync('rainbowbars_instrument_');
       addTearDown(() => tempDir.deleteSync(recursive: true));
@@ -267,10 +268,10 @@ void main() {
     });
 
     test('matches Java rainbowbars PPM snapshot when instrumentation is on', () {
-      final input = File('rainbowbars-color.jp2');
+      final input = File('test_images/barras_rgb.jp2');
       final expected = File('rainbowbars-java.ppm');
       expect(input.existsSync(), isTrue,
-          reason: 'rainbowbars-color.jp2 must be present in repository root');
+          reason: 'test_images/barras_rgb.jp2 must be present');
       expect(expected.existsSync(), isTrue,
           reason: 'rainbowbars-java.ppm must be present in repository root');
 
@@ -411,3 +412,4 @@ class _PpmProbe {
         byte == 0x0D; // carriage return
   }
 }
+

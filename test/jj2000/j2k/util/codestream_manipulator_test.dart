@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/codestream_manipulator.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/CodestreamManipulator.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -434,3 +434,4 @@ class _PacketDef {
   final List<int> header;
   final List<int> data;
 }
+

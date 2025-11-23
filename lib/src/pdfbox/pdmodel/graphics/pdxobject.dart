@@ -1,3 +1,5 @@
+import 'package:pdfbox_dart/src/pdfbox/pdmodel/graphics/color/pd_color_space.dart';
+
 import '../../cos/cos_array.dart';
 import '../../cos/cos_base.dart';
 import '../../cos/cos_name.dart';
@@ -5,7 +7,7 @@ import '../../cos/cos_number.dart';
 import '../../cos/cos_stream.dart';
 import '../pd_document.dart';
 import '../pd_stream.dart';
-import 'color/pd_color_space.dart';
+
 
 /// Base representation of an external object (XObject).
 class PDXObject implements COSObjectable {
@@ -103,3 +105,4 @@ class PDImageXObject extends PDXObject {
     return null;
   }
 }
+

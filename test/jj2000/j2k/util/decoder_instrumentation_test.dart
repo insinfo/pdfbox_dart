@@ -1,6 +1,6 @@
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/decoder_instrumentation.dart';
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/facility_manager.dart';
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/msg_logger.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/DecoderInstrumentation.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/FacilityManager.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/MsgLogger.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -66,3 +66,4 @@ class _RecordingLogger implements MsgLogger {
   @override
   void println(String message, int firstLineIndent, int indent) {}
 }
+

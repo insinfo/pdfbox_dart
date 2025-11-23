@@ -1,3 +1,5 @@
+import 'package:pdfbox_dart/src/pdfbox/pdmodel/graphics/color/pd_color_space.dart';
+
 import '../cos/cos_base.dart';
 import '../cos/cos_dictionary.dart';
 import '../cos/cos_name.dart';
@@ -7,7 +9,7 @@ import 'font/pd_type1_font.dart';
 import 'font/standard14_fonts.dart';
 import 'font/pdfont.dart';
 import 'font/pdfont_factory.dart';
-import 'graphics/color/pd_color_space.dart';
+
 import 'graphics/form/pd_form_xobject.dart';
 import 'graphics/pattern/pd_abstract_pattern.dart';
 import 'graphics/pd_post_script_xobject.dart';
@@ -395,3 +397,4 @@ class PDResources {
     }
   }
 }
+

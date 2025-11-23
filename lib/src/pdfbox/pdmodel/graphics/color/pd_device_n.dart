@@ -1,4 +1,6 @@
 import 'package:image/image.dart' as img;
+import 'package:pdfbox_dart/src/pdfbox/pdmodel/graphics/color/pd_color_space.dart';
+import 'package:pdfbox_dart/src/pdfbox/pdmodel/graphics/color/pd_special_color_space.dart';
 
 import '../../../cos/cos_array.dart';
 import '../../../cos/cos_base.dart';
@@ -8,12 +10,12 @@ import '../../common/function/pdf_function.dart';
 import '../../pd_resources.dart';
 import 'pd_color.dart';
 import 'pd_color_math.dart';
-import 'pd_color_space.dart';
+
 import 'pd_device_n_attributes.dart';
 import 'pd_device_n_process.dart';
 import 'pd_raster.dart';
 import 'pd_separation.dart';
-import 'pd_special_color_space.dart';
+
 
 class PDDeviceN extends PDSpecialColorSpace {
   PDDeviceN._(
@@ -361,3 +363,4 @@ class _DeviceNConversionCache {
   final PDColorSpace? processColorSpace;
   final List<PDSeparation?> spotColorSpaces;
 }
+

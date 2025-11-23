@@ -1,5 +1,7 @@
 import 'dart:typed_data';
 
+import 'package:pdfbox_dart/src/pdfbox/pdmodel/graphics/color/pd_color_space.dart';
+
 import '../../../cos/cos_array.dart';
 import '../../../cos/cos_base.dart';
 import '../../../cos/cos_name.dart';
@@ -8,7 +10,7 @@ import '../../../cos/cos_stream.dart';
 import '../../../cos/cos_string.dart';
 
 import 'pd_color.dart';
-import 'pd_color_space.dart';
+
 
 /// Indexed colour space backed by a lookup table and a base colour space.
 class PDIndexedColorSpace extends PDColorSpace {
@@ -110,3 +112,4 @@ class PDIndexedColorSpace extends PDColorSpace {
     throw StateError('Indexed colour space requires integer HiVal, got $value');
   }
 }
+

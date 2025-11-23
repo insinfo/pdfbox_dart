@@ -1,6 +1,7 @@
 library pdfbox.contentstream.pdf_stream_engine;
 
 import 'package:logging/logging.dart';
+import 'package:pdfbox_dart/src/pdfbox/pdmodel/graphics/color/pd_color_space.dart';
 
 import '../cos/cos_array.dart';
 import '../cos/cos_base.dart';
@@ -9,14 +10,15 @@ import '../cos/cos_name.dart';
 import '../cos/cos_number.dart';
 import '../cos/cos_string.dart';
 import '../pdfparser/pdf_stream_parser.dart';
+import '../pdmodel/graphics/color/pd_pattern_color_space.dart';
 import '../pdmodel/pd_page.dart';
 import '../pdmodel/pd_resources.dart';
 import '../pdmodel/graphics/color/pd_color.dart';
-import '../pdmodel/graphics/color/pd_color_space.dart';
+
 import '../pdmodel/graphics/color/pd_device_cmyk.dart';
 import '../pdmodel/graphics/color/pd_device_gray.dart';
 import '../pdmodel/graphics/color/pd_device_rgb.dart';
-import '../pdmodel/graphics/color/pd_pattern_color_space.dart';
+
 import '../pdmodel/graphics/form/pd_form_xobject.dart';
 import '../pdmodel/graphics/pd_line_dash_pattern.dart';
 import '../pdmodel/graphics/pd_post_script_xobject.dart';

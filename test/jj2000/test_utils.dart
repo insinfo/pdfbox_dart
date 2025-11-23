@@ -1,4 +1,22 @@
 import 'dart:typed_data';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/MsgLogger.dart';
+
+class QuietLogger implements MsgLogger {
+  @override
+  void printmsg(int severity, String message) {
+    if (severity >= MsgLogger.warning) {
+      print('[${MsgLogger.labelFor(severity)}]: $message');
+    }
+  }
+
+  @override
+  void println(String message, int firstLineIndent, int indent) {
+    // Suppress
+  }
+
+  @override
+  void flush() {}
+}
 
 class PpmProbe {
   final int width;
@@ -97,3 +115,4 @@ class PpmProbe {
     return charCode == 32 || charCode == 9 || charCode == 10 || charCode == 13;
   }
 }
+

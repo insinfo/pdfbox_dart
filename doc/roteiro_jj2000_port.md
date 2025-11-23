@@ -54,3 +54,151 @@ cd c:/MyDartProjects/pdfbox_dart; python scripts/compare_pgm.py build/java_gradi
 max diff 0, min diff 0, avg diff 0.0000, mismatched samples 0
 
 cd c:/MyDartProjects/pdfbox_dart; dart run scripts/decode_to_bmp.dart resources/j2k_tests/synthetic/gradient_8bit/gradient_8bit_lossless.jp2 build/dart_gradient_out.pgm 
+
+verifique se a implementação esta seguindo a especificação corretamente C:\MyDartProjects\pdfbox_dart\lib\src\ucar\jpeg\jj2000 https://www.academia.edu/2822519/The_JPEG_2000_still_image_compression_standard https://www.ece.uvic.ca/~frodo/publications/jpeg2000.pdf https://pt.scribd.com/document/82996772/JPEG-2000-Standard
+
+ O que funciona:
+icon32.jp2 - imagem muito simples (30 bytes comprimidos)
+Arquitetura geral do código está correta
+Int32Utils e reconstrução de coeficientes funcionam
+❌ O que NÃO funciona:
+Todas as imagens de teste geradas (gradient, checkerboard, circles, text, etc.)
+Imagens com bitstreams maiores/mais complexos
+Resultado: ruído grave visível nos screenshots
+🎯 Causa mais provável:
+Bug no MQDecoder relacionado a:
+C:\MyDartProjects\pdfbox_dart\jj2000\src\main\java\ucar\jpeg\jj2000\j2k
+Leitura incorreta do bitstream
+Byte stuffing (0xFF 0x00) com problema
+Estado não resetado corretamente entre passes
+📁 Arquivos para você verificar visualmente:
+comparison.html - Compare lado a lado
+checkerboard_64_dart_decoded.png - Ruído visível
+checkerboard_64_openjpeg_decoded.png - Correto
+DEBUG_SUMMARY.md - Resumo técnico completo
+O próximo passo é debugar o mq_decoder.dart comparando byte-a-byte com a implementação Java ou adicionar logging extensivo para encontrar onde os símbolos decodificados divergem.
+C:\MyDartProjects\pdfbox_dart\test_images
+Excelente ponto! Você está absolutamente certo - precisamos começar pelos fundamentos. Vou criar testes unitários rigorosos para as operações mais básicas que o MQDecoder e outros decoders dependem.
+C:\MyDartProjects\pdfbox_dart\test\jj2000
+Vamos começar testando as operações bitwise fundamentais e classes utilitárias:
+
+depois Vou criar testes unitários rigorosos para cada componente do decoder, comparando o comportamento entre Java e Dart. Começarei pelos componentes mais críticos: MQDecoder, ByteToBitInput e StdEntropyDecoder.
+
+# RESUMO DO DEBUG: Decoder Dart Produzindo Ruído
+
+## Problema Identificado
+- **Icon32.jp2** (30 bytes comprimidos): ✓ FUNCIONA PERFEITAMENTE
+- **Imagens de teste** (700+ bytes comprimidos): ✗ FALHA COM RUÍDO GRAVE
+
+## Evidências
+1. Imagens pequenas/simples funcionam
+2. Imagens maiores/complexas produzem ruído catastrófico  
+3. O state array ESTÁ sendo limpo corretamente (linha 240)
+4. Int32Utils está correto (testado isoladamente)
+5. Ambos os tipos de imagem usam RCT, 3 componentes, mesmos parâmetros
+
+## Hipóteses Restantes
+O bug está em uma destas áreas:
+
+### 1. MQDecoder - Leitura de Bitstream (MAIS PROVÁVEL)
+- Problema com byte stuffing (0xFF seguido de 0x00)
+- Problema com término de segmentos
+- Estado do MQ não sendo resetado corretamente entre passes
+
+### 2. ByteToBitInput - Buffer de Entrada
+- Overflow ou underflow ao ler bytes
+- Problema com tamanho de segmento
+
+### 3. StdEntropyDecoder - Passes de Codificação
+- Problema em passes complexos (múltiplos bit planes)
+- Problema com code-blocks maiores
+
+## Próximos Passos Sugeridos
+
+###  OPÇÃO A: Comparar MQDecoder bit-a-bit com Java
+Adicionar logging detalhado para comparar:
+- Bytes lidos do bitstream
+- Símbolos decodificados
+- Estado interno (c, a, ct)
+
+### OPÇÃO B: Testar com arquivo Java intermediário
+Usar o TestDecoder.java para extrair:
+- Todos os símbolos decodificados
+- Comparar com Dart símbolo por símbolo
+
+### OPÇÃO C: Reduzir caso de teste
+Criar imagem MÍNIMA que falha (ex: 8x8 solid color)
+- Mais fácil de debugar manualmente
+- Menos dados para analisar
+
+## Arquivo de Teste Recomendado
+Use `gradient_32_openjpeg.jp2` para debug:
+- Pequeno (32x32)
+- Falha consistentemente
+- Padrão visual simples (gradiente)
+
+## Comando para Teste Rápido
+```bash
+dart run scripts/decode.dart -i test_images/visual_tests/gradient_32_openjpeg.jp2 -o test.ppm
+```
+
+## Status
+❌ **BLOCKER CRÍTICO** - Decoder não funciona para casos reais
+✅ Arquitetura correta, bug específico isolado
+🎯 Foco: MQDecoder e leitura de bitstream
+
+# JJ2000 Test Parity
+sempre responda em portugues
+a versão java esta em C:\MyDartProjects\pdfbox_dart\jj2000
+ versão dart aqui C:\MyDartProjects\pdfbox_dart\lib\src\jj2000
+ a versão java é a versão que funciona perfeitamente 
+ ou seja a versão java é a fonte de verdade
+ se um teste java falhar é porque o teste esta errado
+ se a versão dart der resultado diferente é porque a versão dart esta errada e tem que ser corrigida 
+ a versão portada de java para dart esta com bug não esta decodificando JPEG 2000 corretamente,
+ o foco é implementar testes simultaneamente em java e dart afim de descobrir onde a versão dart esta errada
+e concertar a versão dart
+
+- [ ] Decoder rainbowbars integration (Dart) - verificar BMP nao-preto.
+
+## Problemas Conhecidos
+- [ ] **StdEntropyDecoder.cleanupPass NÃO IMPLEMENTADO** - O método `_cleanupPassStub` é um stub que não implementa a lógica completa da passagem de limpeza (cleanup pass) do JPEG2000. Esta é uma das funcionalidades mais complexas do decoder de entropia e requer uma porta completa da implementação Java. Por enquanto, os testes que dependem do cleanup pass falharão.
+
+## Em Andamento
+- [ ] Levantar testes existentes em `jj2000/src/test` (Java).
+- [ ] Mapear testes equivalentes em `lib/src/ucar/jpeg/jj2000` (Dart) C:\MyDartProjects\pdfbox_dart\test\jj2000.
+- [ ] Executar suites Java relevantes via `mvn -pl jj2000 test`.
+- [ ] Executar suites Dart relevantes via `dart test test/jj2000/`.
+- [ ] Registrar diferencas observadas entre saidas Java e Dart.
+- [] Abrir issues para divergencias nao resolvidas.
+- [ ] Investigar divergencia entre  (Dart) java
+
+## Mapeamento Java -> Dart
+# como gerar imagens para testes do decoder
+magick -size 32x32 xc:black  -draw "fill red   rectangle 0,0   10,31"  -draw "fill green rectangle 11,0  21,31"  -draw "fill blue  rectangle 22,0  31,31" barras_rgb.bmp
+
+ magick barras_rgb.bmp barras_rgb.jp2
+
+scripts utilizados para depurar o jj2000 port
+ PS C:\MyDartProjects\pdfbox_dart\scripts\jj2000> ls
+
+    Directory: C:\MyDartProjects\pdfbox_dart\scripts\jj2000
+
+Mode                 LastWriteTime         Length Name
+----                 -------------         ------ ----
+-a---          23/11/2025    01:21           4247 compare_decoded_images.dart
+-a---          22/11/2025    01:31           9685 compare_j2k_reference.dart 
+-a---          21/11/2025    17:47           2848 compare_pgm.py
+-a---          23/11/2025    01:39           2910 compare_ppm.dart
+-a---          23/11/2025    01:47           3868 compare_visual_tests.py    
+-a---          22/11/2025    01:31           1257 decode_to_bmp.dart
+-a---          23/11/2025    01:21            856 decode.dart
+-a---          23/11/2025    01:23           8346 generate_test_images_v2.ps1
+-a---          23/11/2025    01:46           8270 generate_visual_tests.ps1
+-a---          20/11/2025    15:41           1530 gradiente_8_vs_12.bat
+-a---          21/11/2025    16:27           1209 j2k_generate_gradient_8bit.ps1
+-a---          21/11/2025    16:26           1030 j2k_generate_rainbowbars.ps1
+-a---          23/11/2025    01:40           2750 quick_compare.dart
+-a---          23/11/2025    01:36           3842 test_reconstruction.dart
+
+PS C:\MyDartProjects\pdfbox_dart\scripts\jj2000>

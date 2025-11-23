@@ -1,14 +1,14 @@
 import 'dart:math' as math;
 
-import '../../decoder/decoder_specs.dart';
-import '../../image/comp_transf_spec.dart';
-import '../../image/data_blk.dart';
-import '../../image/invcomptransf/inv_comp_transf.dart';
-import '../../wavelet/synthesis/syn_wt_filter_spec.dart';
-import '../../wavelet/synthesis/c_blk_wt_data_src_dec.dart';
-import '../../wavelet/synthesis/multi_res_img_data_adapter.dart';
-import '../../wavelet/synthesis/subband_syn.dart';
-import 'cblk_quant_data_src_dec.dart';
+import '../../decoder/DecoderSpecs.dart';
+import '../../image/CompTransfSpec.dart';
+import '../../image/DataBlk.dart';
+import '../../image/invcomptransf/InvCompTransf.dart';
+import '../../wavelet/synthesis/SynWtFilterSpec.dart';
+import '../../wavelet/synthesis/CBlkWtDataSrcDec.dart';
+import '../../wavelet/synthesis/MultiResImgDataAdapter.dart';
+import '../../wavelet/synthesis/SubbandSyn.dart';
+import 'CblkQuantDataSrcDec.dart';
 
 /// Base class for dequantizers operating on quantized wavelet code-blocks.
 abstract class Dequantizer extends MultiResImgDataAdapter
@@ -111,3 +111,4 @@ abstract class Dequantizer extends MultiResImgDataAdapter
     DataBlk? block,
   );
 }
+

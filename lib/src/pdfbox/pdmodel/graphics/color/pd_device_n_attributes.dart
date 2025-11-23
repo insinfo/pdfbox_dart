@@ -1,8 +1,10 @@
+import 'package:pdfbox_dart/src/pdfbox/pdmodel/graphics/color/pd_color_space.dart';
+
 import '../../../cos/cos_dictionary.dart';
 import '../../../cos/cos_name.dart';
 import '../../pd_resources.dart';
 
-import 'pd_color_space.dart';
+
 import 'pd_device_n_process.dart';
 import 'pd_separation.dart';
 
@@ -46,3 +48,4 @@ class PDDeviceNAttributes {
   @override
   String toString() => 'DeviceNAttributes{${_dictionary.toString()}}';
 }
+

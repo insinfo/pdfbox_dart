@@ -1,7 +1,9 @@
+import 'package:pdfbox_dart/src/pdfbox/pdmodel/graphics/color/pd_color_space.dart';
+
 import '../../../cos/cos_base.dart';
 import '../../../util/matrix.dart';
 import '../../graphics/color/pd_color.dart';
-import '../../graphics/color/pd_color_space.dart';
+
 import '../../graphics/color/pd_device_gray.dart';
 import '../../graphics/pd_line_dash_pattern.dart';
 import '../blend/blend_mode.dart';
@@ -92,3 +94,4 @@ class PDGraphicsState {
     softMask = mask;
   }
 }
+

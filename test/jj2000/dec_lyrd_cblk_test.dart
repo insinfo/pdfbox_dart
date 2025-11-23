@@ -1,4 +1,4 @@
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/entropy/decoder/dec_lyrd_cblk.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/entropy/decoder/DecLyrdCblk.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -49,3 +49,4 @@ void main() {
     });
   });
 }
+

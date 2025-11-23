@@ -1,8 +1,9 @@
 import 'package:image/image.dart' as img;
+import 'package:pdfbox_dart/src/pdfbox/pdmodel/graphics/color/pd_color_space.dart';
 
 import 'pd_color.dart';
 import 'pd_color_math.dart';
-import 'pd_color_space.dart';
+
 import 'pd_raster.dart';
 
 /// DeviceRGB colour space used by most PDF content streams.
@@ -52,3 +53,4 @@ class PDDeviceRGB extends PDDeviceColorSpace {
     return image;
   }
 }
+

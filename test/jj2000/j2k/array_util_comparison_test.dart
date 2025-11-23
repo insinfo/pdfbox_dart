@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:test/test.dart';
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/array_util.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/ArrayUtil.dart';
 
 void main() {
   group('ArrayUtil Comparison', () {
@@ -45,3 +45,4 @@ void main() {
     });
   });
 }
+

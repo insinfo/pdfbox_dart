@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/thread_pool.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/ThreadPool.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -53,3 +53,4 @@ void main() {
     });
   });
 }
+

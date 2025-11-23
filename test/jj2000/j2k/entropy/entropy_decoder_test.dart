@@ -1,25 +1,27 @@
 import 'dart:io';
 import 'dart:math' as math;
 
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/io/BeBufferedRandomAccessFile.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/StreamMsgLogger.dart';
 import 'package:test/test.dart';
 import 'package:path/path.dart' as p;
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/codestream/header_info.dart';
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/codestream/reader/bitstream_reader_agent.dart';
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/codestream/reader/header_decoder.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/codestream/HeaderInfo.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/codestream/reader/BitstreamReaderAgent.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/codestream/reader/HeaderDecoder.dart';
 import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/decoder/decoder.dart';
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/entropy/decoder/entropy_decoder.dart';
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/fileformat/file_format_reader.dart';
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/image/data_blk_int.dart';
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/io/be_buffered_random_access_file.dart';
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/io/random_access_io.dart';
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/decoder_instrumentation.dart';
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/facility_manager.dart';
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/parameter_list.dart';
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/stream_msg_logger.dart';
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/wavelet/synthesis/subband_syn.dart';
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/wavelet/synthesis/syn_wt_filter.dart';
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/wavelet/synthesis/syn_wt_filter_float_lift9x7.dart';
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/wavelet/synthesis/syn_wt_filter_int_lift5x3.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/entropy/decoder/EntropyDecoder.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/fileformat/FileFormatReader.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/image/DataBlkInt.dart';
+
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/io/RandomAccessIo.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/DecoderInstrumentation.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/FacilityManager.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/ParameterList.dart';
+
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/wavelet/synthesis/SubbandSyn.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/wavelet/synthesis/SynWtFilter.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/wavelet/synthesis/SynWtFilterFloatLift9x7.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/wavelet/synthesis/SynWtFilterIntLift5x3.dart';
 
 void main() {
   List<List<SynWTFilter>> createDefaultFilters(int decompositionLevels, bool reversible) {
@@ -61,13 +63,14 @@ void main() {
     }
   }
 
-  test('EntropyDecoder coefficients parity with java', skip: 'rainbowbars-color.jp2 must be present in repository root', () {
+  test('EntropyDecoder coefficients parity with java', () {
     final inputOverride = Platform.environment['JJ2000_INPUT'];
-    final input = File(inputOverride ?? 'rainbowbars-color.jp2');
+    final input = File(inputOverride ?? 'test_images/barras_rgb.jp2');
     expect(input.existsSync(), isTrue,
-        reason: '${input.path} must be present in repository root');
+        reason: '${input.path} must be present');
     final fixtureExpectations = _fixtureExpectations();
     final expectedCoeffs = fixtureExpectations[p.basename(input.path)];
+    expect(expectedCoeffs, isNotNull, reason: 'No expectations found for ${p.basename(input.path)}');
 
     final params = ParameterList();
     // Populate defaults
@@ -153,7 +156,7 @@ void main() {
           if (expected != null) {
             final actual = data.take(expected.length).toList();
             print('Comparison (m=$m,n=$n) => actual=$actual expected=$expected');
-            // expect(actual, equals(expected), reason: 'Mismatch in CodeBlock m=$m, n=$n');
+            expect(actual, equals(expected), reason: 'Mismatch in CodeBlock m=$m, n=$n');
           }
         } else {
           print('CodeBlock data is null');
@@ -174,7 +177,7 @@ void main() {
 
 Map<String, Map<String, List<int>>> _fixtureExpectations() {
   return {
-    'rainbowbars-color.jp2': {
+    'barras_rgb.jp2': {
       '0,0': [
         -2032795648,
         -2032795648,
@@ -269,3 +272,4 @@ Map<String, Map<String, List<int>>> _fixtureExpectations() {
     },
   };
 }
+

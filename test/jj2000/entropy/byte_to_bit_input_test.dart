@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 import 'package:test/test.dart';
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/entropy/decoder/byte_to_bit_input.dart';
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/entropy/decoder/byte_input_buffer.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/entropy/decoder/ByteToBitInput.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/entropy/decoder/ByteInputBuffer.dart';
 
 void main() {
   group('ByteToBitInput', () {
@@ -67,3 +67,4 @@ void main() {
     });
   });
 }
+

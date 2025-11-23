@@ -1,8 +1,8 @@
-import '../no_next_element_exception.dart';
-import 'blk_img_data_src.dart';
+import '../NoNextElementException.dart';
+import 'BlkImgDataSrc.dart';
 import 'coord.dart';
-import 'data_blk.dart';
-import 'img_data_adapter.dart';
+import 'DataBlk.dart';
+import 'ImgDataAdapter.dart';
 
 /// This class places an image in the canvas coordinate system, tiles it, if so
 /// specified, and performs the coordinate conversions transparently. The
@@ -500,3 +500,4 @@ class Tiler extends ImgDataAdapter implements BlkImgDataSrc {
     return "Tiler: source= $src\n${getNumTiles()} tile(s), nominal width=$xtsiz, nominal height=$ytsiz";
   }
 }
+

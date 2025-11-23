@@ -1,35 +1,43 @@
+import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
-import '../codestream/header_info.dart';
-import '../codestream/reader/bitstream_reader_agent.dart';
-import '../codestream/reader/header_decoder.dart';
-import '../entropy/decoder/entropy_decoder.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/DecoderDebugConfig.dart';
+
+import '../codestream/HeaderInfo.dart';
+import '../codestream/reader/BitstreamReaderAgent.dart';
+import '../codestream/reader/HeaderDecoder.dart';
+import '../entropy/decoder/EntropyDecoder.dart';
 import '../entropy/decoder/StdEntropyDecoder.dart';
-import '../fileformat/file_format_reader.dart';
-import '../io/be_buffered_random_access_file.dart';
-import '../io/random_access_io.dart';
-import '../quantization/dequantizer/std_dequantizer.dart';
-import '../roi/roi_de_scaler.dart';
-import '../util/decoder_instrumentation.dart';
-import '../util/facility_manager.dart';
-import '../util/msg_logger.dart';
-import '../util/parameter_list.dart';
-import '../util/string_format_exception.dart';
-import '../wavelet/synthesis/inverse_wt.dart';
-import '../wavelet/synthesis/syn_wt_filter_float_lift9x7.dart';
-import '../wavelet/synthesis/syn_wt_filter_int_lift5x3.dart';
-import '../wavelet/synthesis/syn_wt_filter.dart';
-import '../image/blk_img_data_src.dart';
-import '../image/img_data_converter.dart';
-import '../image/invcomptransf/inv_component_transformer.dart';
-import '../image/invcomptransf/inv_comp_transf.dart';
-import '../image/output/composite_img_writer.dart';
-import '../image/output/img_writer.dart';
-import '../image/output/img_writer_bmp.dart';
-import '../image/output/img_writer_pgm.dart';
-import '../image/output/img_writer_pgx.dart';
-import '../image/output/img_writer_ppm.dart';
-import 'decoder_specs.dart';
+import '../fileformat/FileFormatReader.dart';
+import '../io/BeBufferedRandomAccessFile.dart';
+import '../io/RandomAccessIo.dart';
+import '../quantization/dequantizer/StdDequantizer.dart';
+import '../roi/RoiDeScaler.dart';
+import '../util/DecoderInstrumentation.dart';
+
+import '../util/FacilityManager.dart';
+import '../util/MsgLogger.dart';
+import '../util/ParameterList.dart';
+import '../util/StringFormatException.dart';
+import '../wavelet/synthesis/InverseWt.dart';
+import '../wavelet/synthesis/SynWtFilterFloatLift9x7.dart';
+import '../wavelet/synthesis/SynWtFilterIntLift5x3.dart';
+import '../wavelet/synthesis/SynWtFilter.dart';
+import '../image/BlkImgDataSrc.dart';
+import '../image/DataBlk.dart';
+import '../image/DataBlkFloat.dart';
+import '../image/DataBlkInt.dart';
+import '../image/ImgDataConverter.dart';
+import '../image/invcomptransf/InvComponentTransformer.dart';
+import '../image/invcomptransf/InvCompTransf.dart';
+import '../image/output/CompositeImgWriter.dart';
+import '../image/output/ImgWriter.dart';
+import '../image/output/ImgWriterBmp.dart';
+import '../image/output/ImgWriterPgm.dart';
+import '../image/output/ImgWriterPgx.dart';
+import '../image/output/ImgWriterPpm.dart';
+import 'DecoderSpecs.dart';
 
 /// Minimal port of JJ2000's `Decoder` orchestration.
 ///
@@ -82,6 +90,14 @@ class Decoder implements Runnable {
   /// Optional inverse component transform stage (ICT/RCT).
   InvCompTransfImgDataSrc? componentTransformer;
   ImgDataConverter? writerDataConverter;
+  IOSink? _mqTraceSink;
+  TraceBlockFilter? _traceFilter;
+  String? _llSnapshotBasePath;
+  int _llSnapshotTileIndex = 0;
+  int _llSnapshotComponent = 0;
+  bool _captureLlPre = false;
+  bool _captureLlPost = false;
+  bool _llPostSnapshotWritten = false;
 
   /// Active codestream handle retained for downstream stages.
   RandomAccessIO? _codestream;
@@ -99,6 +115,42 @@ class Decoder implements Runnable {
     <String>['o', '<filename>', 'Output image filename.', ''],
     <String>['debug', '[on|off]', 'Print debugging stack traces.', 'off'],
     <String>['instrument', '[on|off]', 'Emits decoder instrumentation logs.', 'off'],
+    <String>[
+      'inst_block',
+      '<tile,comp,res,band,cblkY,cblkX>',
+      'Restricts instrumentation to a single code-block (use -1 as wildcard).',
+      '',
+    ],
+    <String>[
+      'inst_mq_log',
+      '<path>',
+      'Appends MQ trace dumps to <path> when instrumentation is enabled.',
+      '',
+    ],
+    <String>[
+      'inst_ll_dump',
+      '<path>',
+      'Writes LL band snapshots (JSON) using <path> as the filename prefix.',
+      '',
+    ],
+    <String>[
+      'inst_ll_tile_index',
+      '<index>',
+      'Tile index used for LL snapshots (default 0).',
+      '0',
+    ],
+    <String>[
+      'inst_ll_component',
+      '<index>',
+      'Component index used for LL snapshots (default 0).',
+      '0',
+    ],
+    <String>[
+      'inst_ll_stage',
+      '[pre|post|both]',
+      'Stage where LL snapshots are captured (StdDequantizer, InvWTFull, or both).',
+      'post',
+    ],
   ];
 
   static const List<int> vprfxs =
@@ -133,6 +185,10 @@ class Decoder implements Runnable {
     if (instrumentationEnabled) {
       DecoderInstrumentation.log('Decoder', 'Instrumentation enabled');
     }
+
+    _traceFilter = _parseTraceFilter(pl.getParameter('inst_block'));
+    _initialiseMqTraceSink(pl.getParameter('inst_mq_log'));
+    _configureLlSnapshotOptions();
 
     if (pl.getParameter('u') == 'on') {
       _printUsage();
@@ -248,6 +304,9 @@ class Decoder implements Runnable {
       }
 
       _initialiseCodestreamPipeline(file, decoder);
+      if (_captureLlPost && _llSnapshotBasePath != null) {
+        _capturePostLlSnapshot();
+      }
       _executeOutputStage();
     } finally {
       if (_codestream != null) {
@@ -296,6 +355,10 @@ class Decoder implements Runnable {
       MsgLogger.info,
       'Instantiated entropy decoder for ${decoder.getNumComps()} component(s).',
     );
+    entropyDecoder?.configureDebug(
+      traceFilter: _traceFilter,
+      mqTraceSink: _mqTraceSink == null ? null : (line) => _mqTraceSink!.writeln(line),
+    );
 
     final roiParams = _subsetParametersByPrefix(pl, ROIDeScaler.optionPrefix);
     roiDeScaler = decoder.createROIDeScaler(entropyDecoder!, roiParams);
@@ -314,6 +377,13 @@ class Decoder implements Runnable {
       MsgLogger.info,
       'Instantiated dequantizer using StdDequantizer.',
     );
+    if (_captureLlPre && _llSnapshotBasePath != null) {
+      dequantizer?.configureLlSnapshot(
+        tileIndex: _llSnapshotTileIndex,
+        component: _llSnapshotComponent,
+        onSnapshot: (snapshot) => _writeLlSnapshot(snapshot, suffix: 'pre'),
+      );
+    }
 
     inverseWT = InverseWT.createInstance(dequantizer!, decSpec!);
     _logger.printmsg(
@@ -613,10 +683,266 @@ class Decoder implements Runnable {
   /// Releases the codestream resources attached to this decoder.
   void dispose() {
     try {
+      _mqTraceSink?.close();
+    } finally {
+      _mqTraceSink = null;
+    }
+    try {
       _codestream?.close();
     } finally {
       _codestream = null;
     }
+  }
+
+  void _initialiseMqTraceSink(String? path) {
+    if (path == null || path.isEmpty) {
+      _mqTraceSink = null;
+      return;
+    }
+    try {
+      final file = File(path);
+      file.parent.createSync(recursive: true);
+      _mqTraceSink = file.openWrite(mode: FileMode.write)
+        ..writeln('# MQ trace generated ${DateTime.now().toUtc().toIso8601String()}');
+      _logger.printmsg(MsgLogger.info, 'Writing MQ traces to ${file.path}.');
+    } on IOException catch (error) {
+      _logger.printmsg(
+        MsgLogger.warning,
+        'Unable to open MQ trace log "$path": $error',
+      );
+      _mqTraceSink = null;
+    }
+  }
+
+  TraceBlockFilter? _parseTraceFilter(String? spec) {
+    if (spec == null || spec.trim().isEmpty) {
+      return null;
+    }
+    final parts = spec.split(',');
+    if (parts.length != 6) {
+      _logger.printmsg(
+        MsgLogger.warning,
+        'inst_block expects 6 comma-separated integers; received "$spec".',
+      );
+      return null;
+    }
+
+    int? parseToken(String token) {
+      final trimmed = token.trim();
+      if (trimmed.isEmpty || trimmed == '-1') {
+        return null;
+      }
+      final value = int.tryParse(trimmed);
+      if (value == null) {
+        _logger.printmsg(
+          MsgLogger.warning,
+          'Unable to parse inst_block token "$trimmed"; ignoring filter.',
+        );
+      }
+      return value;
+    }
+
+    final tileIndex = parseToken(parts[0]);
+    final component = parseToken(parts[1]);
+    final resLevel = parseToken(parts[2]);
+    final band = parseToken(parts[3]);
+    final cblkY = parseToken(parts[4]);
+    final cblkX = parseToken(parts[5]);
+    return TraceBlockFilter(
+      tileIndex: tileIndex,
+      component: component,
+      resolutionLevel: resLevel,
+      band: band,
+      cblkY: cblkY,
+      cblkX: cblkX,
+    );
+  }
+
+  void _configureLlSnapshotOptions() {
+    final base = pl.getParameter('inst_ll_dump');
+    if (base == null || base.isEmpty) {
+      _llSnapshotBasePath = null;
+      _captureLlPre = false;
+      _captureLlPost = false;
+      return;
+    }
+
+    _llSnapshotBasePath = base;
+    _llSnapshotTileIndex =
+        _parseIntOption(pl.getParameter('inst_ll_tile_index'), 0, 'inst_ll_tile_index');
+    _llSnapshotComponent =
+        _parseIntOption(pl.getParameter('inst_ll_component'), 0, 'inst_ll_component');
+
+    final stage = (pl.getParameter('inst_ll_stage') ?? 'post').toLowerCase();
+    switch (stage) {
+      case 'pre':
+        _captureLlPre = true;
+        _captureLlPost = false;
+        break;
+      case 'both':
+        _captureLlPre = true;
+        _captureLlPost = true;
+        break;
+      case 'post':
+      default:
+        _captureLlPre = false;
+        _captureLlPost = true;
+        break;
+    }
+
+    _logger.printmsg(
+      MsgLogger.info,
+      'LL snapshot capture configured (tileIndex=$_llSnapshotTileIndex, '
+      'component=$_llSnapshotComponent, stages=${_captureLlPre && _captureLlPost ? 'both' : (_captureLlPre ? 'pre' : 'post')}).',
+    );
+  }
+
+  int _parseIntOption(String? raw, int fallback, String optionName) {
+    if (raw == null || raw.isEmpty) {
+      return fallback;
+    }
+    final value = int.tryParse(raw);
+    if (value == null) {
+      _logger.printmsg(
+        MsgLogger.warning,
+        'Parameter "$optionName" expected an integer but received "$raw"; using $fallback.',
+      );
+      return fallback;
+    }
+    return value;
+  }
+
+  void _capturePostLlSnapshot() {
+    if (_llSnapshotBasePath == null || !_captureLlPost || _llPostSnapshotWritten) {
+      return;
+    }
+    final inv = inverseWT;
+    if (inv == null) {
+      _logger.printmsg(
+        MsgLogger.warning,
+        'Cannot capture LL snapshot: inverse wavelet transform not initialised.',
+      );
+      return;
+    }
+    final totalTiles = inv.getNumTiles();
+    if (_llSnapshotTileIndex < 0 || _llSnapshotTileIndex >= totalTiles) {
+      _logger.printmsg(
+        MsgLogger.warning,
+        'LL snapshot tile index $_llSnapshotTileIndex outside available tile range ($totalTiles).',
+      );
+      return;
+    }
+
+    final tilesCoord = inv.getNumTilesCoord(null);
+    final tilesX = tilesCoord.x <= 0 ? 1 : tilesCoord.x;
+    final tileX = _llSnapshotTileIndex % tilesX;
+    final tileY = _llSnapshotTileIndex ~/ tilesX;
+    inv.setTile(tileX, tileY);
+    final tileIdx = inv.getTileIdx();
+    final width = inv.getTileCompWidth(tileIdx, _llSnapshotComponent);
+    final height = inv.getTileCompHeight(tileIdx, _llSnapshotComponent);
+    if (width <= 0 || height <= 0) {
+      _logger.printmsg(
+        MsgLogger.warning,
+        'LL snapshot skipped: resolved tile has non-positive dimensions ($width x $height).',
+      );
+      return;
+    }
+
+    final reversible = inv.isReversible(tileIdx, _llSnapshotComponent);
+    final DataBlk block = reversible
+        ? DataBlkInt.withGeometry(0, 0, width, height)
+        : DataBlkFloat.withGeometry(0, 0, width, height);
+    final filled = inv.getCompData(block, _llSnapshotComponent);
+    final snapshot = _buildLlSnapshot(
+      filled,
+      tileIdx: tileIdx,
+      tileX: tileX,
+      tileY: tileY,
+    );
+    _writeLlSnapshot(snapshot, suffix: 'post');
+    _llPostSnapshotWritten = true;
+  }
+
+  Map<String, dynamic> _buildLlSnapshot(
+    DataBlk block, {
+    required int tileIdx,
+    required int tileX,
+    required int tileY,
+  }) {
+    final width = block.w;
+    final height = block.h;
+    final scanw = block.scanw == 0 ? width : block.scanw;
+    final offset = block.offset;
+    final data = block.getData();
+    final values = List<num>.filled(width * height, 0, growable: false);
+    var cursor = 0;
+
+    void copyList(List<num> source) {
+      for (var row = 0; row < height; row++) {
+        final base = offset + row * scanw;
+        for (var col = 0; col < width; col++) {
+          values[cursor++] = source[base + col];
+        }
+      }
+    }
+
+    if (data is Float32List) {
+      copyList(data); // Float32List implements List<num> via List<double>.
+    } else if (data is List<int>) {
+      for (var row = 0; row < height; row++) {
+        final base = offset + row * scanw;
+        for (var col = 0; col < width; col++) {
+          values[cursor++] = data[base + col];
+        }
+      }
+    } else if (data is List<double>) {
+      copyList(data);
+    } else {
+      _logger.printmsg(
+        MsgLogger.warning,
+        'Unknown LL snapshot buffer type ${data.runtimeType}; values may be empty.',
+      );
+    }
+
+    return <String, dynamic>{
+      'tileIndex': tileIdx,
+      'tileX': tileX,
+      'tileY': tileY,
+      'component': _llSnapshotComponent,
+      'width': width,
+      'height': height,
+      'dataType': block.getDataType() == DataBlk.typeFloat ? 'float' : 'int',
+      'values': values,
+    };
+  }
+
+  void _writeLlSnapshot(Map<String, dynamic> snapshot, {required String suffix}) {
+    final base = _llSnapshotBasePath;
+    if (base == null || base.isEmpty) {
+      return;
+    }
+    final path = _snapshotPathForSuffix(base, suffix);
+    try {
+      final file = File(path);
+      file.parent.createSync(recursive: true);
+      final encoder = const JsonEncoder.withIndent('  ');
+      file.writeAsStringSync(encoder.convert(snapshot));
+      _logger.printmsg(MsgLogger.info, 'Wrote LL $suffix snapshot to ${file.path}.');
+    } on IOException catch (error) {
+      _logger.printmsg(
+        MsgLogger.warning,
+        'Failed to write LL $suffix snapshot to "$path": $error',
+      );
+    }
+  }
+
+  String _snapshotPathForSuffix(String base, String suffix) {
+    if (base.toLowerCase().endsWith('.json')) {
+      final stem = base.substring(0, base.length - 5);
+      return '${stem}_$suffix.json';
+    }
+    return '${base}_$suffix.json';
   }
 
   void _printUsage() {
@@ -646,3 +972,4 @@ class Decoder implements Runnable {
 abstract class Runnable {
   void run();
 }
+

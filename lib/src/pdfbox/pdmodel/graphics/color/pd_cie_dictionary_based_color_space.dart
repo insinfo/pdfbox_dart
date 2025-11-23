@@ -1,3 +1,5 @@
+import 'package:pdfbox_dart/src/pdfbox/pdmodel/graphics/color/pd_color_space.dart';
+
 import '../../../cos/cos_array.dart';
 import '../../../cos/cos_base.dart';
 import '../../../cos/cos_dictionary.dart';
@@ -7,7 +9,7 @@ import '../../../cos/cos_number.dart';
 import '../../../cos/cos_object.dart';
 import '../../common/pd_range.dart';
 import 'pd_color_math.dart';
-import 'pd_color_space.dart';
+
 import 'pd_tristimulus.dart';
 
 /// Base class for CIE-based colour spaces backed by a dictionary.
@@ -121,3 +123,4 @@ abstract class PDCIEDictionaryBasedColorSpace extends PDColorSpace {
     return value;
   }
 }
+

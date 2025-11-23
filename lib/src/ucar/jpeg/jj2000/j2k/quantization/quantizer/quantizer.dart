@@ -1,9 +1,9 @@
-import '../../image/img_data_adapter.dart';
-import '../../wavelet/analysis/cblk_wt_data_src.dart';
-import '../../wavelet/analysis/subband_an.dart';
-import 'cblk_quant_data_src_enc.dart';
-import 'std_quantizer.dart';
-import '../../encoder/encoder_specs.dart';
+import '../../image/ImgDataAdapter.dart';
+import '../../wavelet/analysis/CblkWtDataSrc.dart';
+import '../../wavelet/analysis/SubbandAn.dart';
+import 'CblkQuantDataSrcEnc.dart';
+import 'StdQuantizer.dart';
+import '../../encoder/EncoderSpecs.dart';
 
 /// This abstract class provides the general interface for quantizers. The
 /// input of a quantizer is the output of a wavelet transform. The output of
@@ -211,3 +211,4 @@ abstract class Quantizer extends ImgDataAdapter implements CBlkQuantDataSrcEnc {
   /// current tile.
   int getMaxMagBits(int c);
 }
+

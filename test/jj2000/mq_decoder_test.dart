@@ -2,8 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/entropy/decoder/byte_input_buffer.dart';
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/entropy/decoder/mq_decoder.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/entropy/decoder/ByteInputBuffer.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/entropy/decoder/MqDecoder.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -71,3 +71,4 @@ Uint8List _bytesFromHex(String hex) {
   }
   return Uint8List.fromList(bytes);
 }
+

@@ -1,7 +1,7 @@
 import 'package:test/test.dart';
 
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/not_implemented_error.dart';
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/wavelet/wt_decomp_spec.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/NotImplementedError.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/wavelet/WtDecompSpec.dart';
 
 void main() {
   group('WTDecompSpec', () {
@@ -28,3 +28,4 @@ void main() {
     });
   });
 }
+

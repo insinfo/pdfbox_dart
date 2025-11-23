@@ -1,7 +1,9 @@
+import 'package:pdfbox_dart/src/pdfbox/pdmodel/graphics/color/pd_color_space.dart';
+
 import '../../../cos/cos_base.dart';
 import '../../../cos/cos_dictionary.dart';
 import '../../../cos/cos_name.dart';
-import '../color/pd_color_space.dart';
+
 
 /// Base wrapper for shading resources.
 class PDShading {
@@ -26,3 +28,4 @@ class PDShading {
   static PDShading create(COSDictionary dictionary, {dynamic resources}) =>
       PDShading(dictionary, resources: resources);
 }
+

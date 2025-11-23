@@ -1,9 +1,11 @@
+import 'package:pdfbox_dart/src/pdfbox/pdmodel/graphics/color/pd_cie_dictionary_based_color_space.dart';
+
 import '../../../cos/cos_array.dart';
 import '../../../cos/cos_dictionary.dart';
 import '../../../cos/cos_float.dart';
 import '../../../cos/cos_name.dart';
 import '../../common/pd_range.dart';
-import 'pd_cie_dictionary_based_color_space.dart';
+
 import 'pd_color.dart';
 
 class PDLab extends PDCIEDictionaryBasedColorSpace {
@@ -112,3 +114,4 @@ class PDLab extends PDCIEDictionaryBasedColorSpace {
     return range;
   }
 }
+

@@ -1,4 +1,6 @@
 import 'package:image/image.dart' as img;
+import 'package:pdfbox_dart/src/pdfbox/pdmodel/graphics/color/pd_indexed_color_space.dart';
+import 'package:pdfbox_dart/src/pdfbox/pdmodel/graphics/color/pd_pattern_color_space.dart';
 
 import '../../../cos/cos_array.dart';
 import '../../../cos/cos_base.dart';
@@ -16,9 +18,9 @@ import 'pd_device_gray.dart';
 import 'pd_device_n.dart';
 import 'pd_device_rgb.dart';
 import 'pd_icc_based.dart';
-import 'pd_indexed_color_space.dart';
+
 import 'pd_lab.dart';
-import 'pd_pattern_color_space.dart';
+
 import 'pd_raster.dart';
 import 'pd_separation.dart';
 
@@ -271,3 +273,4 @@ abstract class PDDeviceColorSpace extends PDColorSpace {
   @override
   String toString() => name;
 }
+

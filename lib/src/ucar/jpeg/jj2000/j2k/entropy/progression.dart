@@ -1,4 +1,4 @@
-import '../codestream/progression_type.dart';
+import '../codestream/ProgressionType.dart';
 
 /// Holds a single progression order segment definition for the codestream.
 class Progression {
@@ -34,3 +34,4 @@ class Progression {
     return 'type=$typeLabel, comp: $cs-$ce, res: $rs-$re, layer < $lye';
   }
 }
+

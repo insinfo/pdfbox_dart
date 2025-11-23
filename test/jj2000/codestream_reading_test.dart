@@ -1,9 +1,10 @@
 import 'dart:io';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/io/BeBufferedRandomAccessFile.dart';
 import 'package:test/test.dart';
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/codestream/reader/header_decoder.dart';
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/codestream/header_info.dart';
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/io/be_buffered_random_access_file.dart';
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/fileformat/file_format_reader.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/codestream/reader/HeaderDecoder.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/codestream/HeaderInfo.dart';
+
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/fileformat/FileFormatReader.dart';
 
 void main() {
   group('Codestream Reading Tests', () {
@@ -23,7 +24,9 @@ void dumpMarkers(String filename) {
     fail('File not found: $filename');
   }
 
+  /*
   print('--- Dumping markers for $filename ---');
+  */
   final input = BEBufferedRandomAccessFile.file(file, 'r');
   final headerInfo = HeaderInfo();
 
@@ -40,7 +43,7 @@ void dumpMarkers(String filename) {
     final siz = headerInfo.siz;
     expect(siz, isNotNull);
     if (siz != null) {
-      print('SIZ: w=${siz.xsiz} h=${siz.ysiz} tiles=${siz.xtsiz}x${siz.ytsiz} comps=${siz.csiz}');
+      // print('SIZ: w=${siz.xsiz} h=${siz.ysiz} tiles=${siz.xtsiz}x${siz.ytsiz} comps=${siz.csiz}');
       expect(siz.xsiz, greaterThan(0));
       expect(siz.ysiz, greaterThan(0));
       expect(siz.csiz, greaterThan(0));
@@ -49,14 +52,14 @@ void dumpMarkers(String filename) {
     final cod = headerInfo.cod['main'];
     expect(cod, isNotNull);
     if (cod != null) {
-      print('COD: len=${cod.lcod} order=${cod.sgcodPo} layers=${cod.sgcodNl} decomp=${cod.spcodNdl}');
+      // print('COD: len=${cod.lcod} order=${cod.sgcodPo} layers=${cod.sgcodNl} decomp=${cod.spcodNdl}');
       expect(cod.lcod, greaterThan(0));
     }
 
     final qcd = headerInfo.qcd['main'];
     expect(qcd, isNotNull);
     if (qcd != null) {
-      print('QCD: len=${qcd.lqcd} type=${qcd.sqcd & 0x1f} guard=${(qcd.sqcd >> 5) & 7}');
+      // print('QCD: len=${qcd.lqcd} type=${qcd.sqcd & 0x1f} guard=${(qcd.sqcd >> 5) & 7}');
       expect(qcd.lqcd, greaterThan(0));
     }
     
@@ -73,3 +76,4 @@ void dumpMarkers(String filename) {
     input.close();
   }
 }
+

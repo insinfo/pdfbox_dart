@@ -1,3 +1,5 @@
+import 'package:pdfbox_dart/src/pdfbox/pdmodel/graphics/color/pd_color_space.dart';
+
 import '../../../cos/cos_array.dart';
 import '../../../cos/cos_base.dart';
 import '../../../cos/cos_name.dart';
@@ -5,7 +7,7 @@ import '../../../cos/cos_object.dart';
 import '../../../cos/cos_stream.dart';
 import '../../pd_resources.dart';
 import 'pd_color.dart';
-import 'pd_color_space.dart';
+
 import 'pd_device_cmyk.dart';
 import 'pd_device_gray.dart';
 import 'pd_device_rgb.dart';
@@ -102,3 +104,4 @@ class PDICCBased extends PDColorSpace {
     }
   }
 }
+

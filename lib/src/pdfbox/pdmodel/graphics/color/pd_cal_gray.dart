@@ -1,10 +1,12 @@
 import 'dart:math' as math;
 
+import 'package:pdfbox_dart/src/pdfbox/pdmodel/graphics/color/pd_cie_dictionary_based_color_space.dart';
+
 import '../../../cos/cos_array.dart';
 import '../../../cos/cos_dictionary.dart';
 import '../../../cos/cos_float.dart';
 import '../../../cos/cos_name.dart';
-import 'pd_cie_dictionary_based_color_space.dart';
+
 import 'pd_color.dart';
 
 class PDCalGray extends PDCIEDictionaryBasedColorSpace {
@@ -62,3 +64,4 @@ class PDCalGray extends PDCIEDictionaryBasedColorSpace {
     return array;
   }
 }
+
