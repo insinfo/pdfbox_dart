@@ -1,4 +1,4 @@
-import 'IccProfile.dart';
+import 'ICCProfile.dart';
 import '../colorspace/ColorSpace.dart';
 
 /// This class enables an application to construct an 3 component ICCProfile

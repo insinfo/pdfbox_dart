@@ -1,8 +1,8 @@
 import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/decoder/DecoderSpecs.dart';
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/entropy/decoder/CodedCblkDataSrcDec.dart';
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/entropy/decoder/DecLyrdCblk.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/entropy/decoder/CodedCBlkDataSrcDec.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/entropy/decoder/DecLyrdCBlk.dart';
 import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/entropy/decoder/StdEntropyDecoder.dart';
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/image/coord.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/image/Coord.dart';
 
 import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/image/DataBlkInt.dart';
 import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/wavelet/subband.dart';
@@ -177,4 +177,5 @@ class _StubCodedCBlkDataSrcDec implements CodedCBlkDataSrcDec {
     }
   }
 }
+
 

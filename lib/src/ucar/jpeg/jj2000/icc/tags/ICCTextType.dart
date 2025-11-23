@@ -1,6 +1,6 @@
 import 'dart:typed_data';
-import '../IccProfile.dart';
-import 'IccTag.dart';
+import '../ICCProfile.dart';
+import 'ICCTag.dart';
 
 /// A text based ICC tag
 class ICCTextType extends ICCTag {

@@ -3,9 +3,9 @@ import '../../image/BlkImgDataSrc.dart';
 import '../../image/ImgData.dart';
 import '../../image/ImgDataAdapter.dart';
 import '../../util/ParameterList.dart';
-import 'CblkWtDataSrc.dart';
-import 'ForwWt.dart';
-import 'ForwWtFull.dart';
+import 'CBlkWTDataSrc.dart';
+import 'ForwWT.dart';
+import 'ForwWTFull.dart';
 
 /// This abstract class represents the forward wavelet transform functional
 /// block. The functional block may actually be comprised of several classes
@@ -126,4 +126,5 @@ abstract class ForwardWT extends ImgDataAdapter
     return ForwWTFull(src, encSpec, cb0x, cb0y);
   }
 }
+
 

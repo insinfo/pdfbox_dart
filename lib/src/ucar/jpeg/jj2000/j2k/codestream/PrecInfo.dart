@@ -1,6 +1,6 @@
 
 
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/codestream/CblkCoordInfo.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/codestream/CBlkCoordInfo.dart';
 
 /// Holds precinct coordinates and code-block references for each subband.
 class PrecInfo {
@@ -37,4 +37,5 @@ class PrecInfo {
   String toString() =>
       'ulx=$ulx,uly=$uly,w=$w,h=$h,rgulx=$rgulx,rguly=$rguly,rgw=$rgw,rgh=$rgh';
 }
+
 

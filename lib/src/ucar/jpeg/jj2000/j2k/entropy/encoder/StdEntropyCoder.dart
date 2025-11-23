@@ -1,18 +1,18 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
-import '../../image/coord.dart';
+import '../../image/Coord.dart';
 import '../../util/ArrayUtil.dart';
 import '../../util/FacilityManager.dart';
 import '../../util/MsgLogger.dart';
 import '../../StringSpec.dart';
-import '../../quantization/quantizer/CblkQuantDataSrcEnc.dart';
+import '../../quantization/quantizer/CBlkQuantDataSrcEnc.dart';
 import '../../ModuleSpec.dart';
-import '../CblkSizeSpec.dart';
+import '../CBlkSizeSpec.dart';
 import '../PrecinctSizeSpec.dart';
-import '../../wavelet/analysis/CblkWtData.dart';
+import '../../wavelet/analysis/CBlkWTData.dart';
 import '../../wavelet/subband.dart';
-import 'CblkRateDistStats.dart';
+import 'CBlkRateDistStats.dart';
 import 'EntropyCoder.dart';
 import 'MqCoder.dart';
 import 'BitToByteOutput.dart';
@@ -2246,4 +2246,5 @@ class StdEntropyCoder extends EntropyCoder {
     return precinctPartition[c][t];
   }
 }
+
 

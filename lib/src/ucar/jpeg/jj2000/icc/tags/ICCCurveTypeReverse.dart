@@ -1,7 +1,7 @@
 import 'dart:typed_data';
-import '../IccProfile.dart';
-import 'IccTag.dart';
-import 'IccCurveType.dart';
+import '../ICCProfile.dart';
+import 'ICCTag.dart';
+import 'ICCCurveType.dart';
 
 /// The ICCCurveReverse tag
 class ICCCurveTypeReverse extends ICCTag {

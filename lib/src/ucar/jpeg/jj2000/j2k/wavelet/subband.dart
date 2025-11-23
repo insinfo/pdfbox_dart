@@ -1,4 +1,4 @@
-import '../image/coord.dart';
+import '../image/Coord.dart';
 import 'WaveletFilter.dart';
 
 /// Represents a node or leaf in the JJ2000 wavelet subband decomposition tree.

@@ -1,11 +1,11 @@
 import 'dart:typed_data';
-import '../RestrictedIccProfile.dart';
-import '../IccProfile.dart';
-import '../tags/IccXyzType.dart';
+import '../RestrictedICCProfile.dart';
+import '../ICCProfile.dart';
+import '../tags/ICCXYZType.dart';
 import '../../j2k/image/DataBlkInt.dart';
 import '../../j2k/image/DataBlkFloat.dart';
-import 'LookUpTableFp.dart';
-import 'LookUpTable32LinearSrgbToSrgb.dart';
+import 'LookUpTableFP.dart';
+import 'LookUpTable32LinearSRGBtoSRGB.dart';
 import '../../colorspace/ColorSpace.dart';
 
 /// Transform for applying ICCProfiling to an input DataBlk
@@ -109,14 +109,14 @@ class MatrixBasedTransformTosRGB {
   /// only one component is returned, the transformation must be done for all
   /// components, because the matrix application involves a linear combination of
   /// component input to produce the output.
-  ///   @param ricc input profile
+  ///   @param rICC input profile
   ///   @param dwMaxValue clipping value for output.
   ///   @param dwMaxCols number of columns to transform
   ///   @param dwMaxRows number of rows to transform
   MatrixBasedTransformTosRGB(
-      RestrictedICCProfile ricc, List<int> dwMaxValue, List<int> dwShiftValue) {
+      RestrictedICCProfile rICC, List<int> dwMaxValue, List<int> dwShiftValue) {
     // Assure the proper type profile for this xform.
-    if (ricc.getType() != RestrictedICCProfile.kThreeCompInput)
+    if (rICC.getType() != RestrictedICCProfile.kThreeCompInput)
       throw ArgumentError(
           "MatrixBasedTransformTosRGB: wrong type ICCProfile supplied");
 
@@ -127,11 +127,11 @@ class MatrixBasedTransformTosRGB {
     // Create the LUTFP from the input profile.
     for (c = 0; c < 3; ++c) {
       fLut[c] =
-          LookUpTableFP.createInstance(ricc.trc[c], dwMaxValue[c] + 1);
+          LookUpTableFP.createInstance(rICC.trc[c], dwMaxValue[c] + 1);
     }
 
     // Create the Input linear to PCS matrix
-    matrix = createMatrix(ricc, this.dwMaxValue); // Create and matrix from the ICC profile.
+    matrix = createMatrix(rICC, this.dwMaxValue); // Create and matrix from the ICC profile.
 
     // Create the final LUT32
     lut = LookUpTable32LinearSRGBtoSRGB.createInstance(
@@ -144,17 +144,17 @@ class MatrixBasedTransformTosRGB {
         ksRGBReduceAfterExp);
   }
 
-  Float64List createMatrix(RestrictedICCProfile ricc, Int32List maxValues) {
+  Float64List createMatrix(RestrictedICCProfile rICC, Int32List maxValues) {
     // Coefficients from the input linear to PCS matrix
-    double dfPCS00 = ICCXYZType.xyzToDouble(ricc.colorant![RED]!.x);
-    double dfPCS01 = ICCXYZType.xyzToDouble(ricc.colorant![GREEN]!.x);
-    double dfPCS02 = ICCXYZType.xyzToDouble(ricc.colorant![BLUE]!.x);
-    double dfPCS10 = ICCXYZType.xyzToDouble(ricc.colorant![RED]!.y);
-    double dfPCS11 = ICCXYZType.xyzToDouble(ricc.colorant![GREEN]!.y);
-    double dfPCS12 = ICCXYZType.xyzToDouble(ricc.colorant![BLUE]!.y);
-    double dfPCS20 = ICCXYZType.xyzToDouble(ricc.colorant![RED]!.z);
-    double dfPCS21 = ICCXYZType.xyzToDouble(ricc.colorant![GREEN]!.z);
-    double dfPCS22 = ICCXYZType.xyzToDouble(ricc.colorant![BLUE]!.z);
+    double dfPCS00 = ICCXYZType.xyzToDouble(rICC.colorant![RED]!.x);
+    double dfPCS01 = ICCXYZType.xyzToDouble(rICC.colorant![GREEN]!.x);
+    double dfPCS02 = ICCXYZType.xyzToDouble(rICC.colorant![BLUE]!.x);
+    double dfPCS10 = ICCXYZType.xyzToDouble(rICC.colorant![RED]!.y);
+    double dfPCS11 = ICCXYZType.xyzToDouble(rICC.colorant![GREEN]!.y);
+    double dfPCS12 = ICCXYZType.xyzToDouble(rICC.colorant![BLUE]!.y);
+    double dfPCS20 = ICCXYZType.xyzToDouble(rICC.colorant![RED]!.z);
+    double dfPCS21 = ICCXYZType.xyzToDouble(rICC.colorant![GREEN]!.z);
+    double dfPCS22 = ICCXYZType.xyzToDouble(rICC.colorant![BLUE]!.z);
 
     Float64List matrix = Float64List(9);
     matrix[M00] = maxValues[0] *

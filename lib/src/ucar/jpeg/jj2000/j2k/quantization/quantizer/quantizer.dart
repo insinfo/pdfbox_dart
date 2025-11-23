@@ -1,7 +1,7 @@
 import '../../image/ImgDataAdapter.dart';
-import '../../wavelet/analysis/CblkWtDataSrc.dart';
+import '../../wavelet/analysis/CBlkWTDataSrc.dart';
 import '../../wavelet/analysis/SubbandAn.dart';
-import 'CblkQuantDataSrcEnc.dart';
+import 'CBlkQuantDataSrcEnc.dart';
 import 'StdQuantizer.dart';
 import '../../encoder/EncoderSpecs.dart';
 
@@ -211,4 +211,5 @@ abstract class Quantizer extends ImgDataAdapter implements CBlkQuantDataSrcEnc {
   /// current tile.
   int getMaxMagBits(int c);
 }
+
 

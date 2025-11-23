@@ -1,17 +1,17 @@
 import 'dart:typed_data';
 
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/codestream/CblkCoordInfo.dart';
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/IsRandomAccessIo.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/codestream/CBlkCoordInfo.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/ISRandomAccessIO.dart';
 import 'package:test/test.dart';
 
 
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/codestream/reader/CblkInfo.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/codestream/reader/CBlkInfo.dart';
 import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/codestream/reader/HeaderDecoder.dart';
 import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/codestream/reader/BitstreamReaderAgent.dart';
 import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/codestream/HeaderInfo.dart';
 import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/decoder/DecoderSpecs.dart';
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/entropy/decoder/DecLyrdCblk.dart';
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/image/coord.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/entropy/decoder/DecLyrdCBlk.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/image/Coord.dart';
 
 import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/wavelet/synthesis/SubbandSyn.dart';
 
@@ -107,4 +107,5 @@ void main() {
     });
   });
 }
+
 

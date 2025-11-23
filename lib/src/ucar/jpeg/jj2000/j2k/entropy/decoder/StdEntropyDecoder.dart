@@ -16,8 +16,8 @@ import '../../wavelet/synthesis/SubbandSyn.dart';
 import '../StdEntropyCoderOptions.dart';
 import 'ByteInputBuffer.dart';
 import 'ByteToBitInput.dart';
-import 'CodedCblkDataSrcDec.dart';
-import 'DecLyrdCblk.dart';
+import 'CodedCBlkDataSrcDec.dart';
+import 'DecLyrdCBlk.dart';
 import 'EntropyDecoder.dart';
 import 'MqDecoder.dart';
 
@@ -2207,4 +2207,5 @@ class StdEntropyDecoder extends EntropyDecoder {
     return error;
   }
 }
+
 

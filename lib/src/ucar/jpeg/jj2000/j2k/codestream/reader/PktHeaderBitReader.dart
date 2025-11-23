@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
 import '../../io/exceptions.dart';
-import '../../io/RandomAccessIo.dart';
+import '../../io/RandomAccessIO.dart';
 
 /// Bit-level reader for JPEG 2000 packet headers with support for bit
 /// unstuffing.

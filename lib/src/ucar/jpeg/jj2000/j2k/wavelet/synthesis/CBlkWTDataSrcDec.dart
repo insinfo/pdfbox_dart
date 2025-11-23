@@ -1,5 +1,5 @@
 import '../../image/DataBlk.dart';
-import 'InvWtData.dart';
+import 'InvWTData.dart';
 import 'SubbandSyn.dart';
 
 /// Decoder-side access to wavelet coefficient code-blocks.

@@ -1,7 +1,7 @@
-import 'IccProfileException.dart';
+import 'ICCProfileException.dart';
 
 class ICCProfileInvalidException extends ICCProfileException {
   ICCProfileInvalidException([String? message])
-      : super(message ?? "icc profile is invalid");
+      : super(message ?? "ICC profile is invalid");
 }
 

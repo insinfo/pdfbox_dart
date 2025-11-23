@@ -1,5 +1,5 @@
 import '../codestream/markers.dart';
-import '../io/RandomAccessIo.dart';
+import '../io/RandomAccessIO.dart';
 import '../util/FacilityManager.dart';
 import '../util/MsgLogger.dart';
 import 'FileFormatBoxes.dart';

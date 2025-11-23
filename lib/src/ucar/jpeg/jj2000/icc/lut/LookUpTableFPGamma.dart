@@ -1,6 +1,6 @@
 import 'dart:math';
-import '../tags/IccCurveType.dart';
-import 'LookUpTableFp.dart';
+import '../tags/ICCCurveType.dart';
+import 'LookUpTableFP.dart';
 
 /// Class Description
 class LookUpTableFPGamma extends LookUpTableFP {

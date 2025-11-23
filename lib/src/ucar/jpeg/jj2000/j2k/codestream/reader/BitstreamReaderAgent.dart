@@ -2,18 +2,18 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:meta/meta.dart';
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/codestream/CblkCoordInfo.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/codestream/CBlkCoordInfo.dart';
 
 import '../../codestream/HeaderInfo.dart';
-import '../../codestream/markers.dart';
+import '../../codestream/Markers.dart';
 import '../../codestream/PrecInfo.dart';
 import '../../codestream/ProgressionType.dart';
 import '../../decoder/DecoderSpecs.dart';
-import '../../entropy/decoder/CodedCblkDataSrcDec.dart';
-import '../../entropy/decoder/DecLyrdCblk.dart';
+import '../../entropy/decoder/CodedCBlkDataSrcDec.dart';
+import '../../entropy/decoder/DecLyrdCBlk.dart';
 import '../../entropy/StdEntropyCoderOptions.dart';
-import '../../image/coord.dart';
-import '../../io/RandomAccessIo.dart';
+import '../../image/Coord.dart';
+import '../../io/RandomAccessIO.dart';
 import '../../io/exceptions.dart';
 import '../../ModuleSpec.dart';
 import '../../quantization/dequantizer/StdDequantizerParams.dart';
@@ -23,15 +23,16 @@ import '../../util/FacilityManager.dart';
 import '../../util/MathUtil.dart';
 import '../../util/MsgLogger.dart';
 import '../../util/ParameterList.dart';
-import '../../wavelet/subband.dart';
+import '../../wavelet/Subband.dart';
 import '../../wavelet/synthesis/SubbandSyn.dart';
 import '../../wavelet/WaveletFilter.dart';
 import 'HeaderDecoder.dart';
 
 import 'PktHeaderBitReader.dart';
 import 'TagTreeDecoder.dart';
-import 'CblkInfo.dart';
+import 'CBlkInfo.dart';
 
+part 'FileBitstreamReaderAgent.dart';
 part 'PktDecoder.dart';
 
 
@@ -437,4 +438,5 @@ abstract class BitstreamReaderAgent extends CodedCBlkDataSrcDec {
     return value ~/ divisor;
   }
 }
+
 

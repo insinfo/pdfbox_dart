@@ -1,5 +1,5 @@
-import 'RestrictedIccProfile.dart';
-import 'tags/IccCurveType.dart';
+import 'RestrictedICCProfile.dart';
+import 'tags/ICCCurveType.dart';
 
 /// This class is a 1 component RestrictedICCProfile
 class MonochromeInputRestrictedProfile extends RestrictedICCProfile {

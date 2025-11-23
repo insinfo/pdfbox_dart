@@ -1,12 +1,12 @@
 import 'dart:typed_data';
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/codestream/CblkCoordInfo.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/codestream/CBlkCoordInfo.dart';
 
-import '../../entropy/encoder/CodedCblkDataSrcEnc.dart';
+import '../../entropy/encoder/CodedCBlkDataSrcEnc.dart';
 import '../../encoder/EncoderSpecs.dart';
-import '../../image/coord.dart';
+import '../../image/Coord.dart';
 import '../../util/ParameterList.dart';
 import '../../codestream/PrecInfo.dart';
-import '../../entropy/encoder/CblkRateDistStats.dart';
+import '../../entropy/encoder/CBlkRateDistStats.dart';
 import '../../wavelet/analysis/SubbandAn.dart';
 import '../../util/MathUtil.dart';
 import '../../util/ArrayUtil.dart';
@@ -1044,4 +1044,5 @@ class PktEncoder {
     return ppinfo[t][c][r][p];
   }
 }
+
 

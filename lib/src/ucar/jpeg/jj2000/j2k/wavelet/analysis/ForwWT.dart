@@ -1,6 +1,6 @@
 import '../WaveletTransform.dart';
 import 'AnWtFilter.dart';
-import 'ForwWtDataProps.dart';
+import 'ForwWTDataProps.dart';
 
 /// This interface extends the WaveletTransform with the specifics of forward
 /// wavelet transforms. Classes that implement forward wavelet transfoms should

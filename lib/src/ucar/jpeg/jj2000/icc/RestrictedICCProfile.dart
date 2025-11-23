@@ -1,6 +1,6 @@
-import 'IccProfile.dart';
-import 'tags/IccCurveType.dart';
-import 'tags/IccXyzType.dart';
+import 'ICCProfile.dart';
+import 'tags/ICCCurveType.dart';
+import 'tags/ICCXYZType.dart';
 import 'MatrixBasedRestrictedProfile.dart';
 import 'MonochromeInputRestrictedProfile.dart';
 

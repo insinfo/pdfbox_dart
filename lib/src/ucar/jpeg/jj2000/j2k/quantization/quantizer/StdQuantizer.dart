@@ -3,16 +3,16 @@ import 'dart:typed_data';
 
 import '../../encoder/EncoderSpecs.dart';
 import '../../image/DataBlk.dart';
-import '../../wavelet/analysis/CblkWtData.dart';
-import '../../wavelet/analysis/CblkWtDataFloat.dart';
-import '../../wavelet/analysis/CblkWtDataInt.dart';
-import '../../wavelet/analysis/CblkWtDataSrc.dart';
+import '../../wavelet/analysis/CBlkWTData.dart';
+import '../../wavelet/analysis/CBlkWTDataFloat.dart';
+import '../../wavelet/analysis/CBlkWTDataInt.dart';
+import '../../wavelet/analysis/CBlkWTDataSrc.dart';
 import '../../wavelet/analysis/SubbandAn.dart';
 import '../../wavelet/subband.dart';
 import '../GuardBitsSpec.dart';
 import '../QuantStepSizeSpec.dart';
 import '../QuantTypeSpec.dart';
-import 'quantizer.dart';
+import 'Quantizer.dart';
 
 /// This class implements scalar quantization of integer or floating-point
 /// valued source data. The source data is the wavelet transformed image data
@@ -582,4 +582,5 @@ class StdQuantizer extends Quantizer {
     return max;
   }
 }
+
 

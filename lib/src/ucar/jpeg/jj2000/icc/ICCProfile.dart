@@ -1,13 +1,13 @@
 import 'dart:typed_data';
 import 'types/XyzNumber.dart';
-import 'types/IccProfileVersion.dart';
-import 'types/IccDateTime.dart';
-import 'types/IccProfileHeader.dart';
-import 'tags/IccTagTable.dart';
-import 'tags/IccCurveType.dart';
-import 'tags/IccXyzType.dart';
-import 'RestrictedIccProfile.dart';
-import 'IccProfileInvalidException.dart';
+import 'types/ICCProfileVersion.dart';
+import 'types/ICCDateTime.dart';
+import 'types/ICCProfileHeader.dart';
+import 'tags/ICCTagTable.dart';
+import 'tags/ICCCurveType.dart';
+import 'tags/ICCXYZType.dart';
+import 'RestrictedICCProfile.dart';
+import 'ICCProfileInvalidException.dart';
 import '../colorspace/ColorSpace.dart';
 import '../j2k/util/ParameterList.dart';
 import '../j2k/util/FacilityManager.dart';
@@ -455,7 +455,7 @@ abstract class ICCProfile {
     header = ICCProfileHeader.fromData(data);
     tags = ICCTagTable.createInstance(data);
 
-    // Verify that the data pointed to by icc is indeed a valid profile
+    // Verify that the data pointed to by ICC is indeed a valid profile
     // and that it is possibly of one of the Restricted ICC types. The simplest way to check
     // this is to verify that the profile signature is correct, that it is an input profile,
     // and that the PCS used is XYX.

@@ -1,4 +1,4 @@
-import '../IccProfile.dart';
+import '../ICCProfile.dart';
 
 class XYZNumber {
   static const int size = 3 * ICCProfile.int_size;

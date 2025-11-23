@@ -1,4 +1,4 @@
-import '../image/coord.dart';
+import '../image/Coord.dart';
 import 'CoordInfo.dart';
 
 /// Coordinates of a code-block within a subband.

@@ -1,10 +1,10 @@
 import 'dart:math';
 import 'dart:typed_data';
-import '../RestrictedIccProfile.dart';
-import '../IccProfile.dart';
+import '../RestrictedICCProfile.dart';
+import '../ICCProfile.dart';
 import '../../j2k/image/DataBlkInt.dart';
 import '../../j2k/image/DataBlkFloat.dart';
-import 'LookUpTableFp.dart';
+import 'LookUpTableFP.dart';
 import '../../colorspace/ColorSpace.dart';
 
 /// This class constructs a LookUpTableFP from a RestrictedICCProfile.
@@ -66,19 +66,19 @@ class MonochromeTransformTosRGB {
 
   /// Construct the lut from the RestrictedICCProfile.
   ///
-  ///   @param ricc input RestrictedICCProfile
+  ///   @param rICC input RestrictedICCProfile
   ///   @param dwInputMaxValue size of the output lut.
   ///   @param dwInputShiftValue value used to shift samples to positive
-  MonochromeTransformTosRGB(RestrictedICCProfile ricc, int dwInputMaxValue,
+  MonochromeTransformTosRGB(RestrictedICCProfile rICC, int dwInputMaxValue,
       int dwInputShiftValue) {
-    if (ricc.getType() != RestrictedICCProfile.kMonochromeInput)
+    if (rICC.getType() != RestrictedICCProfile.kMonochromeInput)
       throw ArgumentError(
           "MonochromeTransformTosRGB: wrong type ICCProfile supplied");
 
     this.dwInputMaxValue = dwInputMaxValue;
     lut = Int16List(dwInputMaxValue + 1);
     fLut = LookUpTableFP.createInstance(
-        ricc.trc[ICCProfile.GRAY], dwInputMaxValue + 1);
+        rICC.trc[ICCProfile.GRAY], dwInputMaxValue + 1);
 
     // First calculate the value for the shadow region
     int i;

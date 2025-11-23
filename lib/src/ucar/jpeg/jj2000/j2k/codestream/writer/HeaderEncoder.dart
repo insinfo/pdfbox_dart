@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'dart:typed_data';
 
-import '../../wavelet/analysis/ForwardWt.dart';
+import '../../wavelet/analysis/ForwardWT.dart';
 import '../../entropy/encoder/PostCompRateAllocator.dart';
 import '../../roi/encoder/RoiScaler.dart';
 import '../../encoder/EncoderSpecs.dart';
@@ -19,7 +19,7 @@ import '../../quantization/quantizer/StdQuantizer.dart';
 
 import '../../entropy/progression.dart';
 import '../../ModuleSpec.dart';
-import '../../image/coord.dart';
+import '../../image/Coord.dart';
 
 /// This class writes almost of the markers and marker segments in main header
 /// and in tile-part headers.

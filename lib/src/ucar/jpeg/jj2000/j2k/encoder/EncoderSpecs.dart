@@ -1,4 +1,4 @@
-import '../entropy/CblkSizeSpec.dart';
+import '../entropy/CBlkSizeSpec.dart';
 import '../entropy/PrecinctSizeSpec.dart';
 import '../entropy/ProgressionSpec.dart';
 import '../image/BlkImgDataSrc.dart';
@@ -8,7 +8,7 @@ import '../ModuleSpec.dart';
 import '../quantization/GuardBitsSpec.dart';
 import '../quantization/QuantStepSizeSpec.dart';
 import '../quantization/QuantTypeSpec.dart';
-import '../quantization/quantizer/quantizer.dart';
+import '../quantization/quantizer/Quantizer.dart';
 import '../roi/MaxShiftSpec.dart';
 import '../StringSpec.dart';
 import '../util/ParameterList.dart';
@@ -151,4 +151,5 @@ class EncoderSpecs {
     pocs = ProgressionSpec.fromParameters(nTiles, nComp, numLayers, dls, pl);
   }
 }
+
 

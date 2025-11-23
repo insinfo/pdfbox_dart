@@ -1,6 +1,6 @@
 import 'dart:collection';
 
-import 'image/coord.dart';
+import 'image/Coord.dart';
 
 /// Generic container for tile/component module specifications.
 class ModuleSpec<T> {

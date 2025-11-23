@@ -1,5 +1,5 @@
 import '../BlkImgDataSrc.dart';
-import '../coord.dart';
+import '../Coord.dart';
 
 /// Base class for image writers that emit decoded samples to files or streams.
 abstract class ImgWriter {

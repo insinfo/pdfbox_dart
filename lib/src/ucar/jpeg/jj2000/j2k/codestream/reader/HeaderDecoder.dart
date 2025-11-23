@@ -2,15 +2,15 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import '../../decoder/DecoderSpecs.dart';
-import '../../entropy/decoder/CodedCblkDataSrcDec.dart';
+import '../../entropy/decoder/CodedCBlkDataSrcDec.dart';
 import '../../entropy/decoder/EntropyDecoder.dart';
 import '../../entropy/decoder/StdEntropyDecoder.dart';
-import '../../image/coord.dart';
+import '../../image/Coord.dart';
 import '../../image/invcomptransf/InvCompTransf.dart';
-import '../../io/RandomAccessIo.dart';
+import '../../io/RandomAccessIO.dart';
 import '../../quantization/dequantizer/StdDequantizer.dart';
 import '../../quantization/dequantizer/StdDequantizerParams.dart';
-import '../../quantization/dequantizer/CblkQuantDataSrcDec.dart';
+import '../../quantization/dequantizer/CBlkQuantDataSrcDec.dart';
 import '../../roi/RoiDeScaler.dart';
 import '../../util/DecoderInstrumentation.dart';
 import '../../util/FacilityManager.dart';
@@ -1984,4 +1984,5 @@ class HeaderDecoder {
     return entries.isEmpty ? 'none' : entries.join(' ');
   }
 }
+
 

@@ -1,7 +1,7 @@
-import '../../quantization/dequantizer/CblkQuantDataSrcDec.dart';
+import '../../quantization/dequantizer/CBlkQuantDataSrcDec.dart';
 import '../../wavelet/synthesis/MultiResImgDataAdapter.dart';
 import '../../wavelet/synthesis/SubbandSyn.dart';
-import 'CodedCblkDataSrcDec.dart';
+import 'CodedCBlkDataSrcDec.dart';
 
 /// Base class for entropy decoders that exposes the [CBlkQuantDataSrcDec]
 /// contract while delegating resolution metadata to an upstream source.
@@ -44,4 +44,5 @@ abstract class EntropyDecoder extends MultiResImgDataAdapter
   @override
   int getCbULY() => src.getCbULY();
 }
+
 

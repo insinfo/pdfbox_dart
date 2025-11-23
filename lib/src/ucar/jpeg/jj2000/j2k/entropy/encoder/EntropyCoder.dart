@@ -1,12 +1,12 @@
-import '../../quantization/quantizer/CblkQuantDataSrcEnc.dart';
+import '../../quantization/quantizer/CBlkQuantDataSrcEnc.dart';
 import '../../wavelet/analysis/SubbandAn.dart';
 import '../StdEntropyCoderOptions.dart';
 import '../../image/ImgDataAdapter.dart';
 import '../../util/ParameterList.dart';
-import '../CblkSizeSpec.dart';
+import '../CBlkSizeSpec.dart';
 import '../PrecinctSizeSpec.dart';
 import '../../StringSpec.dart';
-import 'CodedCblkDataSrcEnc.dart';
+import 'CodedCBlkDataSrcEnc.dart';
 
 /// This abstract class provides the general interface for block-based entropy
 /// encoders. The input to the entropy coder is the quantized wavelet
@@ -284,4 +284,5 @@ abstract class EntropyCoder extends ImgDataAdapter
     throw UnimplementedError("StdEntropyCoder not implemented yet");
   }
 }
+
 

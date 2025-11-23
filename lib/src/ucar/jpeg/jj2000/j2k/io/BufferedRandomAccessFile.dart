@@ -2,7 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'exceptions.dart';
-import 'RandomAccessIo.dart';
+import 'RandomAccessIO.dart';
 
 /// Buffered random-access I/O wrapper that mirrors JJ2000's
 /// [BufferedRandomAccessFile].

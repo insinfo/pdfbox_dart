@@ -1,6 +1,6 @@
 import '../../NoNextElementException.dart';
 import '../BlkImgDataSrc.dart';
-import '../coord.dart';
+import '../Coord.dart';
 
 /// This is the generic interface to be implemented by all image file (or other
 /// resource) readers for different image file formats.

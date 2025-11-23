@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 import '../../image/DataBlk.dart';
-import 'CblkWtData.dart';
+import 'CBlkWTData.dart';
 
 /// This is an implementation of the 'CBlkWTData' abstract class for signed 32
 /// bit integer data.
@@ -57,4 +57,5 @@ class CBlkWTDataInt extends CBlkWTData {
     data = arr;
   }
 }
+
 

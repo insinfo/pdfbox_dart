@@ -3,7 +3,7 @@ import '../../codestream/writer/HeaderEncoder.dart';
 import '../../encoder/EncoderSpecs.dart';
 import '../../image/ImgDataAdapter.dart';
 import '../../util/ParameterList.dart';
-import 'CodedCblkDataSrcEnc.dart';
+import 'CodedCBlkDataSrcEnc.dart';
 import 'LayersInfo.dart';
 
 /// This is the abstract class from which post-compression rate allocators
@@ -242,4 +242,5 @@ abstract class PostCompRateAllocator extends ImgDataAdapter {
     return lyrs;
   }
 }
+
 

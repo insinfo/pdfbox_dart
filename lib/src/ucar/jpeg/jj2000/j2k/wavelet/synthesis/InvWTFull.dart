@@ -9,8 +9,8 @@ import '../../util/DecoderInstrumentation.dart';
 import '../../util/FacilityManager.dart';
 import '../../util/ProgressWatch.dart';
 import '../WaveletTransform.dart';
-import 'CBlkWtDataSrcDec.dart';
-import 'InverseWt.dart';
+import 'CBlkWTDataSrcDec.dart';
+import 'InverseWT.dart';
 import 'SubbandSyn.dart';
 
 /// Full-frame inverse wavelet transform mirroring JJ2000's `InvWTFull`.
@@ -653,4 +653,5 @@ class _ReconstructionSummary {
   final String maxLabel;
   final String preview;
 }
+
 

@@ -1,8 +1,8 @@
 import '../../decoder/DecoderSpecs.dart';
 import '../../image/BlkImgDataSrc.dart';
-import 'CBlkWtDataSrcDec.dart';
-import 'InvWtAdapter.dart';
-import 'InvWtFull.dart';
+import 'CBlkWTDataSrcDec.dart';
+import 'InvWTAdapter.dart';
+import 'InvWTFull.dart';
 
 /// Abstract base for inverse wavelet transforms operating on full tiles/components.
 abstract class InverseWT extends InvWTAdapter implements BlkImgDataSrc {
@@ -18,4 +18,5 @@ abstract class InverseWT extends InvWTAdapter implements BlkImgDataSrc {
     return InvWTFull(src, decSpec);
   }
 }
+
 

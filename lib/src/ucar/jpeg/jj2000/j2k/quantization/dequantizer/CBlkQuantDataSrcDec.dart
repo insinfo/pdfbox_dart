@@ -1,5 +1,5 @@
 import '../../image/DataBlk.dart';
-import '../../wavelet/synthesis/InvWtData.dart';
+import '../../wavelet/synthesis/InvWTData.dart';
 import '../../wavelet/synthesis/SubbandSyn.dart';
 
 /// Source of quantized wavelet code-blocks for the decoder.

@@ -1,5 +1,5 @@
 import 'dart:typed_data';
-import '../../j2k/io/RandomAccessIo.dart';
+import '../../j2k/io/RandomAccessIO.dart';
 import '../../j2k/fileformat/FileFormatBoxes.dart';
 import '../ColorSpaceException.dart';
 import '../../icc/IccProfile.dart';

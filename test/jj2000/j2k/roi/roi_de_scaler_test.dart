@@ -3,11 +3,11 @@ import 'dart:typed_data';
 import 'package:test/test.dart';
 
 import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/image/BlkImgDataSrc.dart';
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/image/coord.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/image/Coord.dart';
 import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/image/DataBlk.dart';
 import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/image/DataBlkFloat.dart';
 import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/image/DataBlkInt.dart';
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/quantization/dequantizer/CblkQuantDataSrcDec.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/quantization/dequantizer/CBlkQuantDataSrcDec.dart';
 import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/roi/MaxShiftSpec.dart';
 import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/roi/RectRoiSpec.dart';
 import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/roi/RectangularRoi.dart';
@@ -380,4 +380,5 @@ class _SingleBlockComponentSource implements BlkImgDataSrc {
   @override
   int getNumTiles() => 1;
 }
+
 

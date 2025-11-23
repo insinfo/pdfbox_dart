@@ -1,4 +1,4 @@
-import '../IccProfile.dart';
+import '../ICCProfile.dart';
 
 class ICCDateTime {
   static const int size = 6 * ICCProfile.short_size;

@@ -6,13 +6,13 @@ import '../../wavelet/analysis/SubbandAn.dart';
 import '../../codestream/markers.dart';
 import '../../codestream/ProgressionType.dart';
 import '../../codestream/PrecInfo.dart';
-import 'CblkRateDistStats.dart';
-import 'CodedCblkDataSrcEnc.dart';
+import 'CBlkRateDistStats.dart';
+import 'CodedCBlkDataSrcEnc.dart';
 import 'PostCompRateAllocator.dart';
 import 'LayersInfo.dart';
 import 'EbcotLayer.dart';
 import '../../encoder/EncoderSpecs.dart';
-import '../../image/coord.dart' as img;
+import '../../image/Coord.dart' as img;
 import '../../util/MathUtil.dart';
 import '../../util/FacilityManager.dart';
 import '../../util/MsgLogger.dart';
@@ -1934,5 +1934,6 @@ class EBCOTRateAllocator extends PostCompRateAllocator {
     return eth;
   }
 }
+
 
 

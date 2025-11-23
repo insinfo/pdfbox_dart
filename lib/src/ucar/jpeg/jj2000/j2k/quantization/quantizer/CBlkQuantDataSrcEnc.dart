@@ -1,5 +1,5 @@
-import '../../wavelet/analysis/CblkWtData.dart';
-import '../../wavelet/analysis/ForwWtDataProps.dart';
+import '../../wavelet/analysis/CBlkWTData.dart';
+import '../../wavelet/analysis/ForwWTDataProps.dart';
 
 /// This interface defines a source of quantized wavelet coefficients and
 /// methods to transfer them in a code-block by code-block basis. In each call
@@ -97,4 +97,5 @@ abstract class CBlkQuantDataSrcEnc implements ForwWTDataProps {
   /// @see CBlkWTData
   CBlkWTData? getNextInternCodeBlock(int c, CBlkWTData? cblk);
 }
+
 

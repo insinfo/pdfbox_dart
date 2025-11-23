@@ -1,4 +1,4 @@
-import '../CodedCblk.dart';
+import '../CodedCBlk.dart';
 
 /// Decoder-side representation of a layered coded code-block.
 class DecLyrdCBlk extends CodedCBlk {
@@ -34,4 +34,5 @@ class DecLyrdCBlk extends CodedCBlk {
     return buffer.toString();
   }
 }
+
 

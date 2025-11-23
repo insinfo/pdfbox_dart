@@ -1,4 +1,4 @@
-import '../../image/coord.dart';
+import '../../image/Coord.dart';
 import 'SubbandSyn.dart';
 
 /// Contract for data sources that expose multi-resolution imagery to the inverse wavelet stage.

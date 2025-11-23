@@ -1,4 +1,4 @@
-import 'IccProfile.dart';
+import 'ICCProfile.dart';
 import '../colorspace/ColorSpace.dart';
 
 /// The monochrome ICCProfile.

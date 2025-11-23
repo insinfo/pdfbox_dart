@@ -1,5 +1,5 @@
 import 'dart:typed_data';
-import '../tags/IccCurveType.dart';
+import '../tags/ICCCurveType.dart';
 import 'LookUpTable.dart';
 import 'LookUpTable32Gamma.dart';
 import 'LookUpTable32Interp.dart';

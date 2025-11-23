@@ -3,7 +3,7 @@ import '../image/BlkImgDataSrc.dart';
 import '../image/DataBlk.dart';
 import '../image/DataBlkFloat.dart';
 import '../image/DataBlkInt.dart';
-import '../quantization/dequantizer/CblkQuantDataSrcDec.dart';
+import '../quantization/dequantizer/CBlkQuantDataSrcDec.dart';
 import '../util/Int32Utils.dart';
 import '../util/ParameterList.dart';
 import '../wavelet/synthesis/MultiResImgDataAdapter.dart';
@@ -311,4 +311,5 @@ class ROIDeScaler extends MultiResImgDataAdapter
     return ROIDeScaler(source, spec, rectSpec: rectSpec);
   }
 }
+
 

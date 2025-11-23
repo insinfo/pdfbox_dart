@@ -1,6 +1,6 @@
 import '../j2k/util/ParameterList.dart';
 import '../j2k/codestream/reader/HeaderDecoder.dart';
-import '../j2k/io/RandomAccessIo.dart';
+import '../j2k/io/RandomAccessIO.dart';
 import '../j2k/fileformat/FileFormatBoxes.dart';
 import '../icc/IccProfile.dart';
 import 'ColorSpaceException.dart';

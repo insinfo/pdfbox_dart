@@ -1,6 +1,6 @@
 import '../../wavelet/synthesis/InvWtData.dart';
 import '../../wavelet/synthesis/SubbandSyn.dart';
-import 'DecLyrdCblk.dart';
+import 'DecLyrdCBlk.dart';
 
 /// Source of entropy-coded code-block data for the decoder side.
 abstract class CodedCBlkDataSrcDec extends InvWTData {

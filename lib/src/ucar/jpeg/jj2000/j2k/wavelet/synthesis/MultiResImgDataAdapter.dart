@@ -1,4 +1,4 @@
-import '../../image/coord.dart';
+import '../../image/Coord.dart';
 import 'MultiResImgData.dart';
 import 'SubbandSyn.dart';
 

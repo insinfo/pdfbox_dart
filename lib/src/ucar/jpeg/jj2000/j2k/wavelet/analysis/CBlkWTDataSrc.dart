@@ -1,5 +1,5 @@
-import 'CblkWtData.dart';
-import 'ForwWtDataProps.dart';
+import 'CBlkWTData.dart';
+import 'ForwWTDataProps.dart';
 
 /// This abstract class defines methods to transfer wavelet data in a
 /// code-block by code-block basis. In each call to 'getNextCodeBlock()' or
@@ -116,4 +116,5 @@ abstract class CBlkWTDataSrc implements ForwWTDataProps {
   /// @see CBlkWTData
   CBlkWTData? getNextInternCodeBlock(int c, CBlkWTData? cblk);
 }
+
 

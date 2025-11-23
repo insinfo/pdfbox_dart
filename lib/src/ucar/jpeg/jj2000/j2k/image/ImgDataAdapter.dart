@@ -1,4 +1,4 @@
-import 'coord.dart';
+import 'Coord.dart';
 import 'ImgData.dart';
 
 /// Default [ImgData] implementation that forwards calls to an underlying source.

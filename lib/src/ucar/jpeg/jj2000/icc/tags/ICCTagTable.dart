@@ -1,7 +1,7 @@
 import 'dart:typed_data';
-import '../IccProfile.dart';
-import '../types/IccProfileHeader.dart';
-import 'IccTag.dart';
+import '../ICCProfile.dart';
+import '../types/ICCProfileHeader.dart';
+import 'ICCTag.dart';
 import '../../colorspace/ColorSpace.dart';
 
 /// This class models an ICCTagTable as a HashTable which maps

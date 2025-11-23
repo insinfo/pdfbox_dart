@@ -1,4 +1,4 @@
-import '../IccProfile.dart';
+import '../ICCProfile.dart';
 
 class ICCProfileVersion {
   /** Field size */

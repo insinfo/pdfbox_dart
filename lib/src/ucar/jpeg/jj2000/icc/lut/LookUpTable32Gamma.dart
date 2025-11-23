@@ -1,5 +1,5 @@
 import 'dart:math' as math;
-import '../tags/IccCurveType.dart';
+import '../tags/ICCCurveType.dart';
 import 'LookUpTable32.dart';
 
 /// A Gamma based 32 bit lut.

@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 import '../../image/DataBlk.dart';
-import 'CblkWtData.dart';
+import 'CBlkWTData.dart';
 
 /// This is an implementation of the 'CBlkWTData' abstract class for 32 bit
 /// floating point data (float).
@@ -60,4 +60,5 @@ class CBlkWTDataFloat extends CBlkWTData {
     data = arr;
   }
 }
+
 

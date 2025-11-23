@@ -1,5 +1,5 @@
-import '../tags/IccCurveType.dart';
-import 'LookUpTableFp.dart';
+import '../tags/ICCCurveType.dart';
+import 'LookUpTableFP.dart';
 
 /// An interpolated floating point lut
 class LookUpTableFPInterp extends LookUpTableFP {

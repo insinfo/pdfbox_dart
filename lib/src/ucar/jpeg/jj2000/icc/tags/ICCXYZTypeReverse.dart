@@ -1,6 +1,6 @@
 import 'dart:typed_data';
-import '../IccProfile.dart';
-import 'IccXyzType.dart';
+import '../ICCProfile.dart';
+import 'ICCXYZType.dart';
 
 /// A tag containing a triplet.
 class ICCXYZTypeReverse extends ICCXYZType {

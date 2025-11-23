@@ -5,10 +5,10 @@ import '../../image/CompTransfSpec.dart';
 import '../../image/DataBlk.dart';
 import '../../image/invcomptransf/InvCompTransf.dart';
 import '../../wavelet/synthesis/SynWtFilterSpec.dart';
-import '../../wavelet/synthesis/CBlkWtDataSrcDec.dart';
+import '../../wavelet/synthesis/CBlkWTDataSrcDec.dart';
 import '../../wavelet/synthesis/MultiResImgDataAdapter.dart';
 import '../../wavelet/synthesis/SubbandSyn.dart';
-import 'CblkQuantDataSrcDec.dart';
+import 'CBlkQuantDataSrcDec.dart';
 
 /// Base class for dequantizers operating on quantized wavelet code-blocks.
 abstract class Dequantizer extends MultiResImgDataAdapter
@@ -111,4 +111,5 @@ abstract class Dequantizer extends MultiResImgDataAdapter
     DataBlk? block,
   );
 }
+
 

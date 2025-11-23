@@ -3,7 +3,7 @@ import 'dart:typed_data';
 import 'package:test/test.dart';
 
 import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/image/BlkImgDataSrc.dart';
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/image/coord.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/image/Coord.dart';
 import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/image/DataBlk.dart';
 import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/image/DataBlkFloat.dart';
 import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/image/DataBlkInt.dart';

@@ -1,8 +1,8 @@
 import 'dart:typed_data';
-import '../../quantization/quantizer/quantizer.dart';
+import '../../quantization/quantizer/Quantizer.dart';
 import '../../wavelet/analysis/SubbandAn.dart';
 import '../../image/input/ImgReaderPgm.dart';
-import '../../wavelet/analysis/CblkWtData.dart';
+import '../../wavelet/analysis/CBlkWTData.dart';
 import '../../encoder/EncoderSpecs.dart';
 import '../../image/ImgDataAdapter.dart';
 import '../../image/DataBlkInt.dart';
@@ -14,7 +14,7 @@ import 'RoiMaskGenerator.dart';
 import 'RectRoiMaskGenerator.dart';
 // import 'arb_RoiMaskGenerator.dart'; // Missing
 
-import '../../quantization/quantizer/CblkQuantDataSrcEnc.dart';
+import '../../quantization/quantizer/CBlkQuantDataSrcEnc.dart';
 
 /// This class deals with the ROI functionality.
 ///
@@ -645,4 +645,5 @@ class ROIScaler extends ImgDataAdapter implements CBlkQuantDataSrcEnc {
     src.setTile(0, 0);
   }
 }
+
 

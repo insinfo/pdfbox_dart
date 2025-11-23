@@ -1,4 +1,4 @@
-import '../tags/IccCurveType.dart';
+import '../tags/ICCCurveType.dart';
 
 /// Toplevel class for a lut.  All lookup tables must
 /// extend this class.

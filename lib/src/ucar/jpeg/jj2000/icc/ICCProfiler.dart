@@ -1,15 +1,15 @@
 import '../colorspace/ColorSpaceMapper.dart';
 import '../j2k/image/BlkImgDataSrc.dart';
 import '../colorspace/ColorSpace.dart';
-import 'RestrictedIccProfile.dart';
-import 'IccProfile.dart';
+import 'RestrictedICCProfile.dart';
+import 'ICCProfile.dart';
 import '../j2k/image/DataBlkInt.dart';
 import '../j2k/image/DataBlkFloat.dart';
 import '../j2k/image/DataBlk.dart';
-import 'IccMonochromeInputProfile.dart';
-import 'IccMatrixBasedInputProfile.dart';
-import 'lut/MonochromeTransformToSrgb.dart';
-import 'lut/MatrixBasedTransformToSrgb.dart';
+import 'ICCMonochromeInputProfile.dart';
+import 'ICCMatrixBasedInputProfile.dart';
+import 'lut/MonochromeTransformTosRGB.dart';
+import 'lut/MatrixBasedTransformTosRGB.dart';
 import 'lut/MatrixBasedTransformException.dart';
 import 'lut/MonochromeTransformException.dart';
 import '../j2k/util/FacilityManager.dart';
@@ -32,8 +32,8 @@ class ICCProfiler extends ColorSpaceMapper {
   static const int BLUE = RestrictedICCProfile.BLUE;
 
   // ICCProfiles.
-  RestrictedICCProfile? ricc;
-  ICCProfile? icc;
+  RestrictedICCProfile? rICC;
+  ICCProfile? ICC;
 
   // Temporary variables needed during profiling.
   late final List<DataBlkInt> tempInt; // Holds the results of the transform.
@@ -43,7 +43,7 @@ class ICCProfiler extends ColorSpaceMapper {
   Object? xform;
 
   /// The image's ICC profile.
-  RestrictedICCProfile? iccp;
+  RestrictedICCProfile? ICCp;
 
   /// Factory method for creating instances of this class.
   ///   @param src -- source of image data
@@ -67,12 +67,12 @@ class ICCProfiler extends ColorSpaceMapper {
   ICCProfiler(BlkImgDataSrc src, ColorSpace csMap) : super(src, csMap) {
     // initialize(); // Called by super
 
-    iccp = getICCProfile(csMap);
+    ICCp = getICCProfile(csMap);
     if (ncomps == 1) {
       xform = MonochromeTransformTosRGB(
-          iccp!, maxValueArray![0], shiftValueArray![0]);
+          ICCp!, maxValueArray![0], shiftValueArray![0]);
     } else {
-      xform = MatrixBasedTransformTosRGB(iccp!, maxValueArray!, shiftValueArray!);
+      xform = MatrixBasedTransformTosRGB(ICCp!, maxValueArray!, shiftValueArray!);
     }
   }
 
@@ -95,21 +95,21 @@ class ICCProfiler extends ColorSpaceMapper {
   RestrictedICCProfile getICCProfile(ColorSpace csm) {
     switch (ncomps) {
       case 1:
-        icc = ICCMonochromeInputProfile.createInstance(csm);
-        ricc = icc!.parse();
-        if (ricc!.getType() != RestrictedICCProfile.kMonochromeInput)
+        ICC = ICCMonochromeInputProfile.createInstance(csm);
+        rICC = ICC!.parse();
+        if (rICC!.getType() != RestrictedICCProfile.kMonochromeInput)
           throw ArgumentError("wrong ICCProfile type for image");
         break;
       case 3:
-        icc = ICCMatrixBasedInputProfile.createInstance(csm);
-        ricc = icc!.parse();
-        if (ricc!.getType() != RestrictedICCProfile.kThreeCompInput)
+        ICC = ICCMatrixBasedInputProfile.createInstance(csm);
+        rICC = ICC!.parse();
+        if (rICC!.getType() != RestrictedICCProfile.kThreeCompInput)
           throw ArgumentError("wrong ICCProfile type for image");
         break;
       default:
         throw ArgumentError("illegal number of components ($ncomps) in image");
     }
-    return ricc!;
+    return rICC!;
   }
 
   /// Returns, in the blk argument, a block of image data containing the
@@ -147,7 +147,7 @@ class ICCProfiler extends ColorSpaceMapper {
     try {
       if (ncomps != 1 && ncomps != 3) {
         String msg =
-            "ICCProfiler: icc profile _not_ applied to $ncomps component image";
+            "ICCProfiler: ICC profile _not_ applied to $ncomps component image";
         FacilityManager.getMsgLogger().printmsg(MsgLogger.warning, msg);
         return src!.getCompData(outblk, c);
       }
@@ -373,8 +373,8 @@ class ICCProfiler extends ColorSpaceMapper {
   String toString() {
     StringBuffer rep = StringBuffer("[ICCProfiler:");
     StringBuffer body = StringBuffer();
-    if (icc != null)
-      body.write("$eol${ColorSpace.indent("  ", icc.toString())}");
+    if (ICC != null)
+      body.write("$eol${ColorSpace.indent("  ", ICC.toString())}");
     if (xform != null)
       body.write("$eol${ColorSpace.indent("  ", xform.toString())}");
     rep.write(ColorSpace.indent("  ", body.toString()));

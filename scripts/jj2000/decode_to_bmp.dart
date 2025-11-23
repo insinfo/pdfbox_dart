@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/decoder/decoder.dart';
 import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/FacilityManager.dart';
 import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/ParameterList.dart';
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/stream_MsgLogger.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/StreamMsgLogger.dart';
 
 /// Simple helper to run the JJ2000 decoder and emit BMP output from a codestream.
 ///

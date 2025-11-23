@@ -2,10 +2,10 @@ import 'dart:typed_data';
 
 import '../../codestream/markers.dart';
 import '../../encoder/EncoderSpecs.dart';
-import '../../entropy/CblkSizeSpec.dart';
+import '../../entropy/CBlkSizeSpec.dart';
 import '../../entropy/PrecinctSizeSpec.dart';
 import '../../image/BlkImgDataSrc.dart';
-import '../../image/coord.dart';
+import '../../image/Coord.dart';
 import '../../image/DataBlk.dart';
 import '../../image/DataBlkFloat.dart';
 import '../../image/DataBlkInt.dart';
@@ -15,10 +15,10 @@ import '../../util/MathUtil.dart';
 import '../WaveletTransform.dart';
 import 'AnWtFilter.dart';
 import 'AnWtFilterSpec.dart';
-import 'CblkWtData.dart';
-import 'CblkWtDataFloat.dart';
-import 'CblkWtDataInt.dart';
-import 'ForwardWt.dart';
+import 'CBlkWTData.dart';
+import 'CBlkWTDataFloat.dart';
+import 'CBlkWTDataInt.dart';
+import 'ForwardWT.dart';
 import 'SubbandAn.dart';
 import '../subband.dart';
 
@@ -1008,4 +1008,5 @@ class ForwWTFull extends ForwardWT {
     }
   }
 }
+
 

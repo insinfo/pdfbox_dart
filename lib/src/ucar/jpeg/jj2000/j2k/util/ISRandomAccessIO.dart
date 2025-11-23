@@ -3,7 +3,7 @@ import 'dart:typed_data';
 
 import '../io/EndianType.dart';
 import '../io/exceptions.dart';
-import '../io/RandomAccessIo.dart';
+import '../io/RandomAccessIO.dart';
 import 'Int32Utils.dart';
 
 /// Read-only implementation that mirrors JJ2000's `ISRandomAccessIO`.

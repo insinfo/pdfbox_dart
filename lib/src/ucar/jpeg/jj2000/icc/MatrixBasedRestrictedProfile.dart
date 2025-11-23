@@ -1,6 +1,6 @@
-import 'RestrictedIccProfile.dart';
-import 'tags/IccCurveType.dart';
-import 'tags/IccXyzType.dart';
+import 'RestrictedICCProfile.dart';
+import 'tags/ICCCurveType.dart';
+import 'tags/ICCXYZType.dart';
 
 /// This class is a 3 component RestrictedICCProfile
 class MatrixBasedRestrictedProfile extends RestrictedICCProfile {

@@ -1,5 +1,5 @@
-import '../../wavelet/analysis/ForwWtDataProps.dart';
-import 'CblkRateDistStats.dart';
+import '../../wavelet/analysis/ForwWTDataProps.dart';
+import 'CBlkRateDistStats.dart';
 
 /// This interface defines a source of entropy coded data and methods to
 /// transfer it in a code-block by code-block basis. In each call to
@@ -80,4 +80,5 @@ abstract class CodedCBlkDataSrcEnc extends ForwWTDataProps {
   /// [t] The tile
   bool precinctPartitionUsed(int c, int t);
 }
+
 

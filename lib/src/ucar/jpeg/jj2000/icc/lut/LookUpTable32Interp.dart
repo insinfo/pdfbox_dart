@@ -1,4 +1,4 @@
-import '../tags/IccCurveType.dart';
+import '../tags/ICCCurveType.dart';
 import 'LookUpTable32.dart';
 
 /// An interpolated 32 bit lut

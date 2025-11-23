@@ -13,7 +13,7 @@ import '../../wavelet/synthesis/SubbandSyn.dart';
 import '../GuardBitsSpec.dart';
 import '../QuantStepSizeSpec.dart';
 import '../QuantTypeSpec.dart';
-import 'CblkQuantDataSrcDec.dart';
+import 'CBlkQuantDataSrcDec.dart';
 
 import 'StdDequantizerParams.dart';
 
@@ -853,4 +853,5 @@ class _BlockStats {
   final String maxLabel;
   final String preview;
 }
+
 

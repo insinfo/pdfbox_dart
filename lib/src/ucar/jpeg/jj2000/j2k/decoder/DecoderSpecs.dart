@@ -1,4 +1,4 @@
-import '../entropy/CblkSizeSpec.dart';
+import '../entropy/CBlkSizeSpec.dart';
 import '../entropy/PrecinctSizeSpec.dart';
 import '../image/CompTransfSpec.dart';
 import '../image/invcomptransf/InvCompTransf.dart';
@@ -187,4 +187,5 @@ class DecoderSpecs {
   /// Wavelet tree decomposition specification (`wts`).
   final WTDecompSpec wts;
 }
+
 

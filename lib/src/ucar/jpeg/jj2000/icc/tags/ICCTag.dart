@@ -1,11 +1,11 @@
 import 'dart:typed_data';
-import '../IccProfile.dart';
-import 'IccTextDescriptionType.dart';
-import 'IccTextType.dart';
-import 'IccXyzType.dart';
-import 'IccXyzTypeReverse.dart';
-import 'IccCurveType.dart';
-import 'IccCurveTypeReverse.dart';
+import '../ICCProfile.dart';
+import 'ICCTextDescriptionType.dart';
+import 'ICCTextType.dart';
+import 'ICCXYZType.dart';
+import 'ICCXYZTypeReverse.dart';
+import 'ICCCurveType.dart';
+import 'ICCCurveTypeReverse.dart';
 
 /// An ICC profile contains a 128-byte header followed by a variable
 /// number of tags contained in a tag table. Each tag is a structured

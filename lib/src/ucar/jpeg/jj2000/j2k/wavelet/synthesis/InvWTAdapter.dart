@@ -1,6 +1,6 @@
 import '../../decoder/DecoderSpecs.dart';
-import '../../image/coord.dart';
-import 'InvWt.dart';
+import '../../image/Coord.dart';
+import 'InvWT.dart';
 import 'MultiResImgData.dart';
 import 'SubbandSyn.dart';
 

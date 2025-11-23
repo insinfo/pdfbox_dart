@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 import '../../wavelet/analysis/SubbandAn.dart';
-import '../CodedCblk.dart';
+import '../CodedCBlk.dart';
 
 /// This class stores coded (compressed) code-blocks with their associated
 /// rate-distortion statistics. This object should always contain all the
@@ -295,4 +295,5 @@ class CBlkRateDistStats extends CodedCBlk {
     return str;
   }
 }
+
 
