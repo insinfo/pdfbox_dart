@@ -8,6 +8,9 @@ import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/codestream/markers.dart';
 import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/codestream/reader/HeaderDecoder.dart';
 import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/decoder/DecoderSpecs.dart';
 import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/image/Coord.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/wavelet/FilterTypes.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/wavelet/synthesis/SynWTFilterFloatLift9x7.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/wavelet/synthesis/SynWTFilterIntLift5x3.dart';
 
 
 import '../test_utils.dart';
@@ -101,6 +104,184 @@ void main() {
       expect(pocInfo.repoc, equals(<int>[3]));
       expect(pocInfo.cepoc, equals(<int>[5]));
       expect(pocInfo.ppoc, equals(<int>[3]));
+    });
+  });
+
+  group('HeaderDecoder.parseCodMarker', () {
+    test('captures wavelet filter spec for COD defaults', () {
+      final specs = DecoderSpecs.basic(1, 1);
+      final info = HeaderInfo();
+      final decoder = HeaderDecoder.placeholder(
+        decSpec: specs,
+        headerInfo: info,
+        numComps: 1,
+      );
+
+      final codPayload = buildCodMarkerPayload(
+        scod: 0x00,
+        sgcodPo: 0x00,
+        sgcodNl: 1,
+        sgcodMct: 0x00,
+        spcodNdl: 2,
+        spcodCw: 0x04,
+        spcodCh: 0x04,
+        spcodCs: 0x00,
+        spcodT: FilterTypes.W5X3,
+      );
+      decoder.parseCodMarker(codPayload, isMainHeader: true, tileIdx: 0);
+
+      final hFilters = specs.wfs.getHFilters(0, 0);
+      expect(hFilters, hasLength(1));
+      expect(hFilters[0], isA<SynWTFilterIntLift5x3>());
+    });
+
+    test('locks code-block partition origin after first COD', () {
+      final specs = DecoderSpecs.basic(1, 1);
+      final info = HeaderInfo();
+      final decoder = HeaderDecoder.placeholder(
+        decSpec: specs,
+        headerInfo: info,
+        numComps: 1,
+      );
+
+      final offsetsPayload = buildCodMarkerPayload(
+        scod: Markers.SCOX_HOR_CB_PART | Markers.SCOX_VER_CB_PART,
+        sgcodPo: 0x00,
+        sgcodNl: 1,
+        sgcodMct: 0x00,
+        spcodNdl: 2,
+        spcodCw: 0x04,
+        spcodCh: 0x04,
+        spcodCs: 0x00,
+        spcodT: 0x01,
+      );
+      decoder.parseCodMarker(offsetsPayload, isMainHeader: true, tileIdx: 0);
+
+      expect(decoder.getCbULX(), equals(1));
+      expect(decoder.getCbULY(), equals(1));
+
+      final conflictingPayload = buildCodMarkerPayload(
+        scod: 0x00,
+        sgcodPo: 0x00,
+        sgcodNl: 1,
+        sgcodMct: 0x00,
+        spcodNdl: 2,
+        spcodCw: 0x04,
+        spcodCh: 0x04,
+        spcodCs: 0x00,
+        spcodT: 0x01,
+      );
+
+      expect(
+        () =>
+            decoder.parseCodMarker(conflictingPayload, isMainHeader: true, tileIdx: 0),
+        throwsA(isA<StateError>()),
+      );
+    });
+
+    test('allows repeated COD markers with identical origins', () {
+      final specs = DecoderSpecs.basic(1, 1);
+      final info = HeaderInfo();
+      final decoder = HeaderDecoder.placeholder(
+        decSpec: specs,
+        headerInfo: info,
+        numComps: 1,
+      );
+
+      final payload = buildCodMarkerPayload(
+        scod: Markers.SCOX_HOR_CB_PART | Markers.SCOX_VER_CB_PART,
+        sgcodPo: 0x00,
+        sgcodNl: 1,
+        sgcodMct: 0x00,
+        spcodNdl: 2,
+        spcodCw: 0x04,
+        spcodCh: 0x04,
+        spcodCs: 0x00,
+        spcodT: 0x01,
+      );
+
+      decoder.parseCodMarker(payload, isMainHeader: true, tileIdx: 0);
+      decoder.parseCodMarker(payload, isMainHeader: true, tileIdx: 0);
+
+      expect(decoder.getCbULX(), equals(1));
+      expect(decoder.getCbULY(), equals(1));
+    });
+
+    test('rejects tile-specific overrides of code-block origin', () {
+      final specs = DecoderSpecs.basic(2, 1);
+      final info = HeaderInfo();
+      final decoder = HeaderDecoder.placeholder(
+        decSpec: specs,
+        headerInfo: info,
+        numComps: 1,
+      );
+
+      final mainPayload = buildCodMarkerPayload(
+        scod: 0x00,
+        sgcodPo: 0x00,
+        sgcodNl: 1,
+        sgcodMct: 0x00,
+        spcodNdl: 2,
+        spcodCw: 0x04,
+        spcodCh: 0x04,
+        spcodCs: 0x00,
+        spcodT: 0x01,
+      );
+      decoder.parseCodMarker(mainPayload, isMainHeader: true, tileIdx: 0);
+
+      final tilePayload = buildCodMarkerPayload(
+        scod: Markers.SCOX_HOR_CB_PART,
+        sgcodPo: 0x00,
+        sgcodNl: 1,
+        sgcodMct: 0x00,
+        spcodNdl: 2,
+        spcodCw: 0x04,
+        spcodCh: 0x04,
+        spcodCs: 0x00,
+        spcodT: 0x01,
+      );
+
+      expect(
+        () => decoder.parseCodMarker(tilePayload, isMainHeader: false, tileIdx: 1),
+        throwsA(isA<StateError>()),
+      );
+    });
+
+    test('applies component-level wavelet filter overrides from COC', () {
+      final specs = DecoderSpecs.basic(1, 2);
+      final info = HeaderInfo();
+      final decoder = HeaderDecoder.placeholder(
+        decSpec: specs,
+        headerInfo: info,
+        numComps: 2,
+      );
+
+      final codPayload = buildCodMarkerPayload(
+        scod: 0x00,
+        sgcodPo: 0x00,
+        sgcodNl: 1,
+        sgcodMct: 0x00,
+        spcodNdl: 2,
+        spcodCw: 0x04,
+        spcodCh: 0x04,
+        spcodCs: 0x00,
+        spcodT: FilterTypes.W5X3,
+      );
+      decoder.parseCodMarker(codPayload, isMainHeader: true, tileIdx: 0);
+
+      final cocPayload = buildCocMarkerPayload(
+        component: 1,
+        scoc: 0x00,
+        spcocNdl: 1,
+        spcocCw: 0x04,
+        spcocCh: 0x04,
+        spcocCs: 0x00,
+        spcocT: FilterTypes.W9X7,
+      );
+      decoder.parseCocMarker(cocPayload, isMainHeader: true, tileIdx: 0);
+
+      expect(specs.wfs.getHFilters(0, 0)[0], isA<SynWTFilterIntLift5x3>());
+      expect(specs.wfs.getHFilters(0, 1)[0], isA<SynWTFilterFloatLift9x7>());
     });
   });
 
@@ -384,6 +565,54 @@ void main() {
 
       expect(io.getPos(), equals(tileHeaderData.length - 2));
       expect(io.readUnsignedShort(), equals(Markers.SOD));
+    });
+  });
+
+  group('HeaderDecoder.parseRgnMarker', () {
+    test('updates component-level ROI shifts from main header', () {
+      final specs = DecoderSpecs.basic(1, 3);
+      final info = HeaderInfo();
+      final decoder = HeaderDecoder.placeholder(
+        decSpec: specs,
+        headerInfo: info,
+        numComps: 3,
+      );
+
+      final payload = buildRgnMarkerPayload(
+        component: 2,
+        srgn: Markers.SRGN_IMPLICIT,
+        sprgn: 7,
+      );
+
+      decoder.parseRgnMarker(payload, isMainHeader: true, tileIdx: 0);
+
+      expect(specs.rois.getCompDef(2), equals(7));
+      final rgnInfo = info.rgn['main_c2'];
+      expect(rgnInfo, isNotNull);
+      expect(rgnInfo!.sprgn, equals(7));
+    });
+
+    test('updates tile/component ROI shifts from tile headers', () {
+      final specs = DecoderSpecs.basic(2, 2);
+      final info = HeaderInfo();
+      final decoder = HeaderDecoder.placeholder(
+        decSpec: specs,
+        headerInfo: info,
+        numComps: 2,
+      );
+
+      final payload = buildRgnMarkerPayload(
+        component: 0,
+        srgn: Markers.SRGN_IMPLICIT,
+        sprgn: 5,
+      );
+
+      decoder.parseRgnMarker(payload, isMainHeader: false, tileIdx: 1);
+
+      expect(specs.rois.getTileCompVal(1, 0), equals(5));
+      final rgnInfo = info.rgn['t1_c0'];
+      expect(rgnInfo, isNotNull);
+      expect(rgnInfo!.sprgn, equals(5));
     });
   });
 

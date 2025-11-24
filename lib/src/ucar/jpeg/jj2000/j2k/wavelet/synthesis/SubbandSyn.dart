@@ -1,6 +1,6 @@
 import '../subband.dart';
 import '../WaveletFilter.dart';
-import 'SynWtFilter.dart';
+import 'SynWTFilter.dart';
 
 /// Synthesis-side specialization of [Subband] holding reconstruction filters.
 class SubbandSyn extends Subband {

@@ -24,11 +24,6 @@ void main() {
     test('consumes packet budgets across tile-parts', () {
       final decSpec = DecoderSpecs.basic(1, 1);
       decSpec.nls.setTileDef(0, 4);
-      final reversibleFilter = SynWTFilterIntLift5x3();
-      decSpec.wfs.setTileCompVal(0, 0, <List<SynWTFilter>>[
-        <SynWTFilter>[reversibleFilter],
-        <SynWTFilter>[reversibleFilter],
-      ]);
       decSpec.dls.setTileCompVal(0, 0, 0);
       final defaultQuant = decSpec.qsss.getDefault();
       if (defaultQuant == null) {
@@ -40,6 +35,11 @@ void main() {
       );
       decSpec.qsss.setTileCompVal(0, 0, quantParams);
       decSpec.gbs.setTileCompVal(0, 0, 1);
+      final reversibleFilter = SynWTFilterIntLift5x3();
+      decSpec.wfs.setTileCompVal(0, 0, <List<SynWTFilter>>[
+        <SynWTFilter>[reversibleFilter],
+        <SynWTFilter>[reversibleFilter],
+      ]);
 
       final headerInfo = HeaderInfo();
       final siz = headerInfo.getNewSIZ()
@@ -556,6 +556,142 @@ void main() {
         input.close();
       });
 
+    test('ncb_quit persists across tiles', () {
+      final decSpec = DecoderSpecs.basic(2, 1);
+      final reversibleFilter = SynWTFilterIntLift5x3();
+      final defaultQuant = decSpec.qsss.getDefault();
+      if (defaultQuant == null) {
+        fail('DecoderSpecs.basic should provide default quantization parameters');
+      }
+      for (var tile = 0; tile < 2; tile++) {
+        final quantParams = StdDequantizerParams(
+          exp: defaultQuant.exp.isNotEmpty ? defaultQuant.exp : <List<int>>[<int>[0]],
+          nStep: defaultQuant.nStep,
+        );
+        decSpec.nls.setTileDef(tile, 2);
+        decSpec.dls.setTileCompVal(tile, 0, 0);
+        decSpec.wfs.setTileCompVal(tile, 0, <List<SynWTFilter>>[
+          <SynWTFilter>[reversibleFilter],
+          <SynWTFilter>[reversibleFilter],
+        ]);
+        decSpec.qsss.setTileCompVal(tile, 0, quantParams);
+        decSpec.gbs.setTileCompVal(tile, 0, 1);
+      }
+
+      final headerInfo = HeaderInfo();
+      final headerDecoder = _createHeaderDecoder(
+        decSpec,
+        headerInfo,
+        width: 64,
+        height: 32,
+        tileWidth: 32,
+        tileHeight: 32,
+      );
+      _registerSingleTilePart(headerDecoder, 0);
+      _registerSingleTilePart(headerDecoder, 1);
+
+      final parameters = _buildBaseParameters(ncbQuit: '2');
+      final input = ISRandomAccessIO(Uint8List(128));
+
+      late PktDecoderHarness harness;
+      final agent = FileBitstreamReaderAgent(
+        headerDecoder,
+        input,
+        decSpec,
+        parameters,
+        false,
+        headerInfo,
+        pktDecoderFactory: (reader) {
+          harness = PktDecoderHarness(
+            decSpec,
+            headerDecoder,
+            input,
+            reader,
+            true,
+            reader.debugGetNcbQuitTarget(),
+            codeBlocksPerPacket: 1,
+          );
+          return harness;
+        },
+      );
+
+      agent.setTile(0, 0);
+      expect(harness.packetsDecoded, equals(2));
+      expect(harness.quitTriggered, isTrue);
+
+      final packetsBeforeSecondTile = harness.packetsDecoded;
+      agent.setTile(1, 0);
+      expect(harness.packetsDecoded, equals(packetsBeforeSecondTile));
+
+      input.close();
+    });
+
+    test('ncb_quit stops decoding across components and resolutions', () {
+      final decSpec = DecoderSpecs.basic(1, 2);
+      final reversibleFilter = SynWTFilterIntLift5x3();
+      final defaultQuant = decSpec.qsss.getDefault();
+      if (defaultQuant == null) {
+        fail('DecoderSpecs.basic should provide default quantization parameters');
+      }
+
+      for (var comp = 0; comp < 2; comp++) {
+        final quantParams = StdDequantizerParams(
+          exp: <List<int>>[
+            <int>[0],
+            if (comp == 0) <int>[0, 0, 0, 0],
+          ],
+          nStep: defaultQuant.nStep,
+        );
+        decSpec.nls.setTileDef(0, 2);
+        decSpec.dls.setTileCompVal(0, comp, comp == 0 ? 1 : 0);
+        decSpec.wfs.setTileCompVal(0, comp, <List<SynWTFilter>>[
+          <SynWTFilter>[reversibleFilter],
+          <SynWTFilter>[reversibleFilter],
+        ]);
+        decSpec.qsss.setTileCompVal(0, comp, quantParams);
+        decSpec.gbs.setTileCompVal(0, comp, 1);
+      }
+
+      final headerInfo = HeaderInfo();
+      final headerDecoder = _createHeaderDecoder(
+        decSpec,
+        headerInfo,
+        numComps: 2,
+      );
+      _registerSingleTilePart(headerDecoder, 0);
+
+      final parameters = _buildBaseParameters(ncbQuit: '1');
+      final input = ISRandomAccessIO(Uint8List(128));
+
+      late PktDecoderHarness harness;
+      final agent = FileBitstreamReaderAgent(
+        headerDecoder,
+        input,
+        decSpec,
+        parameters,
+        false,
+        headerInfo,
+        pktDecoderFactory: (reader) {
+          harness = PktDecoderHarness(
+            decSpec,
+            headerDecoder,
+            input,
+            reader,
+            true,
+            reader.debugGetNcbQuitTarget(),
+            codeBlocksPerPacket: 1,
+          );
+          return harness;
+        },
+      );
+
+      agent.setTile(0, 0);
+      expect(harness.packetsDecoded, equals(1));
+      expect(harness.quitTriggered, isTrue);
+
+      input.close();
+    });
+
     test('l_quit clamps the number of returned layers', () {
       final decSpec = DecoderSpecs.basic(1, 1);
       decSpec.nls.setTileDef(0, 3);
@@ -659,6 +795,76 @@ void main() {
 
       inputOff.close();
       inputOn.close();
+    });
+
+    test('poc_quit halts packet decoding after the first POC entry', () {
+      final decSpec = DecoderSpecs.basic(1, 1);
+      decSpec.nls.setTileDef(0, 4);
+      decSpec.dls.setTileCompVal(0, 0, 1);
+      decSpec.pcs.setTileDef(0, <List<int>>[
+        <int>[0, 0, 1, 1, 1, ProgressionType.LY_RES_COMP_POS_PROG],
+        <int>[1, 0, 4, 2, 1, ProgressionType.LY_RES_COMP_POS_PROG],
+      ]);
+      final defaultQuant = decSpec.qsss.getDefault();
+      if (defaultQuant == null) {
+        fail('DecoderSpecs.basic should provide default quantization parameters');
+      }
+      final quantParams = StdDequantizerParams(
+        exp: <List<int>>[
+          <int>[0],
+          <int>[0, 0, 0, 0],
+        ],
+        nStep: defaultQuant.nStep,
+      );
+      decSpec.qsss.setTileCompVal(0, 0, quantParams);
+      decSpec.gbs.setTileCompVal(0, 0, 1);
+      final reversibleFilter = SynWTFilterIntLift5x3();
+      decSpec.wfs.setTileCompVal(0, 0, <List<SynWTFilter>>[
+        <SynWTFilter>[reversibleFilter],
+        <SynWTFilter>[reversibleFilter],
+      ]);
+
+      PktDecoderHarness _runAgent(String pocQuit) {
+        final headerInfo = HeaderInfo();
+        final headerDecoder = _createHeaderDecoder(decSpec, headerInfo);
+        _registerSingleTilePart(headerDecoder, 0);
+        final input = ISRandomAccessIO(Uint8List(64));
+        final params = _buildBaseParameters(pocQuit: pocQuit);
+
+        late PktDecoderHarness harness;
+        final agent = FileBitstreamReaderAgent(
+          headerDecoder,
+          input,
+          decSpec,
+          params,
+          false,
+          headerInfo,
+          pktDecoderFactory: (reader) {
+            harness = PktDecoderHarness(
+              decSpec,
+              headerDecoder,
+              input,
+              reader,
+              true,
+              reader.debugGetNcbQuitTarget(),
+              codeBlocksPerPacket: 1,
+            );
+            return harness;
+          },
+        );
+
+        agent.setTile(0, 0);
+        input.close();
+        return harness;
+      }
+
+      final harnessOff = _runAgent('off');
+      final harnessOn = _runAgent('on');
+
+      expect(harnessOff.quitTriggered, isFalse);
+      expect(harnessOn.quitTriggered, isFalse);
+      expect(harnessOff.packetsDecoded, greaterThan(harnessOn.packetsDecoded));
+      expect(harnessOn.packetsDecoded, equals(1));
     });
   });
 

@@ -18,6 +18,7 @@ class PktDecoderHarness extends PktDecoder {
 
   int _packetsDecoded = 0;
   bool _quitTriggered = false;
+  List<int> _maxLevels = const <int>[];
 
   bool get quitTriggered => _quitTriggered;
   int get packetsDecoded => _packetsDecoded;
@@ -31,8 +32,7 @@ class PktDecoderHarness extends PktDecoder {
     bool packedHeaders,
     Uint8List? packedHeaderData,
   ) {
-    _packetsDecoded = 0;
-    _quitTriggered = false;
+    _maxLevels = List<int>.from(maxDecompositionLevels, growable: false);
     return List<List<List<List<List<CBlkInfo?>?>?>?>?>.generate(
       numComponents,
       (component) => List<List<List<List<CBlkInfo?>?>?>?>.filled(
@@ -51,7 +51,7 @@ class PktDecoderHarness extends PktDecoder {
 
   @override
   int getNumPrecinct(int component, int resolution) {
-    if (component == 0 && resolution == 0) {
+    if (component < _maxLevels.length && resolution <= _maxLevels[component]) {
       return 1;
     }
     return 0;
@@ -59,7 +59,7 @@ class PktDecoderHarness extends PktDecoder {
 
   @override
   Coord getPrecinctGridSize(int component, int resolution) {
-    if (component == 0 && resolution == 0) {
+    if (component < _maxLevels.length && resolution <= _maxLevels[component]) {
       return Coord(1, 1);
     }
     return Coord(0, 0);
@@ -101,7 +101,8 @@ class PktDecoderHarness extends PktDecoder {
     }
     final tileIdx = src.getTileIdx();
     if (remainingBytesPerTile.isNotEmpty) {
-      remainingBytesPerTile[tileIdx] = math.max(0, remainingBytesPerTile[tileIdx] - codeBlocksPerPacket);
+      remainingBytesPerTile[tileIdx] =
+          math.max(0, remainingBytesPerTile[tileIdx] - codeBlocksPerPacket);
     }
     _packetsDecoded++;
     if (maxCB != -1 && _packetsDecoded * codeBlocksPerPacket >= maxCB) {

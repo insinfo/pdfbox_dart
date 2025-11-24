@@ -26,6 +26,9 @@ import '../../util/StringFormatException.dart';
 import '../HeaderInfo.dart';
 import '../markers.dart';
 import '../../wavelet/FilterTypes.dart';
+import '../../wavelet/synthesis/SynWTFilter.dart';
+import '../../wavelet/synthesis/SynWTFilterFloatLift9x7.dart';
+import '../../wavelet/synthesis/SynWTFilterIntLift5x3.dart';
 
 class _TilePartInfo {
   int? length;
@@ -311,8 +314,8 @@ class HeaderDecoder {
   final int imgULY;
   final int nomTileWidth;
   final int nomTileHeight;
-  final int cbULX;
-  final int cbULY;
+  int cbULX;
+  int cbULY;
   final List<int> compSubsX;
   final List<int> compSubsY;
   final int maxCompImgWidth;
@@ -322,6 +325,8 @@ class HeaderDecoder {
   final DecoderSpecs decSpec;
   int _codestreamStart = 0;
   int _mainHeaderLength = 0;
+  bool _cbULXDefined = false;
+  bool _cbULYDefined = false;
 
   /// Number of tile-parts per tile. Populated by the codestream reader.
   List<int> nTileParts = <int>[];
@@ -368,6 +373,65 @@ class HeaderDecoder {
   int _currentTile = -1;
 
   int get currentTile => _currentTile;
+
+  void _applyCodeBlockPartitionOrigin({
+    required int scod,
+    required bool isMainHeader,
+    required int tileIdx,
+  }) {
+    if ((scod & (Markers.SCOX_HOR_CB_PART | Markers.SCOX_VER_CB_PART)) != 0) {
+      FacilityManager.getMsgLogger().printmsg(
+        MsgLogger.warning,
+        'Code-block partition origin different from (0,0). This requires JPEG 2000 Part 2 support and may not be supported by all decoders.',
+      );
+    }
+
+    final contextLabel = isMainHeader ? 'main header' : 'tile $tileIdx';
+    final newCbULX = (scod & Markers.SCOX_HOR_CB_PART) != 0 ? 1 : 0;
+    if (_cbULXDefined && cbULX != newCbULX) {
+      throw StateError(
+        'Code-block partition origin redefined in $contextLabel COD marker (expected $cbULX, got $newCbULX).',
+      );
+    }
+    cbULX = newCbULX;
+    _cbULXDefined = true;
+
+    final newCbULY = (scod & Markers.SCOX_VER_CB_PART) != 0 ? 1 : 0;
+    if (_cbULYDefined && cbULY != newCbULY) {
+      throw StateError(
+        'Code-block partition origin redefined in $contextLabel COD marker (expected $cbULY, got $newCbULY).',
+      );
+    }
+    cbULY = newCbULY;
+    _cbULYDefined = true;
+  }
+
+  List<List<SynWTFilter>> _buildWaveletFilterSpec(int filterId) {
+    final filter = _instantiateWaveletFilter(filterId);
+    final filters = List<SynWTFilter>.unmodifiable(<SynWTFilter>[filter]);
+    return List<List<SynWTFilter>>.unmodifiable(<List<SynWTFilter>>[
+      filters,
+      filters,
+    ]);
+  }
+
+  SynWTFilter _instantiateWaveletFilter(int filterId) {
+    if (filterId >= (1 << 7)) {
+      throw UnsupportedError(
+        'Custom wavelet filters (id=$filterId) are not supported yet',
+      );
+    }
+    switch (filterId) {
+      case FilterTypes.W9X7:
+        return SynWTFilterFloatLift9x7();
+      case FilterTypes.W5X3:
+        return SynWTFilterIntLift5x3();
+      default:
+        throw StateError(
+          'Wavelet filter id=$filterId is not JPEG 2000 Part 1 compliant',
+        );
+    }
+  }
 
   void beginTile(int tileIdx) {
     _currentTile = tileIdx;
@@ -430,6 +494,19 @@ class HeaderDecoder {
 
     final cblkSize =
         List<int>.unmodifiable(<int>[1 << (spcodCw + 2), 1 << (spcodCh + 2)]);
+
+    _applyCodeBlockPartitionOrigin(
+      scod: scod,
+      isMainHeader: isMainHeader,
+      tileIdx: tileIdx,
+    );
+
+    final waveletFilters = _buildWaveletFilterSpec(spcodT);
+    if (isMainHeader) {
+      decSpec.wfs.setDefault(waveletFilters);
+    } else {
+      decSpec.wfs.setTileDef(tileIdx, waveletFilters);
+    }
 
     if (isMainHeader) {
       decSpec.nls.setDefault(sgcodNl);
@@ -713,11 +790,14 @@ class HeaderDecoder {
       decSpec.cblks.setCompDef(component, List<int>.unmodifiable(cblkSizes));
       decSpec.dls.setCompDef(component, spcocNdl);
       decSpec.ecopts.setCompDef(component, spcocCs);
+      decSpec.wfs.setCompDef(component, _buildWaveletFilterSpec(spcocT));
     } else {
       decSpec.cblks.setTileCompVal(
           tileIdx, component, List<int>.unmodifiable(cblkSizes));
       decSpec.dls.setTileCompVal(tileIdx, component, spcocNdl);
       decSpec.ecopts.setTileCompVal(tileIdx, component, spcocCs);
+      decSpec.wfs
+          .setTileCompVal(tileIdx, component, _buildWaveletFilterSpec(spcocT));
     }
 
     if (usesPrecinctPartition && precinctSpec != null) {
@@ -1199,7 +1279,34 @@ class HeaderDecoder {
     final key = isMainHeader ? 'main_c$component' : 't${tileIdx}_c$component';
     headerInfo.rgn[key] = rgn;
 
+    if (srgn == Markers.SRGN_IMPLICIT) {
+      _applyRoiShift(
+        isMainHeader: isMainHeader,
+        tileIdx: tileIdx,
+        component: component,
+        shift: sprgn,
+      );
+    } else {
+      FacilityManager.getMsgLogger().printmsg(
+        MsgLogger.warning,
+        'Unsupported ROI style $srgn encountered for tile=$tileIdx component=$component',
+      );
+    }
+
     _log('Parsed RGN marker: comp=$component style=$srgn shift=$sprgn');
+  }
+
+  void _applyRoiShift({
+    required bool isMainHeader,
+    required int tileIdx,
+    required int component,
+    required int shift,
+  }) {
+    if (isMainHeader) {
+      decSpec.rois.setCompDef(component, shift);
+      return;
+    }
+    decSpec.rois.setTileCompVal(tileIdx, component, shift);
   }
 
   void parseComMarker(Uint8List markerPayload) {

@@ -48,6 +48,8 @@ class PktDecoder {
   int _xQuit = -1;
   int _yQuit = -1;
 
+  bool get hasReachedNcbQuit => _ncbQuit;
+
   _CodeBlockGrid restart(
     int numComponents,
     List<int> maxDecompositionLevels,
@@ -71,14 +73,6 @@ class PktDecoder {
     _ephUsed = ephSpec is bool ? ephSpec : (ephSpec as bool? ?? false);
 
     _packetIndex = 0;
-    _codeBlockCounter = 0;
-    _ncbQuit = false;
-    _tileQuit = -1;
-    _compQuit = -1;
-    _subbandQuit = -1;
-    _resQuit = -1;
-    _xQuit = -1;
-    _yQuit = -1;
 
     _includedCodeBlocks = List<List<CBlkCoordInfo>>.generate(4, (_) => <CBlkCoordInfo>[]);
 

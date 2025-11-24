@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
 import '../../image/DataBlk.dart';
-import 'SynWtFilter.dart';
+import 'SynWTFilter.dart';
 
 /// Synthesis filter entry-point specialized for floating-point sample buffers.
 abstract class SynWTFilterFloat extends SynWTFilter {

@@ -1,5 +1,5 @@
 import '../../ModuleSpec.dart';
-import 'SynWtFilter.dart';
+import 'SynWTFilter.dart';
 
 /// Specification container for synthesis wavelet filters per tile/component.
 class SynWTFilterSpec extends ModuleSpec<List<List<SynWTFilter>>> {

@@ -88,6 +88,19 @@ Uint8List buildQccMarkerPayload({
   return Uint8List.fromList(<int>[...uint16Bytes(2 + body.length), ...body]);
 }
 
+Uint8List buildRgnMarkerPayload({
+  required int component,
+  required int srgn,
+  required int sprgn,
+  bool shortComponentIndex = true,
+}) {
+  final componentBytes = shortComponentIndex
+      ? <int>[component & 0xff]
+      : uint16Bytes(component);
+  final body = <int>[...componentBytes, srgn & 0xff, sprgn & 0xff];
+  return Uint8List.fromList(<int>[...uint16Bytes(2 + body.length), ...body]);
+}
+
 Uint8List buildSizMarkerPayload({
   required int xsize,
   required int ysize,

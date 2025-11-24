@@ -1,5 +1,5 @@
 import '../../image/DataBlk.dart';
-import 'SynWtFilter.dart';
+import 'SynWTFilter.dart';
 
 /// Synthesis filter entry-point specialized for integer sample buffers.
 abstract class SynWTFilterInt extends SynWTFilter {

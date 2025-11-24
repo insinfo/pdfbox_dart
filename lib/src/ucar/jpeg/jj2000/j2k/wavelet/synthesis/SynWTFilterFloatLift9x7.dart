@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import 'SynWtFilterFloat.dart';
+import 'SynWTFilterFloat.dart';
 import '../WaveletFilter.dart';
 
 /// Synthesis lifting implementation for the irreversible 9/7 wavelet.

@@ -1,4 +1,4 @@
-import 'SynWtFilterInt.dart';
+import 'SynWTFilterInt.dart';
 import '../WaveletFilter.dart';
 
 /// Synthesis lifting implementation for the reversible 5/3 wavelet.

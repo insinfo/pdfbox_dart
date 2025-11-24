@@ -969,6 +969,14 @@ class FileBitstreamReaderAgent extends BitstreamReaderAgent {
     cbI = grid;
     _pktDecoder.syncHeaderReader();
 
+    if (_pktDecoder.hasReachedNcbQuit) {
+      DecoderInstrumentation.log(
+        'FileBitstreamReaderAgent',
+        'ncb_quit satisfied before processing tile $tileIdx; skipping remaining tiles.',
+      );
+      return;
+    }
+
     _tileBudgetRemaining[tileIdx] = tileBudget >= _maxBudget ? _maxBudget : tileBudget;
     _tileBytesConsumed[tileIdx] = 0;
 
