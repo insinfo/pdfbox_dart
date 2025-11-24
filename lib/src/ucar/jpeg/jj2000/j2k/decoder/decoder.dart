@@ -24,9 +24,9 @@ import '../util/MsgLogger.dart';
 import '../util/ParameterList.dart';
 import '../util/StringFormatException.dart';
 import '../wavelet/synthesis/InverseWT.dart';
-import '../wavelet/synthesis/SynWtFilterFloatLift9x7.dart';
-import '../wavelet/synthesis/SynWtFilterIntLift5x3.dart';
-import '../wavelet/synthesis/SynWtFilter.dart';
+import '../wavelet/synthesis/SynWTFilterFloatLift9x7.dart';
+import '../wavelet/synthesis/SynWTFilterIntLift5x3.dart';
+import '../wavelet/synthesis/SynWTFilter.dart';
 import '../image/BlkImgDataSrc.dart';
 import '../image/DataBlk.dart';
 import '../image/DataBlkFloat.dart';
@@ -596,15 +596,28 @@ class Decoder implements Runnable {
         'Instantiated component resampler.',
       );
 
-      _palettizedMapper = decoder.createPalettizedColorSpaceMapper(
-        colourPipelineSource,
-        colourSpace,
-      );
-      colourPipelineSource = _palettizedMapper!;
-      _logger.printmsg(
-        MsgLogger.info,
-        'Instantiated palette mapper.',
-      );
+      if (colourSpace.isPalettized()) {
+        final paletteInputComponents = colourPipelineSource.getNumComps();
+        if (paletteInputComponents != 1) {
+          _logger.printmsg(
+            MsgLogger.warning,
+            'Palette box present but pipeline has $paletteInputComponents component(s); skipping palette mapper.',
+          );
+          _palettizedMapper = null;
+        } else {
+          _palettizedMapper = decoder.createPalettizedColorSpaceMapper(
+            colourPipelineSource,
+            colourSpace,
+          );
+          colourPipelineSource = _palettizedMapper!;
+          _logger.printmsg(
+            MsgLogger.info,
+            'Instantiated palette mapper.',
+          );
+        }
+      } else {
+        _palettizedMapper = null;
+      }
 
       final mapped = decoder.createColorSpaceMapper(colourPipelineSource, colourSpace);
       if (mapped != null) {

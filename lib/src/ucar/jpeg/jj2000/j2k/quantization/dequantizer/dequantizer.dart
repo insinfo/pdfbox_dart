@@ -4,7 +4,7 @@ import '../../decoder/DecoderSpecs.dart';
 import '../../image/CompTransfSpec.dart';
 import '../../image/DataBlk.dart';
 import '../../image/invcomptransf/InvCompTransf.dart';
-import '../../wavelet/synthesis/SynWtFilterSpec.dart';
+import '../../wavelet/synthesis/SynWTFilterSpec.dart';
 import '../../wavelet/synthesis/CBlkWTDataSrcDec.dart';
 import '../../wavelet/synthesis/MultiResImgDataAdapter.dart';
 import '../../wavelet/synthesis/SubbandSyn.dart';

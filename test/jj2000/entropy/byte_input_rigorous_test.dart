@@ -14,6 +14,29 @@ void main() {
     return ByteToBitInput(buffer);
   }
 
+  List<int> _bitsOf(int value, {int width = 8}) {
+    return List<int>.generate(width, (index) {
+      final shift = width - 1 - index;
+      return (value >> shift) & 0x01;
+    });
+  }
+
+  List<int> _readBits(ByteToBitInput input, int count) {
+    return List<int>.generate(count, (_) => input.readBit());
+  }
+
+  int _readAlignedByte(ByteToBitInput input) {
+    var value = 0;
+    for (var i = 0; i < 8; i++) {
+      value = (value << 1) | input.readBit();
+    }
+    return value;
+  }
+
+  List<int> _readAlignedBytes(ByteToBitInput input, int count) {
+    return List<int>.generate(count, (_) => _readAlignedByte(input));
+  }
+
   group('ByteToBitInput - Operações Básicas RIGOROSAS', () {
     test('readBit - cada bit de 0xAC (10101100)', () {
       final data = Uint8List.fromList([0xAC]);
@@ -39,82 +62,68 @@ void main() {
         expect(input.readBit(), 1, reason: 'Bit $i de 0xFF');
       }
       
-      // Segundo byte: 8 bits = 0
-      for (int i = 0; i < 8; i++) {
-        expect(input.readBit(), 0, reason: 'Bit $i de 0x00');
+      // Depois de um 0xFF apenas 7 bits do próximo byte carregam informação útil
+      for (int i = 0; i < 7; i++) {
+        expect(input.readBit(), 0, reason: 'Bit $i de 0x00 após stuffing');
       }
     });
 
-    test('readByte - sequência de bytes', () {
+    test('readBit reconstrói bytes sem stuffing', () {
       final data = Uint8List.fromList([0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF]);
       final input = _buildInput(data);
       
-      expect(input.readByte(), 0x01);
-      expect(input.readByte(), 0x23);
-      expect(input.readByte(), 0x45);
-      expect(input.readByte(), 0x67);
-      expect(input.readByte(), 0x89);
-      expect(input.readByte(), 0xAB);
-      expect(input.readByte(), 0xCD);
-      expect(input.readByte(), 0xEF);
+      expect(_readAlignedBytes(input, data.length), data);
     });
   });
 
   group('ByteToBitInput - Byte Stuffing CRÍTICO', () {
-    test('0xFF 0x00 - bit stuffing básico', () {
-      // JPEG2000: 0xFF seguido de 0x00 = bit stuffing
-      // 0x00 deve ser IGNORADO
+    test('0xFF 0x00 consome apenas 7 bits do byte seguinte', () {
       final data = Uint8List.fromList([0xFF, 0x00, 0xAB]);
       final input = _buildInput(data);
-      
-      expect(input.readByte(), 0xFF);
-      // 0x00 é bit-stuff, deve ser pulado
-      expect(input.readByte(), 0xAB);
+
+      expect(_readBits(input, 8), everyElement(equals(1)));
+      expect(_readBits(input, 7), everyElement(equals(0)));
+
+      final proximo = <int>[input.readBit(), ..._readBits(input, 7)];
+      expect(proximo, equals(_bitsOf(0xAB)));
     });
 
-    test('0xFF 0x00 - verificar se 0x00 é realmente pulado', () {
+    test('0xFF 0x00 antes de 0x12 mantém a sequência correta', () {
       final data = Uint8List.fromList([0xFF, 0x00, 0x12]);
       final input = _buildInput(data);
-      
-      // Ler bit a bit
-      for (int i = 0; i < 8; i++) {
-        expect(input.readBit(), 1); // Todos bits de 0xFF
-      }
-      
-      // Próximos bits devem ser de 0x12, NÃO de 0x00!
-      // 0x12 = 0b00010010
-      expect(input.readBit(), 0);
-      expect(input.readBit(), 0);
-      expect(input.readBit(), 0);
-      expect(input.readBit(), 1);
+
+      expect(_readBits(input, 8), everyElement(equals(1)));
+      expect(_readBits(input, 7), everyElement(equals(0)));
+      expect(_readBits(input, 8), equals(_bitsOf(0x12)));
     });
 
-    test('Múltiplos 0xFF 0x00 consecutivos', () {
+    test('Múltiplos 0xFF 0x00 consecutivos mantêm apenas 7 bits úteis', () {
       final data = Uint8List.fromList([0xFF, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0x99]);
       final input = _buildInput(data);
-      
-      expect(input.readByte(), 0xFF);
-      expect(input.readByte(), 0xFF);
-      expect(input.readByte(), 0xFF);
-      expect(input.readByte(), 0x99);
+
+      for (var i = 0; i < 3; i++) {
+        expect(_readBits(input, 8), everyElement(equals(1)), reason: '0xFF número $i');
+        expect(_readBits(input, 7), everyElement(equals(0)), reason: 'stuffing $i');
+      }
+
+      final restante = <int>[input.readBit(), ..._readBits(input, 7)];
+      expect(restante, equals(_bitsOf(0x99)));
     });
 
-    test('0xFF no final sem 0x00 seguinte', () {
+    test('0xFF final sem byte extra mantém os 8 bits originais', () {
       final data = Uint8List.fromList([0x12, 0xFF]);
       final input = _buildInput(data);
-      
-      expect(input.readByte(), 0x12);
-      expect(input.readByte(), 0xFF);
+
+      expect(_readBits(input, 8), equals(_bitsOf(0x12)));
+      expect(_readBits(input, 8), everyElement(equals(1)));
     });
 
-    test('0xFF 0x01 - NÃO é bit stuffing', () {
-      // Apenas 0xFF 0x00 é bit stuffing
-      // 0xFF 0x01 são dois bytes normais
+    test('0xFF 0x01 ainda descarta o bit forçado a zero', () {
       final data = Uint8List.fromList([0xFF, 0x01]);
       final input = _buildInput(data);
-      
-      expect(input.readByte(), 0xFF);
-      expect(input.readByte(), 0x01);
+
+      expect(_readBits(input, 8), everyElement(equals(1)));
+      expect(_readBits(input, 7), equals([0, 0, 0, 0, 0, 0, 1]));
     });
   });
 
@@ -123,16 +132,14 @@ void main() {
       final data = Uint8List.fromList([0x00, 0x11, 0x22, 0x33, 0x44]);
       final input = _buildInput(data, offset: 2, length: 2); // Offset 2, length 2
       
-      expect(input.readByte(), 0x22);
-      expect(input.readByte(), 0x33);
+      expect(_readAlignedBytes(input, 2), equals([0x22, 0x33]));
     });
 
     test('Length exato', () {
       final data = Uint8List.fromList([0xAA, 0xBB, 0xCC]);
       final input = _buildInput(data, length: 2); // Apenas 2 bytes
       
-      expect(input.readByte(), 0xAA);
-      expect(input.readByte(), 0xBB);
+      expect(_readAlignedBytes(input, 2), equals([0xAA, 0xBB]));
       // Não deve conseguir ler o terceiro byte
     });
   });
@@ -144,15 +151,15 @@ void main() {
         0x84, 0x00, 0xFF, 0x00, 0x20, 0xFF, 0x00, 0x10
       ]);
       final input = _buildInput(data);
-      
-      expect(input.readByte(), 0x84);
-      expect(input.readByte(), 0x00);
-      expect(input.readByte(), 0xFF);
-      // 0x00 após 0xFF deve ser ignorado
-      expect(input.readByte(), 0x20);
-      expect(input.readByte(), 0xFF);
-      // 0x00 após 0xFF deve ser ignorado
-      expect(input.readByte(), 0x10);
+
+      expect(_readBits(input, 8), equals(_bitsOf(0x84)));
+      expect(_readBits(input, 8), equals(_bitsOf(0x00)));
+      expect(_readBits(input, 8), everyElement(equals(1)));
+      expect(_readBits(input, 7), everyElement(equals(0)));
+      expect(_readBits(input, 8), equals(_bitsOf(0x20)));
+      expect(_readBits(input, 8), everyElement(equals(1)));
+      expect(_readBits(input, 7), everyElement(equals(0)));
+      expect(_readBits(input, 8), equals(_bitsOf(0x10)));
     });
 
     test('Leitura de bits com byte stuffing no meio', () {
@@ -166,19 +173,18 @@ void main() {
       // Ler 0xFF = 0b11111111
       for (int i = 0; i < 8; i++) expect(input.readBit(), 1);
       
-      // 0x00 deve ser ignorado (bit stuffing)
-      // Próximo é 0x0F = 0b00001111
-      for (int i = 0; i < 4; i++) expect(input.readBit(), 0);
-      for (int i = 0; i < 4; i++) expect(input.readBit(), 1);
+      // Bit stuffing injeta 7 zeros do 0x00 reservado antes dos bits de 0x0F
+      expect(_readBits(input, 7), everyElement(equals(0)));
+      expect(_readBits(input, 8), equals(_bitsOf(0x0F)));
     });
 
     test('Overflow de buffer - não deve crashar', () {
       final data = Uint8List.fromList([0x12]);
       final input = _buildInput(data, length: 1);
       
-      expect(input.readByte(), 0x12);
+      expect(_readAlignedBytes(input, 1), equals([0x12]));
       // Ler além do fim - deve ter comportamento definido
-      expect(() => input.readByte(), returnsNormally);
+      expect(() => input.readBit(), returnsNormally);
     });
 
     test('Todo 0xFF com byte stuffing', () {
@@ -191,9 +197,9 @@ void main() {
       
       final input = _buildInput(data);
       
-      // Deve ler 5 bytes 0xFF (cada 0x00 é ignorado)
       for (int i = 0; i < 5; i++) {
-        expect(input.readByte(), 0xFF, reason: '0xFF número $i');
+        expect(_readBits(input, 8), everyElement(equals(1)), reason: '0xFF número $i');
+        expect(_readBits(input, 7), everyElement(equals(0)), reason: 'stuffing $i');
       }
     });
   });
@@ -205,11 +211,8 @@ void main() {
         0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
       ]);
       final input = _buildInput(data);
-      
-      expect(input.readByte(), 0x80);
-      for (int i = 0; i < 6; i++) {
-        expect(input.readByte(), 0x00);
-      }
+
+      expect(_readAlignedBytes(input, data.length), equals(data));
     });
 
     test('Padrão alternado - detectar erro de ordem de bits', () {

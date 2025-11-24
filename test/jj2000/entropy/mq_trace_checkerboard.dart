@@ -18,9 +18,9 @@ import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/io/RandomAccessIO.dart';
 import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/DecoderInstrumentation.dart';
 import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/ParameterList.dart';
 import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/wavelet/synthesis/SubbandSyn.dart';
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/wavelet/synthesis/SynWtFilter.dart';
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/wavelet/synthesis/SynWtFilterFloatLift9x7.dart';
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/wavelet/synthesis/SynWtFilterIntLift5x3.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/wavelet/synthesis/SynWTFilter.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/wavelet/synthesis/SynWTFilterFloatLift9x7.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/wavelet/synthesis/SynWTFilterIntLift5x3.dart';
 
 void main() {
   test('captures MQ trace for checkerboard reference', () {

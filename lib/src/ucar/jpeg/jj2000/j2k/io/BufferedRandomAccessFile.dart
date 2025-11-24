@@ -93,7 +93,7 @@ abstract class BufferedRandomAccessFile implements RandomAccessIO {
       flush();
     }
 
-    if (_isReadOnly && off >= _file.lengthSync()) {
+    if (_isReadOnly && off > _file.lengthSync()) {
       throw EOFException();
     }
 

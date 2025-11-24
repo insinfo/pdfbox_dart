@@ -8,6 +8,7 @@ import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/codestream/markers.dart';
 import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/codestream/reader/HeaderDecoder.dart';
 import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/decoder/DecoderSpecs.dart';
 import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/image/Coord.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/roi/RectangularRoi.dart';
 import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/wavelet/FilterTypes.dart';
 import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/wavelet/synthesis/SynWTFilterFloatLift9x7.dart';
 import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/wavelet/synthesis/SynWTFilterIntLift5x3.dart';
@@ -108,6 +109,114 @@ void main() {
   });
 
   group('HeaderDecoder.parseCodMarker', () {
+    test('rejects zero layer count', () {
+      final specs = DecoderSpecs.basic(1, 1);
+      final info = HeaderInfo();
+      final decoder = HeaderDecoder.placeholder(
+        decSpec: specs,
+        headerInfo: info,
+        numComps: 1,
+      );
+
+      final payload = buildCodMarkerPayload(
+        scod: 0x00,
+        sgcodPo: 0x00,
+        sgcodNl: 0,
+        sgcodMct: 0x00,
+        spcodNdl: 1,
+        spcodCw: 0x03,
+        spcodCh: 0x03,
+        spcodCs: 0x00,
+        spcodT: 0x01,
+      );
+
+      expect(
+        () => decoder.parseCodMarker(payload, isMainHeader: true, tileIdx: 0),
+        throwsA(isA<StateError>()),
+      );
+    });
+
+    test('rejects unsupported progression order ids', () {
+      final specs = DecoderSpecs.basic(1, 1);
+      final info = HeaderInfo();
+      final decoder = HeaderDecoder.placeholder(
+        decSpec: specs,
+        headerInfo: info,
+        numComps: 1,
+      );
+
+      final payload = buildCodMarkerPayload(
+        scod: 0x00,
+        sgcodPo: 0x05,
+        sgcodNl: 1,
+        sgcodMct: 0x00,
+        spcodNdl: 1,
+        spcodCw: 0x03,
+        spcodCh: 0x03,
+        spcodCs: 0x00,
+        spcodT: 0x01,
+      );
+
+      expect(
+        () => decoder.parseCodMarker(payload, isMainHeader: true, tileIdx: 0),
+        throwsA(isA<StateError>()),
+      );
+    });
+
+    test('rejects unsupported coding style flags', () {
+      final specs = DecoderSpecs.basic(1, 1);
+      final info = HeaderInfo();
+      final decoder = HeaderDecoder.placeholder(
+        decSpec: specs,
+        headerInfo: info,
+        numComps: 1,
+      );
+
+      final payload = buildCodMarkerPayload(
+        scod: 0x80,
+        sgcodPo: 0x00,
+        sgcodNl: 1,
+        sgcodMct: 0x00,
+        spcodNdl: 1,
+        spcodCw: 0x03,
+        spcodCh: 0x03,
+        spcodCs: 0x00,
+        spcodT: 0x01,
+      );
+
+      expect(
+        () => decoder.parseCodMarker(payload, isMainHeader: true, tileIdx: 0),
+        throwsA(isA<StateError>()),
+      );
+    });
+
+    test('rejects unsupported multi-component transform flag', () {
+      final specs = DecoderSpecs.basic(1, 1);
+      final info = HeaderInfo();
+      final decoder = HeaderDecoder.placeholder(
+        decSpec: specs,
+        headerInfo: info,
+        numComps: 1,
+      );
+
+      final payload = buildCodMarkerPayload(
+        scod: 0x00,
+        sgcodPo: 0x00,
+        sgcodNl: 1,
+        sgcodMct: 0x02,
+        spcodNdl: 1,
+        spcodCw: 0x03,
+        spcodCh: 0x03,
+        spcodCs: 0x00,
+        spcodT: 0x01,
+      );
+
+      expect(
+        () => decoder.parseCodMarker(payload, isMainHeader: true, tileIdx: 0),
+        throwsA(isA<StateError>()),
+      );
+    });
+
     test('captures wavelet filter spec for COD defaults', () {
       final specs = DecoderSpecs.basic(1, 1);
       final info = HeaderInfo();
@@ -247,6 +356,75 @@ void main() {
       );
     });
 
+    test('rejects code-block dimensions above the JPEG 2000 limit', () {
+      final specs = DecoderSpecs.basic(1, 1);
+      final info = HeaderInfo();
+      final decoder = HeaderDecoder.placeholder(
+        decSpec: specs,
+        headerInfo: info,
+        numComps: 1,
+      );
+
+      final payload = buildCodMarkerPayload(
+        scod: 0x00,
+        sgcodPo: 0x00,
+        sgcodNl: 1,
+        sgcodMct: 0x00,
+        spcodNdl: 0,
+        spcodCw: 0x09, // 1 << (9 + 2) == 2048 > MAX_CB_DIM
+        spcodCh: 0x04,
+        spcodCs: 0x00,
+        spcodT: 0x01,
+      );
+
+      expect(
+        () => decoder.parseCodMarker(payload, isMainHeader: true, tileIdx: 0),
+        throwsA(isA<StateError>()),
+      );
+    });
+
+    test('installs tile-scoped precinct defaults even without partition flag', () {
+      final specs = DecoderSpecs.basic(2, 1);
+      final info = HeaderInfo();
+      final decoder = HeaderDecoder.placeholder(
+        decSpec: specs,
+        headerInfo: info,
+        numComps: 1,
+      );
+
+      final mainPayload = buildCodMarkerPayload(
+        scod: 0x00,
+        sgcodPo: 0x00,
+        sgcodNl: 1,
+        sgcodMct: 0x00,
+        spcodNdl: 0,
+        spcodCw: 0x04,
+        spcodCh: 0x04,
+        spcodCs: 0x00,
+        spcodT: 0x01,
+      );
+      decoder.parseCodMarker(mainPayload, isMainHeader: true, tileIdx: 0);
+
+      final tilePayload = buildCodMarkerPayload(
+        scod: 0x00,
+        sgcodPo: 0x00,
+        sgcodNl: 1,
+        sgcodMct: 0x00,
+        spcodNdl: 0,
+        spcodCw: 0x04,
+        spcodCh: 0x04,
+        spcodCs: 0x00,
+        spcodT: 0x01,
+      );
+      decoder.parseCodMarker(tilePayload, isMainHeader: false, tileIdx: 1);
+
+      expect(specs.pss.isTileSpecified(1), isTrue);
+      final precincts = specs.pss.getTileDef(1);
+      expect(precincts, isNotNull);
+      expect(precincts![0], equals(<int>[Markers.PRECINCT_PARTITION_DEF_SIZE]));
+      expect(precincts[1], equals(<int>[Markers.PRECINCT_PARTITION_DEF_SIZE]));
+    });
+
     test('applies component-level wavelet filter overrides from COC', () {
       final specs = DecoderSpecs.basic(1, 2);
       final info = HeaderInfo();
@@ -282,6 +460,86 @@ void main() {
 
       expect(specs.wfs.getHFilters(0, 0)[0], isA<SynWTFilterIntLift5x3>());
       expect(specs.wfs.getHFilters(0, 1)[0], isA<SynWTFilterFloatLift9x7>());
+    });
+
+    test('records component precinct defaults when COC omits partition bits', () {
+      final specs = DecoderSpecs.basic(1, 1);
+      final info = HeaderInfo();
+      final decoder = HeaderDecoder.placeholder(
+        decSpec: specs,
+        headerInfo: info,
+        numComps: 1,
+      );
+
+      final codPayload = buildCodMarkerPayload(
+        scod: 0x00,
+        sgcodPo: 0x00,
+        sgcodNl: 1,
+        sgcodMct: 0x00,
+        spcodNdl: 0,
+        spcodCw: 0x04,
+        spcodCh: 0x04,
+        spcodCs: 0x00,
+        spcodT: 0x01,
+      );
+      decoder.parseCodMarker(codPayload, isMainHeader: true, tileIdx: 0);
+
+      final cocPayload = buildCocMarkerPayload(
+        component: 0,
+        scoc: 0x00,
+        spcocNdl: 0,
+        spcocCw: 0x04,
+        spcocCh: 0x04,
+        spcocCs: 0x00,
+        spcocT: 0x01,
+      );
+      decoder.parseCocMarker(cocPayload, isMainHeader: true, tileIdx: 0);
+
+      expect(specs.pss.isCompSpecified(0), isTrue);
+      final precincts = specs.pss.getCompDef(0);
+      expect(precincts, isNotNull);
+      expect(precincts![0], equals(<int>[Markers.PRECINCT_PARTITION_DEF_SIZE]));
+      expect(precincts[1], equals(<int>[Markers.PRECINCT_PARTITION_DEF_SIZE]));
+    });
+  });
+
+  group('HeaderDecoder.parseCocMarker', () {
+    test('rejects unsupported coding style flags', () {
+      final specs = DecoderSpecs.basic(1, 1);
+      final info = HeaderInfo();
+      final decoder = HeaderDecoder.placeholder(
+        decSpec: specs,
+        headerInfo: info,
+        numComps: 1,
+      );
+
+      final codPayload = buildCodMarkerPayload(
+        scod: 0x00,
+        sgcodPo: 0x00,
+        sgcodNl: 1,
+        sgcodMct: 0x00,
+        spcodNdl: 1,
+        spcodCw: 0x03,
+        spcodCh: 0x03,
+        spcodCs: 0x00,
+        spcodT: 0x01,
+      );
+      decoder.parseCodMarker(codPayload, isMainHeader: true, tileIdx: 0);
+
+      final cocPayload = buildCocMarkerPayload(
+        component: 0,
+        scoc: 0x20,
+        spcocNdl: 1,
+        spcocCw: 0x03,
+        spcocCh: 0x03,
+        spcocCs: 0x00,
+        spcocT: 0x01,
+      );
+
+      expect(
+        () => decoder.parseCocMarker(cocPayload, isMainHeader: true, tileIdx: 0),
+        throwsA(isA<StateError>()),
+      );
     });
   });
 
@@ -614,6 +872,61 @@ void main() {
       expect(rgnInfo, isNotNull);
       expect(rgnInfo!.sprgn, equals(5));
     });
+
+    test('removes rectangular component defaults when codestream defines ROI shifts', () {
+      final specs = DecoderSpecs.basic(1, 1);
+      final rectSpec = specs.rectRois!;
+      rectSpec.setCompDef(
+        0,
+        RectangularROI(x0: 0, y0: 0, width: 8, height: 8),
+      );
+      expect(rectSpec.roiFor(0, 0), isNotNull);
+
+      final decoder = HeaderDecoder.placeholder(
+        decSpec: specs,
+        headerInfo: HeaderInfo(),
+        numComps: 1,
+      );
+
+      final payload = buildRgnMarkerPayload(
+        component: 0,
+        srgn: Markers.SRGN_IMPLICIT,
+        sprgn: 3,
+      );
+
+      decoder.parseRgnMarker(payload, isMainHeader: true, tileIdx: 0);
+
+      expect(specs.rois.getCompDef(0), equals(3));
+      expect(rectSpec.roiFor(0, 0), isNull);
+    });
+
+    test('removes rectangular tile overrides when tile-level ROI shifts arrive', () {
+      final specs = DecoderSpecs.basic(2, 1);
+      final rectSpec = specs.rectRois!;
+      rectSpec.setTileCompVal(
+        1,
+        0,
+        RectangularROI(x0: 4, y0: 4, width: 4, height: 4),
+      );
+      expect(rectSpec.roiFor(1, 0), isNotNull);
+
+      final decoder = HeaderDecoder.placeholder(
+        decSpec: specs,
+        headerInfo: HeaderInfo(),
+        numComps: 1,
+      );
+
+      final payload = buildRgnMarkerPayload(
+        component: 0,
+        srgn: Markers.SRGN_IMPLICIT,
+        sprgn: 2,
+      );
+
+      decoder.parseRgnMarker(payload, isMainHeader: false, tileIdx: 1);
+
+      expect(specs.rois.getTileCompVal(1, 0), equals(2));
+      expect(rectSpec.roiFor(1, 0), isNull);
+    });
   });
 
   group('HeaderDecoder.parseNextTilePart', () {
@@ -767,7 +1080,7 @@ void main() {
       final mainCod = buildCodMarkerPayload(
         scod: 0x00,
         sgcodPo: 0x00,
-        sgcodNl: 0,
+        sgcodNl: 1,
         sgcodMct: 0x00,
         spcodNdl: 1,
         spcodCw: 0x03,

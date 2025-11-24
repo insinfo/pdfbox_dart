@@ -7,6 +7,7 @@ import '../../../colorspace/ColorSpaceMapper.dart';
 import '../../../colorspace/PalettizedColorSpaceMapper.dart';
 import '../../../colorspace/Resampler.dart';
 import '../../decoder/DecoderSpecs.dart';
+import '../../entropy/StdEntropyCoderOptions.dart';
 import '../../entropy/decoder/CodedCBlkDataSrcDec.dart';
 import '../../entropy/decoder/EntropyDecoder.dart';
 import '../../entropy/decoder/StdEntropyDecoder.dart';
@@ -67,6 +68,12 @@ class HeaderDecoder {
   static const String optionPrefix = 'H';
   static int _codLogCount = 0;
   static int _quantLogCount = 0;
+  static const int _allowedCodingStyleFlags =
+      Markers.SCOX_PRECINCT_PARTITION |
+      Markers.SCOX_USE_SOP |
+      Markers.SCOX_USE_EPH |
+      Markers.SCOX_HOR_CB_PART |
+      Markers.SCOX_VER_CB_PART;
 
   static bool _isInstrumentationEnabled() => DecoderInstrumentation.isEnabled();
 
@@ -455,18 +462,26 @@ class HeaderDecoder {
 
     var offset = 2;
     final scod = view.getUint8(offset++);
+    _validateCodingStyleFlags(scod, 'COD marker');
     final sgcodPo = view.getUint8(offset++);
+    _validateProgressionOrder(sgcodPo, 'COD marker');
     final sgcodNl = view.getUint16(offset);
     offset += 2;
+    _validateLayerCount(sgcodNl);
     final sgcodMct = view.getUint8(offset++);
+    _validateMctUsage(sgcodMct, 'COD marker');
     final spcodNdl = view.getUint8(offset++);
+    _validateDecompositionLevels(spcodNdl);
     final spcodCw = view.getUint8(offset++);
     final spcodCh = view.getUint8(offset++);
     final spcodCs = view.getUint8(offset++);
+    _validateEntropyOptions(spcodCs, 'COD marker');
     final spcodT = view.getUint8(offset++);
 
+    final usesPrecinctPartition =
+        (scod & Markers.SCOX_PRECINCT_PARTITION) != 0;
     List<int>? precinctSpec;
-    if ((scod & Markers.SCOX_PRECINCT_PARTITION) != 0) {
+    if (usesPrecinctPartition) {
       precinctSpec = <int>[];
       final expected = spcodNdl + 1;
       for (var i = 0; i < expected; i++) {
@@ -492,8 +507,14 @@ class HeaderDecoder {
       ..spcodPs = precinctSpec;
     headerInfo.cod[key] = cod;
 
-    final cblkSize =
-        List<int>.unmodifiable(<int>[1 << (spcodCw + 2), 1 << (spcodCh + 2)]);
+    final cblkWidth = 1 << (spcodCw + 2);
+    final cblkHeight = 1 << (spcodCh + 2);
+    _validateCodeBlockDimensions(
+      width: cblkWidth,
+      height: cblkHeight,
+      markerLabel: 'COD marker',
+    );
+    final cblkSize = List<int>.unmodifiable(<int>[cblkWidth, cblkHeight]);
 
     _applyCodeBlockPartitionOrigin(
       scod: scod,
@@ -538,25 +559,14 @@ class HeaderDecoder {
       precincts: precinctSpec,
     );
 
-    precinctPartitionFlag = (scod & Markers.SCOX_PRECINCT_PARTITION) != 0;
-    if (precinctPartitionFlag && precinctSpec != null) {
-      final widths = <int>[];
-      final heights = <int>[];
-      for (final packed in precinctSpec) {
-        widths.add(1 << (packed & 0x0f));
-        heights.add(1 << ((packed >> 4) & 0x0f));
-      }
-      final precinctValue = List<List<int>>.unmodifiable(
-        <List<int>>[
-          List<int>.unmodifiable(widths),
-          List<int>.unmodifiable(heights),
-        ],
-      );
-      if (isMainHeader) {
-        decSpec.pss.setDefault(precinctValue);
-      } else {
-        decSpec.pss.setTileDef(tileIdx, precinctValue);
-      }
+    final precinctValue = _buildPrecinctValue(precinctSpec);
+    if (isMainHeader) {
+      decSpec.pss.setDefault(precinctValue);
+    } else {
+      decSpec.pss.setTileDef(tileIdx, precinctValue);
+    }
+    if (usesPrecinctPartition) {
+      precinctPartitionFlag = true;
     }
 
     final componentTransform = _selectComponentTransform(sgcodMct, spcodT);
@@ -746,17 +756,20 @@ class HeaderDecoder {
     }
 
     final scoc = view.getUint8(offset++);
+    _validateCodingStyleFlags(scoc, 'COC marker');
+    final usesPrecinctPartition = (scoc & Markers.SCOX_PRECINCT_PARTITION) != 0;
     final spcocNdl = view.getUint8(offset++);
+    _validateDecompositionLevels(spcocNdl);
     final spcocCw = view.getUint8(offset++);
     final spcocCh = view.getUint8(offset++);
     final spcocCs = view.getUint8(offset++);
+    _validateEntropyOptions(spcocCs, 'COC marker');
     if (offset >= length) {
       throw StateError('COC marker missing transform specification');
     }
     final spcocT = view.getUint8(offset++);
 
     List<int>? precinctSpec;
-    final usesPrecinctPartition = (scoc & Markers.SCOX_PRECINCT_PARTITION) != 0;
     if (usesPrecinctPartition) {
       precinctSpec = <int>[];
       final expected = spcocNdl + 1;
@@ -785,39 +798,34 @@ class HeaderDecoder {
       ..spcocPs = precinctSpec;
     headerInfo.coc[key] = coc;
 
-    final cblkSizes = <int>[1 << (spcocCw + 2), 1 << (spcocCh + 2)];
+    final cblkWidth = 1 << (spcocCw + 2);
+    final cblkHeight = 1 << (spcocCh + 2);
+    _validateCodeBlockDimensions(
+      width: cblkWidth,
+      height: cblkHeight,
+      markerLabel: 'COC marker',
+    );
+    final cblkSizes = List<int>.unmodifiable(<int>[cblkWidth, cblkHeight]);
     if (isMainHeader) {
-      decSpec.cblks.setCompDef(component, List<int>.unmodifiable(cblkSizes));
+      decSpec.cblks.setCompDef(component, cblkSizes);
       decSpec.dls.setCompDef(component, spcocNdl);
       decSpec.ecopts.setCompDef(component, spcocCs);
       decSpec.wfs.setCompDef(component, _buildWaveletFilterSpec(spcocT));
     } else {
-      decSpec.cblks.setTileCompVal(
-          tileIdx, component, List<int>.unmodifiable(cblkSizes));
+      decSpec.cblks.setTileCompVal(tileIdx, component, cblkSizes);
       decSpec.dls.setTileCompVal(tileIdx, component, spcocNdl);
       decSpec.ecopts.setTileCompVal(tileIdx, component, spcocCs);
       decSpec.wfs
           .setTileCompVal(tileIdx, component, _buildWaveletFilterSpec(spcocT));
     }
 
-    if (usesPrecinctPartition && precinctSpec != null) {
-      final widths = <int>[];
-      final heights = <int>[];
-      for (final packed in precinctSpec) {
-        widths.add(1 << (packed & 0x0f));
-        heights.add(1 << ((packed >> 4) & 0x0f));
-      }
-      final precinctValue = List<List<int>>.unmodifiable(
-        <List<int>>[
-          List<int>.unmodifiable(widths),
-          List<int>.unmodifiable(heights),
-        ],
-      );
-      if (isMainHeader) {
-        decSpec.pss.setCompDef(component, precinctValue);
-      } else {
-        decSpec.pss.setTileCompVal(tileIdx, component, precinctValue);
-      }
+    final precinctValue = _buildPrecinctValue(precinctSpec);
+    if (isMainHeader) {
+      decSpec.pss.setCompDef(component, precinctValue);
+    } else {
+      decSpec.pss.setTileCompVal(tileIdx, component, precinctValue);
+    }
+    if (usesPrecinctPartition) {
       precinctPartitionFlag = true;
     }
   }
@@ -965,6 +973,109 @@ class HeaderDecoder {
     return spcodT == FilterTypes.W5X3
         ? InvCompTransf.invRct
         : InvCompTransf.invIct;
+  }
+
+  static void _validateLayerCount(int layers) {
+    if (layers <= 0 || layers > 65535) {
+      throw StateError('Number of layers out of range (1..65535): $layers');
+    }
+  }
+
+  static void _validateProgressionOrder(int order, String markerLabel) {
+    if (order < 0 || order > 4) {
+      throw StateError('Unsupported progression order in $markerLabel: $order');
+    }
+  }
+
+  static void _validateMctUsage(int mct, String markerLabel) {
+    if (mct != 0 && mct != 1) {
+      throw StateError('Unsupported multi-component transform flag in '
+          '$markerLabel: $mct');
+    }
+  }
+
+  static void _validateDecompositionLevels(int levels) {
+    if (levels > 32) {
+      throw StateError('Number of decomposition levels out of range (max 32): $levels');
+    }
+  }
+
+  static void _validateCodingStyleFlags(int flags, String markerLabel) {
+    if ((flags & ~_allowedCodingStyleFlags) != 0) {
+      throw StateError(
+        'Unsupported coding style flags in $markerLabel: 0x'
+        '${flags.toRadixString(16)}',
+      );
+    }
+  }
+
+  static void _validateCodeBlockDimensions({
+    required int width,
+    required int height,
+    required String markerLabel,
+  }) {
+    if (width < StdEntropyCoderOptions.MIN_CB_DIM ||
+        width > StdEntropyCoderOptions.MAX_CB_DIM) {
+      throw StateError(
+        'Non-valid code-block width in $markerLabel: $width (expected '
+        '${StdEntropyCoderOptions.MIN_CB_DIM}..${StdEntropyCoderOptions.MAX_CB_DIM}).',
+      );
+    }
+    if (height < StdEntropyCoderOptions.MIN_CB_DIM ||
+        height > StdEntropyCoderOptions.MAX_CB_DIM) {
+      throw StateError(
+        'Non-valid code-block height in $markerLabel: $height (expected '
+        '${StdEntropyCoderOptions.MIN_CB_DIM}..${StdEntropyCoderOptions.MAX_CB_DIM}).',
+      );
+    }
+    if (width * height > StdEntropyCoderOptions.MAX_CB_AREA) {
+      throw StateError(
+        'Non-valid code-block area in $markerLabel: ${width * height} (max '
+        '${StdEntropyCoderOptions.MAX_CB_AREA}).',
+      );
+    }
+  }
+
+  static void _validateEntropyOptions(int options, String markerLabel) {
+    const allowedOptions =
+        StdEntropyCoderOptions.OPT_BYPASS |
+        StdEntropyCoderOptions.OPT_RESET_MQ |
+        StdEntropyCoderOptions.OPT_TERM_PASS |
+        StdEntropyCoderOptions.OPT_VERT_STR_CAUSAL |
+        StdEntropyCoderOptions.OPT_PRED_TERM |
+        StdEntropyCoderOptions.OPT_SEG_SYMBOLS;
+    if ((options & ~allowedOptions) != 0) {
+      throw StateError(
+        'Unknown code-block style flags in $markerLabel: 0x'
+        '${options.toRadixString(16)}',
+      );
+    }
+  }
+
+  static List<List<int>> _buildPrecinctValue(List<int>? packedPrecincts) {
+    if (packedPrecincts == null || packedPrecincts.isEmpty) {
+      final defaultSize = Markers.PRECINCT_PARTITION_DEF_SIZE;
+      return _wrapPrecinctLists(<int>[defaultSize], <int>[defaultSize]);
+    }
+    final widths = <int>[];
+    final heights = <int>[];
+    for (final packed in packedPrecincts) {
+      widths.add(1 << (packed & 0x0f));
+      heights.add(1 << ((packed >> 4) & 0x0f));
+    }
+    return _wrapPrecinctLists(widths, heights);
+  }
+
+  static List<List<int>> _wrapPrecinctLists(
+    List<int> widths,
+    List<int> heights,
+  ) {
+    return List<List<int>>.unmodifiable(
+      <List<int>>[
+        List<int>.unmodifiable(widths),
+        List<int>.unmodifiable(heights),
+      ],
+    );
   }
 
   _QuantizationParseResult _parseQuantizationTables({
@@ -1302,11 +1413,14 @@ class HeaderDecoder {
     required int component,
     required int shift,
   }) {
+    final rectSpec = decSpec.rectRois;
     if (isMainHeader) {
       decSpec.rois.setCompDef(component, shift);
+      rectSpec?.setCompDef(component, null);
       return;
     }
     decSpec.rois.setTileCompVal(tileIdx, component, shift);
+    rectSpec?.setTileCompVal(tileIdx, component, null);
   }
 
   void parseComMarker(Uint8List markerPayload) {

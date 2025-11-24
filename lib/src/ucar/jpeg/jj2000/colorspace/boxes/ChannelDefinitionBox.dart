@@ -42,11 +42,18 @@ class ChannelDefinitionBox extends JP2Box {
   }
 
   int getCn(int asoc) {
-    for (var key in definitions.keys) {
-      List<int> bfr = definitions[key]!;
-      if (asoc == _getAsocFromIntArray(bfr)) return _getCnFromIntArray(bfr);
+    return tryGetCn(asoc) ?? asoc;
+  }
+
+  /// Finds the channel index associated with [asoc], or `null` if no mapping
+  /// is present for that association entry.
+  int? tryGetCn(int asoc) {
+    for (final entry in definitions.values) {
+      if (asoc == _getAsocFromIntArray(entry)) {
+        return _getCnFromIntArray(entry);
+      }
     }
-    return asoc;
+    return null;
   }
 
   int getTyp(int channel) {

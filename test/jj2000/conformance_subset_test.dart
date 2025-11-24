@@ -32,7 +32,7 @@ void main() {
           fail('Arquivo de teste ausente: ${codestream.path}');
         }
 
-        // We don't have reference images yet, so we just check if it decodes without error
+        //TODO  We don't have reference images yet, so we just check if it decodes without error
         // and produces a valid image structure.
         final decodedImage = await decodeCodestreamWithJj2000(
           codestream,

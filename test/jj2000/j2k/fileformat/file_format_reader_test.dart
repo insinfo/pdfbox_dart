@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/ISRandomAccessIO.dart';
@@ -5,6 +6,7 @@ import 'package:test/test.dart';
 
 import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/fileformat/FileFormatBoxes.dart';
 import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/fileformat/FileFormatReader.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/fileformat/writer/FileFormatWriter.dart';
 
 
 void main() {
@@ -47,6 +49,45 @@ void main() {
       io.close();
     });
   });
+  group('FileFormatWriter', () {
+    test('wraps raw codestream into JP2 container', () {
+      final tempDir = Directory.systemTemp.createTempSync('jj2000_writer_test');
+      try {
+        final file = File('${tempDir.path}/sample.j2k');
+        final codestream = _buildRawCodestream();
+        file.writeAsBytesSync(codestream);
+
+        final writer = FileFormatWriter(
+          file.path,
+          1,
+          1,
+          1,
+          <int>[8],
+          codestream.length,
+        );
+
+        final addedBytes = writer.writeFileFormat();
+        expect(addedBytes, equals(85));
+
+        final bytes = file.readAsBytesSync();
+        final io = ISRandomAccessIO(Uint8List.fromList(bytes));
+        final reader = FileFormatReader(io);
+        reader.readFileFormat();
+
+        expect(reader.JP2FFUsed, isTrue);
+        expect(reader.getFirstCodeStreamLength(), equals(codestream.length + 8));
+
+        final restored = Uint8List(codestream.length);
+        io.seek(reader.getFirstCodeStreamPos());
+        io.readFully(restored, 0, restored.length);
+        expect(restored, equals(codestream));
+
+        io.close();
+      } finally {
+        tempDir.deleteSync(recursive: true);
+      }
+    });
+  });
 }
 
 Uint8List _buildMinimalJp2() {
@@ -84,4 +125,6 @@ Uint8List _buildMinimalJp2() {
 
   return builder.takeBytes();
 }
+
+Uint8List _buildRawCodestream() => Uint8List.fromList(<int>[0xff, 0x4f, 0xff, 0xd9]);
 

@@ -14,8 +14,8 @@ import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/quantization/dequantizer/St
 import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/ISRandomAccessIO.dart';
 import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/ParameterList.dart';
 import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/util/StringFormatException.dart';
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/wavelet/synthesis/SynWtFilter.dart';
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/wavelet/synthesis/SynWtFilterIntLift5x3.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/wavelet/synthesis/SynWTFilter.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/wavelet/synthesis/SynWTFilterIntLift5x3.dart';
 import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/wavelet/synthesis/SubbandSyn.dart';
 import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/wavelet/WaveletFilter.dart';
 

@@ -2,9 +2,9 @@ import 'package:test/test.dart';
 
 import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/ModuleSpec.dart';
 import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/image/DataBlk.dart';
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/wavelet/synthesis/SynWtFilterFloatLift9x7.dart';
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/wavelet/synthesis/SynWtFilterIntLift5x3.dart';
-import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/wavelet/synthesis/SynWtFilterSpec.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/wavelet/synthesis/SynWTFilterFloatLift9x7.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/wavelet/synthesis/SynWTFilterIntLift5x3.dart';
+import 'package:pdfbox_dart/src/ucar/jpeg/jj2000/j2k/wavelet/synthesis/SynWTFilterSpec.dart';
 
 void main() {
   group('SynWTFilterSpec', () {

@@ -10,7 +10,7 @@ import '../quantization/QuantStepSizeSpec.dart';
 import '../quantization/QuantTypeSpec.dart';
 import '../roi/MaxShiftSpec.dart';
 import '../roi/RectRoiSpec.dart';
-import '../wavelet/synthesis/SynWtFilterSpec.dart';
+import '../wavelet/synthesis/SynWTFilterSpec.dart';
 import '../wavelet/WtDecompSpec.dart';
 
 /// Aggregated decoder specifications required by the inverse wavelet stage.
@@ -60,6 +60,7 @@ class DecoderSpecs {
       ..setDefault(1);
     final rois = MaxShiftSpec(numTiles, numComps)
       ..setDefault(0);
+    final rectRois = RectROISpec(numTiles, numComps);
     final cts = CompTransfSpec(numTiles, numComps, ModuleSpec.SPEC_TYPE_TILE)
       ..setDefault(InvCompTransf.none);
     final ecopts = ModuleSpec<int>(
@@ -124,6 +125,7 @@ class DecoderSpecs {
       pphs: pphs,
       iccs: iccs,
       wts: WTDecompSpec(numComps, WTDecompSpec.wtDecompDyadic, 0),
+      rectRois: rectRois,
     );
   }
 

@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import '../icc/ICCProfiler.dart';
 import '../j2k/image/BlkImgDataSrc.dart';
 import '../j2k/image/DataBlk.dart';
@@ -72,17 +74,19 @@ abstract class ColorSpaceMapper extends ImgDataAdapter
   static void setInternalBuffer(DataBlk db) {
     switch (db.getDataType()) {
       case DataBlk.typeInt:
-        if (db.getData() == null ||
-            (db.getData() as List<int>).length < db.w * db.h) {
-          db.setData(List<int>.filled(db.w * db.h, 0));
+        final existingInt = db.getData();
+        if (existingInt is Int32List && existingInt.length >= db.w * db.h) {
+          return;
         }
+        db.setData(Int32List(db.w * db.h));
         break;
 
       case DataBlk.typeFloat:
-        if (db.getData() == null ||
-            (db.getData() as List<double>).length < db.w * db.h) {
-          db.setData(List<double>.filled(db.w * db.h, 0.0));
+        final existingFloat = db.getData();
+        if (existingFloat is Float32List && existingFloat.length >= db.w * db.h) {
+          return;
         }
+        db.setData(Float32List(db.w * db.h));
         break;
 
       default:

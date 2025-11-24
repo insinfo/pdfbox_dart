@@ -154,7 +154,11 @@ class ColorSpace {
   /** Return the channel definition of the input component. */
   int getChannelDefinition(int c) {
     final defs = cdbox;
-    return defs == null ? c : defs.getCn(c + 1);
+    if (defs == null) {
+      return c;
+    }
+    final mapped = defs.tryGetCn(c + 1);
+    return mapped ?? c;
   }
 
   /** Return the colorspace method (Profiled, enumerated, or palettized). */

@@ -21,7 +21,7 @@ void main() {
       final mainCod = buildCodMarkerPayload(
         scod: 0x00,
         sgcodPo: 0x00,
-        sgcodNl: 0,
+        sgcodNl: 1,
         sgcodMct: 0x00,
         spcodNdl: 1,
         spcodCw: 0x03,

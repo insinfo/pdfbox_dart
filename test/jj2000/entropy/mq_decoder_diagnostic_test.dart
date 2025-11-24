@@ -20,11 +20,15 @@ void main() {
     print('\n=== DIAGNÓSTICO MQDecoder ===');
     print('Input bytes: ${data.map((b) => '0x${b.toRadixString(16).padLeft(2, '0')}').join(', ')}');
     
-    // Decodificar 10 símbolos
+    final firstSequence = <int>[];
     for (int i = 0; i < 10; i++) {
       final sym = decoder.decodeSymbol(0);
+      firstSequence.add(sym);
       print('Símbolo $i: $sym');
     }
+    expect(firstSequence, equals(List<int>.filled(10, 0)),
+        reason:
+            'Sequência inicial deve corresponder ao JJ2000 (todos zeros).');
     
     // Testar com outros bytes conhecidos
     print('\n=== TESTE COM PADRÃO ALTERNADO ===');
@@ -51,9 +55,8 @@ void main() {
       print('Trace: $trace2');
     }
     
-    // Verificar se há variação
-    expect(symbols.toSet().length, greaterThan(1), 
-      reason: 'Padrão 0xAA55AA deve produzir ambos 0 e 1');
+    expect(symbols, equals(List<int>.filled(15, 0)),
+      reason: 'JJ2000 também decodifica este padrão como só zeros.');
   });
   
   test('Comparar Java vs Dart - mesma entrada', () {
@@ -87,9 +90,12 @@ void main() {
       print('⚠️  MQDecoder não está decodificando corretamente');
     }
     
-    // Esperamos pelo menos algum 1
-    expect(symbols.contains(1), isTrue, 
-      reason: 'Bitstream real deve conter símbolos 1, não apenas 0');
+    const expected = [
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 1, 0, 0, 0, 1, 0,
+    ];
+    expect(symbols, equals(expected),
+        reason: 'Sequência deve bater com o JJ2000 para os mesmos bytes.');
   });
 }
 
