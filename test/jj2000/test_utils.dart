@@ -5,7 +5,7 @@ class QuietLogger implements MsgLogger {
   @override
   void printmsg(int severity, String message) {
     if (severity >= MsgLogger.warning) {
-      print('[${MsgLogger.labelFor(severity)}]: $message');
+      // print('[${MsgLogger.labelFor(severity)}]: $message');
     }
   }
 

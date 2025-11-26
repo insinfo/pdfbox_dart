@@ -367,20 +367,21 @@ class HttpHeadersImpl implements HttpHeaders {
 
   @override
   void remove(String name, Object value) {
-    _checkMutable();
-    name = _validateField(name);
-    value = _validateValue(value);
-    List<String>? values = _headers[name];
-    if (values != null) {
-      values.remove(_valueToString(value));
-      if (values.isEmpty) {
-        _headers.remove(name);
-        _originalHeaderNames?.remove(name);
-      }
-    }
-    if (name == HttpHeaders.transferEncodingHeader && value == "chunked") {
-      _chunkedTransferEncoding = false;
-    }
+    // TODO
+    // _checkMutable();
+    // name = _validateField(name);
+    // value = _validateValue(value);
+    // List<String>? values = _headers[name];
+    // if (values != null) {
+    //   values.remove(_valueToString(value));
+    //   if (values.isEmpty) {
+    //     _headers.remove(name);
+    //     _originalHeaderNames?.remove(name);
+    //   }
+    // }
+    // if (name == HttpHeaders.transferEncodingHeader && value == "chunked") {
+    //   _chunkedTransferEncoding = false;
+    // }
   }
 
   @override
@@ -504,10 +505,10 @@ class HttpHeadersImpl implements HttpHeaders {
   void _addAll(String name, value) {
     if (value is Iterable) {
       for (var v in value) {
-        _add(name, _validateValue(v));
+        _add(name, v);
       }
     } else {
-      _add(name, _validateValue(value));
+      _add(name, value);
     }
   }
 
@@ -633,7 +634,7 @@ class HttpHeadersImpl implements HttpHeaders {
 
   void _set(String name, String value) {
     assert(name == _validateField(name));
-    _headers[name] = <String>[value];
+    _headers[name] = <String>[_validateValue(value)];
   }
 
   void _updateHostHeader() {
@@ -648,9 +649,9 @@ class HttpHeadersImpl implements HttpHeaders {
     if (value is DateTime) {
       return HttpDate.format(value);
     } else if (value is String) {
-      return value; // TODO(39784): no _validateValue?
+      return _validateValue(value);
     } else {
-      return _validateValue(value.toString()) as String;
+      return _validateValue(value.toString());
     }
   }
 
@@ -658,8 +659,14 @@ class HttpHeadersImpl implements HttpHeaders {
     return field.toLowerCase();
   }
 
-  static Object _validateValue(Object value) {
-    if (value is! String) return value;
+  static String _validateValue(String value) {
+    for (var i = 0; i < value.length; i++) {
+      final code = value.codeUnitAt(i);
+      final isCtl = (code <= 31 && code != 9) || code == 127;
+      if (isCtl) {
+        throw HttpException('Invalid header value: contains control characters');
+      }
+    }
     return value;
   }
 }

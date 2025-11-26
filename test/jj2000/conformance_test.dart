@@ -47,7 +47,7 @@ void main() {
           decoder.run();
         } on StateError catch (e) {
           if (e.message.contains('PPM writer only supports up to 8 bits')) {
-             print('Skipping grad_final.jp2: PPM writer limitation (16-bit image)');
+             // print('Skipping grad_final.jp2: PPM writer limitation (16-bit image)');
              return;
           }
           rethrow;

@@ -1,6 +1,6 @@
 class Logger {
   static void info(String message) {
-    print("INFO: $message");
+    // print("INFO: $message");
   }
   
   static void debug(String message) {
@@ -8,6 +8,6 @@ class Logger {
   }
   
   static void error(String message) {
-    print("ERROR: $message");
+    // print("ERROR: $message");
   }
 }

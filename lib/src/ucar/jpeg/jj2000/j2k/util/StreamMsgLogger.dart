@@ -1,14 +1,12 @@
 import 'dart:io';
 
 import 'MsgLogger.dart';
-import 'MsgPrinter.dart';
 
 /// Stream-backed implementation of [MsgLogger].
 class StreamMsgLogger implements MsgLogger {
   StreamMsgLogger(StringSink out, StringSink err, {int lineWidth = 78})
       : _out = out,
-        _err = err,
-        _printer = MsgPrinter(lineWidth);
+        _err = err;
 
   factory StreamMsgLogger.stdout({int lineWidth = 78}) => StreamMsgLogger(
         stdout,
@@ -18,21 +16,20 @@ class StreamMsgLogger implements MsgLogger {
 
   final StringSink _out;
   final StringSink _err;
-  final MsgPrinter _printer;
 
   @override
   void printmsg(int severity, String message) {
-    if (severity < MsgLogger.log || severity > MsgLogger.error) {
-      throw ArgumentError('Severity $severity not valid.');
-    }
-    final label = MsgLogger.labelFor(severity);
-    final target = severity >= MsgLogger.warning ? _err : _out;
-    _printer.print(target, 0, '[$label]: '.length, '[$label]: $message');
+    // if (severity < MsgLogger.log || severity > MsgLogger.error) {
+    //   throw ArgumentError('Severity $severity not valid.');
+    // }
+    // final label = MsgLogger.labelFor(severity);
+    // final target = severity >= MsgLogger.warning ? _err : _out;
+    // _printer.print(target, 0, '[$label]: '.length, '[$label]: $message');
   }
 
   @override
   void println(String message, int firstLineIndent, int indent) {
-    _printer.print(_out, firstLineIndent, indent, message);
+    // _printer.print(_out, firstLineIndent, indent, message);
   }
 
   @override

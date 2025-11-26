@@ -379,7 +379,7 @@ class StdEntropyDecoder extends EntropyDecoder {
                       curBitPlane);
       _logPass('cleanup-initial', curBitPlane, npasses, segmentIndex, tsLengths,
           initialSegmentLength);
-      errorDetected = _cleanupPassStub(
+      errorDetected = _cleanupPass(
         outBlk,
         _mq!,
         curBitPlane,
@@ -526,7 +526,7 @@ class StdEntropyDecoder extends EntropyDecoder {
             _segmentLengthOrFallback(tsLengths, segmentIndex, currentBlock.dl);
         _logPass('cleanup', curBitPlane, npasses, segmentIndex, tsLengths,
             effectiveCleanupLength);
-        errorDetected = _cleanupPassStub(
+        errorDetected = _cleanupPass(
           outBlk,
           _mq!,
           curBitPlane,
@@ -1722,7 +1722,7 @@ class StdEntropyDecoder extends EntropyDecoder {
   /// state bit to 0 (off) for all samples in the code-block.
   ///
   /// Returns true if an error was detected in the bit stream, false otherwise.
-  bool _cleanupPassStub(
+  bool _cleanupPass(
     DataBlkInt cblk,
     MQDecoder mq,
     int bitPlane,

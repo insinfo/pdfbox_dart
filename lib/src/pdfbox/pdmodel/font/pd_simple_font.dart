@@ -22,7 +22,7 @@ abstract class PDSimpleFont extends PDFont {
   })  : _encoding = encoding,
         super(dictionary, standard14Font: standard14Font) {
     this.glyphList = glyphList ?? GlyphList.getAdobeGlyphList();
-    print('PDSimpleFont created: ${dictionary.getNameAsString(COSName.baseFont)}, Encoding: ${encoding.runtimeType}');
+    
     _readToUnicodeCMap();
   }
 

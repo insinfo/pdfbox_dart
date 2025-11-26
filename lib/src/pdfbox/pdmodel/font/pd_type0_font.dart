@@ -740,13 +740,13 @@ class PDType0Font extends PDFont implements PDVectorFont, PDCIDFontParent {
 
     final base = cosObject.getDictionaryObject(COSName.toUnicode);
     if (base is COSStream) {
-      print('PDType0Font: Found ToUnicode CMap stream');
+     
       final decoded = base.decode();
       if (decoded != null) {
         final buffer = RandomAccessReadBuffer.fromBytes(decoded);
         try {
           _cachedToUnicode = CMapManager.parseCMap(buffer);
-          print('PDType0Font: Parsed ToUnicode CMap: ${_cachedToUnicode?.name}');
+          
         } catch (e) {
           print('PDType0Font: Error parsing ToUnicode CMap: $e');
         } finally {

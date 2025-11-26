@@ -65,18 +65,17 @@ class PdfSignatureValidation {
 
     // 6) Verifica assinatura RSA sobre DER de signedAttrs
     bool sigValid = false;
-    String? publicKeySource;
     try {
       // Se o CMS não trouxer o certificado, tenta usar user.crt (mesma pasta) como fallback
       RSAPublicKey? pub = cms.signerPublicKey;
       if (pub != null) {
-        publicKeySource = 'CMS';
+        // publicKeySource = 'CMS';
       } else if (userCrtPem != null) {
         final pem = userCrtPem;
         final x = X509Utils.x509CertificateFromPem(pem);
         final spki = _hexToBytes(x.tbsCertificate!.subjectPublicKeyInfo.bytes!);
         pub = CryptoUtils.rsaPublicKeyFromDERBytes(spki);
-        publicKeySource = 'user.crt';
+        // publicKeySource = 'user.crt';
       }
       if (pub != null &&
           cms.signedAttrsEncoded != null &&
@@ -93,47 +92,7 @@ class PdfSignatureValidation {
     }
 
     if (verbose) {
-      final expected = cms.messageDigest;
-      if (cms.attributeOids.isNotEmpty) {
-        print('Atributos CMS         : ${cms.attributeOids.join(', ')}');
-      }
-      print('Origem chave pública  : ${publicKeySource ?? 'indisponível'}');
-      print(
-          'messageDigest (CMS): ${expected != null ? _bytesToHex(expected) : 'n/a'}');
-      print('digest calculado      : ${_bytesToHex(actualDigestBytes)}');
-      print('Assinatura RSA ok     : $sigValid');
-      print('Certificados no CMS   : ${cms.certsPem.length}');
-      if (cms.signedAttrsImplicit != null) {
-        print(
-            'signedAttrs [0] hex   : ${_bytesToHex(cms.signedAttrsImplicit!)}');
-      }
-      if (cms.signedAttrsValue != null) {
-        print('signedAttrs value hex : ${_bytesToHex(cms.signedAttrsValue!)}');
-      }
-      if (cms.signedAttrsEncoded != null) {
-        print(
-            'signedAttrs DER hex   : ${_bytesToHex(cms.signedAttrsEncoded!)}');
-      }
-      if (cms.signedAttrsEncoded != null) {
-        try {
-          final p2 = ASN1Parser(cms.signedAttrsEncoded!);
-          final top = p2.nextObject();
-          final tag = top.tag?.toRadixString(16) ?? '??';
-          print('signedAttrs tag       : 0x$tag (${top.runtimeType})');
-          if (top.valueBytes != null) {
-            final inner = ASN1Parser(top.valueBytes!).nextObject();
-            final innerTag = inner.tag?.toRadixString(16) ?? '??';
-            int count = 0;
-            if (inner is ASN1Set) {
-              count = inner.elements?.length ?? 0;
-            } else if (inner is ASN1Sequence) {
-              count = inner.elements?.length ?? 0;
-            }
-            print(
-                'signedAttrs inner     : ${inner.runtimeType} tag=0x$innerTag entries=$count');
-          }
-        } catch (_) {}
-      }
+      // Verbose logging removed
     }
 
     return PdfSignatureValidationResult(
@@ -376,13 +335,5 @@ class PdfSignatureValidation {
       r |= a[i] ^ b[i];
     }
     return r == 0;
-  }
-
-  String _bytesToHex(Uint8List bytes) {
-    final buffer = StringBuffer();
-    for (final b in bytes) {
-      buffer.write(b.toRadixString(16).padLeft(2, '0'));
-    }
-    return buffer.toString();
   }
 }

@@ -47,7 +47,7 @@ abstract class BlockCipherWithAuthenticationTag implements BlockCipher {
       var tag = finalizeTag();
 
       if (!_compareList(inTag, tag)) {
-        throw 'Auth error'; // TODO
+        throw StateError('Authentication tag mismatch');
       }
       return plaintext;
     }
@@ -254,7 +254,7 @@ class AESKeyWrap implements BlockCipher {
 
     for (var i = 0; i < 8; i++) {
       if (_iv[i] != a[i]) {
-        throw 'Invalid '; // TODO
+        throw StateError('Integrity check failed during AES key unwrap');
       }
     }
     return r;

@@ -79,7 +79,7 @@ class PageInformation implements SegmentData {
     if (bitmapHeight == 0xffffffff) {
       if (!isStriped) {
         // log.info("isStriped should contaion the value true");
-        print("isStriped should contaion the value true");
+        // print("isStriped should contaion the value true");
       }
     }
   }

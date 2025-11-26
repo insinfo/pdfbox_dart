@@ -163,10 +163,10 @@ void main() {
 
     var outData = outBlk.getDataFloat()!;
 
-    print("Dequantizer Output:");
-    for (var v in outData) {
-      print("$v ");
-    }
+    // print("Dequantizer Output:");
+    // for (var v in outData) {
+    //   print("$v ");
+    // }
 
     expect(outData[0], closeTo(2.56, 0.0001));
     expect(outData[1], closeTo(-2.56, 0.0001));

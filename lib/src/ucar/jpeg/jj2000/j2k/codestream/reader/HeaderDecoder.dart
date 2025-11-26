@@ -1028,12 +1028,6 @@ class HeaderDecoder {
         '${StdEntropyCoderOptions.MIN_CB_DIM}..${StdEntropyCoderOptions.MAX_CB_DIM}).',
       );
     }
-    if (width * height > StdEntropyCoderOptions.MAX_CB_AREA) {
-      throw StateError(
-        'Non-valid code-block area in $markerLabel: ${width * height} (max '
-        '${StdEntropyCoderOptions.MAX_CB_AREA}).',
-      );
-    }
   }
 
   static void _validateEntropyOptions(int options, String markerLabel) {

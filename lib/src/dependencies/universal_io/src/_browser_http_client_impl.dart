@@ -44,12 +44,20 @@ class BrowserHttpClientImpl extends BrowserHttpClient {
       Future<ConnectionTask<Socket>> Function(
               Uri url, String? proxyHost, int? proxyPort)?
           f) {
-    // TODO: implement connectionFactory
+    if (f != null) {
+      throw UnsupportedError(
+        'BrowserHttpClient does not allow overriding the connection factory',
+      );
+    }
   }
 
   @override
   set keyLog(Function(String line)? callback) {
-    // TODO: implement keyLog
+    if (callback != null) {
+      throw UnsupportedError(
+        'TLS key logging is not exposed in browser-based HttpClient',
+      );
+    }
   }
 
   @override

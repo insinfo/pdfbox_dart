@@ -261,7 +261,7 @@ void main() {
       
       if (result is DataBlkFloat) {
          var data = result.getDataFloat()!;
-         print("R: ${data[0]}");
+         // print("R: ${data[0]}");
          // Java expects 128.
          // 128.04 -> 128
          expect(data[0], closeTo(128.0, 0.5));
@@ -274,7 +274,7 @@ void main() {
       result = trans.getCompData(blk, 1);
       if (result is DataBlkFloat) {
          var data = result.getDataFloat()!;
-         print("G: ${data[0]}");
+         // print("G: ${data[0]}");
          expect(data[0], closeTo(82.0, 0.5));
       } else {
          fail("ICT should return DataBlkFloat");
@@ -285,7 +285,7 @@ void main() {
       result = trans.getCompData(blk, 2);
       if (result is DataBlkFloat) {
          var data = result.getDataFloat()!;
-         print("B: ${data[0]}");
+         // print("B: ${data[0]}");
          expect(data[0], closeTo(118.0, 0.5));
       } else {
          fail("ICT should return DataBlkFloat");

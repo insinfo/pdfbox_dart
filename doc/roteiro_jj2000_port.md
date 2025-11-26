@@ -162,7 +162,7 @@ e concertar a versão dart
 - [ ] Decoder rainbowbars integration (Dart) - verificar BMP nao-preto.
 
 ## Problemas Conhecidos
-- [ ] **StdEntropyDecoder.cleanupPass NÃO IMPLEMENTADO** - O método `_cleanupPassStub` é um stub que não implementa a lógica completa da passagem de limpeza (cleanup pass) do JPEG2000. Esta é uma das funcionalidades mais complexas do decoder de entropia e requer uma porta completa da implementação Java. Por enquanto, os testes que dependem do cleanup pass falharão.
+- [ ] **StdEntropyDecoder cleanupPass/paridade** – A porta do cleanup/RAW MR (`_cleanupPass`, `_rawMagRefPass`) foi concluída replicando o Java, mas ainda precisa de validação cruzada com fixtures reais para garantir que o mesmo mapa de significância e detecção de erros seja produzido.
 
 ## Em Andamento
 - [ ] Levantar testes existentes em `jj2000/src/test` (Java).

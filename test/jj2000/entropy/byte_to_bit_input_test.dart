@@ -35,7 +35,7 @@ void main() {
       // If it's 0xFF 0xAA, it's a marker.
       // But ByteToBitInput is supposed to handle the raw bitstream from the codestream.
       // Let's see what the Java test does.
-      
+
       expect(stuffed, equals([0, 1, 0, 1, 0, 1, 0]));
     });
 
@@ -45,7 +45,8 @@ void main() {
       for (var i = 0; i < 4; i++) {
         input.readBit();
       }
-      expect(input.checkBytePadding(), isTrue, reason: 'esperava erro por pad incorreto');
+      expect(input.checkBytePadding(), isTrue,
+          reason: 'esperava erro por pad incorreto');
     });
 
     test('checkBytePaddingAcceptsAlternatingTail', () {
@@ -54,7 +55,8 @@ void main() {
       for (var i = 0; i < 4; i++) {
         input.readBit();
       }
-      expect(input.checkBytePadding(), isFalse, reason: 'pad 0x55 deve ser aceito');
+      expect(input.checkBytePadding(), isFalse,
+          reason: 'pad 0x55 deve ser aceito');
     });
 
     test('checkBytePaddingDetectsTrailingBytes', () {
@@ -63,8 +65,38 @@ void main() {
       for (var i = 0; i < 8; i++) {
         input.readBit();
       }
-      expect(input.checkBytePadding(), isTrue, reason: 'dados extra devem acusar erro');
+      expect(input.checkBytePadding(), isTrue,
+          reason: 'dados extra devem acusar erro');
+    });
+
+    test('checkBytePadding rejeita byte extra sem padrão alternado', () {
+      final data = Uint8List.fromList([0xFF, 0x10]);
+      final input = ByteToBitInput(ByteInputBuffer(data));
+      for (var i = 0; i < 8; i++) {
+        input.readBit();
+      }
+      expect(input.checkBytePadding(), isTrue,
+          reason: 'faltou sequência 0101 após byte stuffed');
+    });
+
+    test('checkBytePadding rejeita byte extra >= 0x80 após FF', () {
+      final data = Uint8List.fromList([0xFF, 0xF0]);
+      final input = ByteToBitInput(ByteInputBuffer(data));
+      for (var i = 0; i < 8; i++) {
+        input.readBit();
+      }
+      expect(input.checkBytePadding(), isTrue,
+          reason: 'valor >= 0x80 no byte extra é inválido');
+    });
+
+    test('checkBytePadding aceita byte stuffed com padrão 0xAA', () {
+      final data = Uint8List.fromList([0xFF, 0xAA]);
+      final input = ByteToBitInput(ByteInputBuffer(data));
+      for (var i = 0; i < 8; i++) {
+        input.readBit();
+      }
+      expect(input.checkBytePadding(), isFalse,
+          reason: '0xAA mantém os 7 bits alternados exigidos pelo padrão');
     });
   });
 }
-

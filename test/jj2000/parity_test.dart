@@ -7,7 +7,7 @@ void main() {
   test('Parity test', () {
     final input = Platform.environment['JJ2000_INPUT'];
     if (input == null) {
-      print('Skipping parity test: JJ2000_INPUT not set');
+      // print('Skipping parity test: JJ2000_INPUT not set');
       return;
     }
 

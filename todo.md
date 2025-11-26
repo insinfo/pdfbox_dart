@@ -89,7 +89,16 @@ objetivo final  corrigir a implementação dart para que fique correta como a ve
 - `test/jj2000/byte_input_buffer_test.dart` ampliado para cobrir `setByteArray` com offset negativo (mesma instância), realocação de janela com buffer explícito, validação de slices inválidas e cenários de `addByteArray` que exigem tanto compactação quanto realocação do armazenamento quando o acréscimo excede a capacidade. Isso garante que o buffer Dart replique as transições de segmento esperadas pelo decoder Java.
 - `dart analyze test/jj2000` e `dart test test/jj2000/byte_input_buffer_test.dart` rodados para comprovar que as novas verificações permanecem alinhadas com o restante da suíte.
 
+## Notas da revisão (2025-12-03)
+- `test/jj2000/entropy/byte_to_bit_input_test.dart` agora cobre explicitamente os caminhos de `checkBytePadding`, diferenciando entre padrões alternados válidos (0xAA) e casos inválidos (bytes extras ≥ 0x80 ou sem o preenchimento 0-1-0-1 esperado). Isso documenta o contrato rígido herdado do JJ2000 para segmentos MQ terminados.
+- `test/jj2000/entropy/mq_decoder_rigorous_test.dart` passou a gerar fixtures sintéticos via `MQCoder` (mesmas tabelas da versão Java) para validar as transições `switchLM`, `nextMps` e `nextLps` em contextos distintos, garantindo que o decoder Dart mantenha o estado independente entre contextos mesmo após símbolos LPS.
+- `dart analyze test/jj2000` e `dart test test/jj2000/entropy/{byte_to_bit_input_test,mq_decoder_rigorous_test}.dart` executados para confirmar que as novas coberturas estão verdes.
+
 Marcar cada item como concluído diretamente neste arquivo ao finalizar a revisão correspondente.
 não crie stubs e sim crie a implementação correta onde não for possivel coloque um comentario // TODO
 
 e va ampliando a cobertura de testes principalmente nas partes basicas e fundamentais pois se não funcionar o basico perfeitamente o complexo jamais vai funcionar
+
+use (ripgrep) rg para busca no codigo fonte
+
+concluir todos os TODOs 

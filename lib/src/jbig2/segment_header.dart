@@ -219,10 +219,10 @@ class SegmentHeader {
       // print("Initializing segment type: $segmentType");
       _segmentData = factory();
       _segmentData!.init(this, getDataInputStream());
-    } catch (e, stackTrace) {
-      print("Error initializing segment type: $segmentType (Segment Nr: $segmentNr)");
-      print(e);
-      print(stackTrace);
+    } catch (e) {
+      // print("Error initializing segment type: $segmentType (Segment Nr: $segmentNr)");
+      // print(e);
+      // print(stackTrace);
       throw Exception("Can't instantiate segment class: $e");
     }
 
