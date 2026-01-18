@@ -1,9 +1,15 @@
 import 'package:pdfbox_dart/src/pdfbox/pdmodel/graphics/color/pd_color_space.dart';
 
 import '../../../cos/cos_base.dart';
+import '../../../cos/cos_array.dart';
 import '../../../cos/cos_dictionary.dart';
 import '../../../cos/cos_name.dart';
 
+import '../../common/function/pdf_function.dart';
+import '../../common/pd_rectangle.dart';
+
+part 'pd_shading_type2.dart';
+part 'pd_shading_type3.dart';
 
 /// Base wrapper for shading resources.
 class PDShading {
@@ -16,6 +22,18 @@ class PDShading {
 
   int get shadingType => _dictionary.getInt(COSName.shadingType) ?? 0;
 
+  /// Optional background color used when Extend is false.
+  COSArray? get background => _dictionary.getCOSArray(COSName.background);
+
+  /// Optional bounding box restricting where the shading is painted.
+  PDRectangle? get bbox {
+    final COSBase? value = _dictionary.getDictionaryObject(COSName.bBox);
+    if (value is COSArray) {
+      return PDRectangle.fromCOSArray(value);
+    }
+    return null;
+  }
+
   PDColorSpace? get colorSpace {
     final COSBase? value = _dictionary.getDictionaryObject(COSName.colorSpace);
     if (value == null) {
@@ -25,7 +43,15 @@ class PDShading {
   }
 
   /// Creates a shading wrapper for the provided dictionary.
-  static PDShading create(COSDictionary dictionary, {dynamic resources}) =>
-      PDShading(dictionary, resources: resources);
+  static PDShading create(COSDictionary dictionary, {dynamic resources}) {
+    final type = dictionary.getInt(COSName.shadingType) ?? 0;
+    switch (type) {
+      case 2:
+        return PDShadingType2(dictionary, resources: resources);
+      case 3:
+        return PDShadingType3(dictionary, resources: resources);
+      default:
+        return PDShading(dictionary, resources: resources);
+    }
+  }
 }
-

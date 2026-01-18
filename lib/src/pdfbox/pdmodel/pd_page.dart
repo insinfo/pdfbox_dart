@@ -26,7 +26,7 @@ import 'resource_cache.dart';
 import '../pdfparser/pdf_stream_parser.dart';
 
 /// High level representation of a page dictionary.
-class PDPage implements PDContentStream {
+class PDPage implements PDContentStream, COSObjectable {
   PDPage([COSDictionary? dictionary, ResourceCache? resourceCache])
       : _dictionary = dictionary ?? _createDefaultDictionary(),
         _resourceCache = resourceCache;
@@ -38,6 +38,7 @@ class PDPage implements PDContentStream {
   ResourceCache? _resourceCache;
   List<PDAnnotation>? _annotationCache;
 
+  @override
   COSDictionary get cosObject => _dictionary;
 
   /// Returns the MediaBox for this page, taking inheritance into account.

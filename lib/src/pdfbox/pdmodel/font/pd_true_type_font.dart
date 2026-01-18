@@ -1,6 +1,8 @@
 import '../../../fontbox/encoding/encoding.dart';
 import '../../../fontbox/encoding/win_ansi_encoding.dart';
+import '../../../fontbox/cff/char_string_path.dart';
 import '../../../fontbox/ttf/cmap_lookup.dart';
+import '../../../fontbox/ttf/glyph_renderer.dart' as ttf_glyph;
 import '../../../fontbox/ttf/true_type_font.dart';
 import '../../../fontbox/ttf/ttf_parser.dart';
 import '../../../io/random_access_read_buffered_file.dart';
@@ -12,11 +14,13 @@ import 'encoding/dictionary_encoding.dart';
 import 'encoding/glyph_list.dart';
 import 'pd_font_descriptor.dart';
 import 'pd_simple_font.dart';
+import 'pd_vector_font.dart';
+import 'true_type_font_box_adapter.dart';
 import 'true_type_embedder.dart';
 import 'true_type_font_descriptor_builder.dart';
 
 /// PDTrueTypeFont with width table population and deterministic subsetting.
-class PDTrueTypeFont extends PDSimpleFont {
+class PDTrueTypeFont extends PDSimpleFont implements PDVectorFont {
   PDTrueTypeFont._(
     COSDictionary dictionary,
     this._trueTypeFont,
@@ -44,6 +48,9 @@ class PDTrueTypeFont extends PDSimpleFont {
   final TrueTypeEmbedder _embedder;
   final String _basePostScriptName;
   late final PDFontDescriptor _fontDescriptor;
+
+  late final TrueTypeFontBoxAdapter _fontBoxAdapter =
+      TrueTypeFontBoxAdapter(_trueTypeFont);
 
   late final double? _unitsPerEmScale;
   late final double _defaultWidth;
@@ -91,7 +98,8 @@ class PDTrueTypeFont extends PDSimpleFont {
   }
 
   /// Wraps an existing [TrueTypeFont] instance.
-  factory PDTrueTypeFont.fromFont(TrueTypeFont font, {bool embedSubset = true}) {
+  factory PDTrueTypeFont.fromFont(TrueTypeFont font,
+      {bool embedSubset = true}) {
     final dictionary = COSDictionary()
       ..setName(COSName.type, 'Font')
       ..setName(COSName.subtype, COSName.trueType.name);
@@ -127,7 +135,7 @@ class PDTrueTypeFont extends PDSimpleFont {
       final descriptor = PDFontDescriptor(fontDescriptorDict);
       final fontFile2 = descriptor.fontFile2Stream;
       if (fontFile2 != null) {
-        final parser = TtfParser();
+        final parser = TtfParser(isEmbedded: true);
         final view = fontFile2.createView();
         try {
           ttf = parser.parse(view);
@@ -142,14 +150,20 @@ class PDTrueTypeFont extends PDSimpleFont {
           'TrueType font loading without embedded FontFile2 is not supported yet.');
     }
 
-    final unicodeCMap = ttf.getUnicodeCmapLookup(isStrict: false);
+    CMapLookup? unicodeCMap;
+    try {
+      unicodeCMap = ttf.getUnicodeCmapLookup(isStrict: false);
+    } catch (_) {
+      unicodeCMap = null;
+    }
     final embedder = TrueTypeEmbedder(ttf, embedSubset: false);
     final baseFont = fontDictionary.getNameAsString(COSName.baseFont) ??
         ttf.getName() ??
         'TrueTypeFont';
 
     final encoding = _readEncoding(fontDictionary);
-    print('PDTrueTypeFont created. BaseFont: $baseFont, Encoding: ${encoding.runtimeType}');
+    print(
+        'PDTrueTypeFont created. BaseFont: $baseFont, Encoding: ${encoding.runtimeType}');
 
     return PDTrueTypeFont._(
       fontDictionary,
@@ -237,6 +251,153 @@ class PDTrueTypeFont extends PDSimpleFont {
   void close() {
     _trueTypeFont.close();
   }
+
+  int _glyphIdForCode(int code) {
+    final unicode = toUnicode(code);
+    if (unicode == null || unicode.isEmpty) {
+      return 0;
+    }
+    final iterator = unicode.runes.iterator;
+    if (!iterator.moveNext()) {
+      return 0;
+    }
+    final cmap = _unicodeCMap;
+    if (cmap == null) {
+      return 0;
+    }
+    return cmap.getGlyphId(iterator.current);
+  }
+
+  CharStringPath _pathForGlyphId(int gid) {
+    if (gid <= 0) {
+      return CharStringPath();
+    }
+    final glyphTable = _trueTypeFont.getGlyphTable();
+    if (glyphTable == null) {
+      return CharStringPath();
+    }
+    try {
+      final glyphData = glyphTable.getGlyph(gid);
+      if (glyphData == null) {
+        return CharStringPath();
+      }
+      final glyphPath = glyphData.getPath();
+      if (glyphPath.isEmpty) {
+        return CharStringPath();
+      }
+      final raw = _glyphPathToCharString(glyphPath);
+      final units = _trueTypeFont.unitsPerEm;
+      final scale = units > 0 && units != 1000 ? 1000.0 / units : 1.0;
+      if (scale == 1.0) {
+        return raw;
+      }
+      return _scalePath(raw, scale);
+    } catch (_) {
+      return CharStringPath();
+    }
+  }
+
+  CharStringPath _glyphPathToCharString(ttf_glyph.GlyphPath glyphPath) {
+    final path = CharStringPath();
+    var currentX = 0.0;
+    var currentY = 0.0;
+
+    for (final command in glyphPath.commands) {
+      if (command is ttf_glyph.MoveToCommand) {
+        path.moveTo(command.x, command.y);
+        currentX = command.x;
+        currentY = command.y;
+      } else if (command is ttf_glyph.LineToCommand) {
+        path.lineTo(command.x, command.y);
+        currentX = command.x;
+        currentY = command.y;
+      } else if (command is ttf_glyph.QuadToCommand) {
+        // Convert quadratic curves to cubic Bézier.
+        final x1 = currentX + (2.0 / 3.0) * (command.cx - currentX);
+        final y1 = currentY + (2.0 / 3.0) * (command.cy - currentY);
+        final x2 = command.x + (2.0 / 3.0) * (command.cx - command.x);
+        final y2 = command.y + (2.0 / 3.0) * (command.cy - command.y);
+        path.curveTo(x1, y1, x2, y2, command.x, command.y);
+        currentX = command.x;
+        currentY = command.y;
+      } else if (command is ttf_glyph.CubicToCommand) {
+        path.curveTo(
+          command.cx1,
+          command.cy1,
+          command.cx2,
+          command.cy2,
+          command.x,
+          command.y,
+        );
+        currentX = command.x;
+        currentY = command.y;
+      } else if (command is ttf_glyph.ClosePathCommand) {
+        path.closePath();
+      }
+    }
+
+    return path;
+  }
+
+  CharStringPath _scalePath(CharStringPath path, double scale) {
+    if (scale == 1.0) {
+      return path;
+    }
+    final scaled = CharStringPath();
+    for (final cmd in path.commands) {
+      switch (cmd) {
+        case MoveToCommand(:final x, :final y):
+          scaled.moveTo(x * scale, y * scale);
+          break;
+        case LineToCommand(:final x, :final y):
+          scaled.lineTo(x * scale, y * scale);
+          break;
+        case CurveToCommand(
+            :final x1,
+            :final y1,
+            :final x2,
+            :final y2,
+            :final x3,
+            :final y3,
+          ):
+          scaled.curveTo(
+            x1 * scale,
+            y1 * scale,
+            x2 * scale,
+            y2 * scale,
+            x3 * scale,
+            y3 * scale,
+          );
+          break;
+        case ClosePathCommand():
+          scaled.closePath();
+          break;
+      }
+    }
+    return scaled;
+  }
+
+  @override
+  bool hasGlyph(int code) {
+    final name = codeToName(code);
+    if (_fontBoxAdapter.hasGlyph(name)) {
+      return true;
+    }
+    return _glyphIdForCode(code) > 0;
+  }
+
+  @override
+  CharStringPath getPath(int code) {
+    final name = codeToName(code);
+    final byName = _fontBoxAdapter.getPath(name);
+    if (byName.commands.isNotEmpty) {
+      return byName;
+    }
+    return _pathForGlyphId(_glyphIdForCode(code));
+  }
+
+  @override
+  CharStringPath getNormalizedPath(int code) => getPath(code);
 
   void _readWidths() {
     _firstChar = dictionary.getInt(COSName.firstChar) ?? 0;
@@ -336,42 +497,46 @@ class PDTrueTypeFont extends PDSimpleFont {
   @override
   String? toUnicode(int code) {
     final result = super.toUnicode(code);
-    
+
     // Debugging for the specific issue
     if (_basePostScriptName.contains('+')) {
-       // It's a subset
-       // Check what the embedded font thinks about this code
-       try {
-         final cmap = _trueTypeFont.getCmapTable();
-         if (cmap != null) {
-           final subtable = cmap.getSubtable(3, 1) ?? cmap.getSubtable(3, 0) ?? cmap.cmaps.first;
-           final gid = subtable.getGlyphId(code);
-           
-           String? glyphName;
-           try {
-             final post = _trueTypeFont.getPostScriptTable();
-             final names = post?.glyphNames;
-             if (names != null && gid < names.length) {
-                glyphName = names[gid];
-             }
-             
-             // Try to reverse map using (3, 1) cmap
-             final unicodeCmap = cmap.getSubtable(3, 1);
-             if (unicodeCmap != null) {
-                final codes = unicodeCmap.getCharCodes(gid);
-                print('DEBUG: Code: $code, Result: $result, GID: $gid, GlyphName: $glyphName, ReverseCodes: $codes');
-             } else {
-                print('DEBUG: Code: $code, Result: $result, GID: $gid, GlyphName: $glyphName, No (3,1) Cmap');
-             }
-           } catch (e) {
-             // ignore
-           }
-         }
-       } catch (e) {
-         print('DEBUG: Error probing embedded font: $e');
-       }
+      // It's a subset
+      // Check what the embedded font thinks about this code
+      try {
+        final cmap = _trueTypeFont.getCmapTable();
+        if (cmap != null) {
+          final subtable = cmap.getSubtable(3, 1) ??
+              cmap.getSubtable(3, 0) ??
+              cmap.cmaps.first;
+          final gid = subtable.getGlyphId(code);
+
+          String? glyphName;
+          try {
+            final post = _trueTypeFont.getPostScriptTable();
+            final names = post?.glyphNames;
+            if (names != null && gid < names.length) {
+              glyphName = names[gid];
+            }
+
+            // Try to reverse map using (3, 1) cmap
+            final unicodeCmap = cmap.getSubtable(3, 1);
+            if (unicodeCmap != null) {
+              final codes = unicodeCmap.getCharCodes(gid);
+              print(
+                  'DEBUG: Code: $code, Result: $result, GID: $gid, GlyphName: $glyphName, ReverseCodes: $codes');
+            } else {
+              print(
+                  'DEBUG: Code: $code, Result: $result, GID: $gid, GlyphName: $glyphName, No (3,1) Cmap');
+            }
+          } catch (e) {
+            // ignore
+          }
+        }
+      } catch (e) {
+        print('DEBUG: Error probing embedded font: $e');
+      }
     }
-    
+
     return result;
   }
 }

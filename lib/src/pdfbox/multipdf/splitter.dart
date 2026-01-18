@@ -165,8 +165,7 @@ class Splitter {
     destCatalog.language = sourceCatalog.language;
     destCatalog.metadata = sourceCatalog.metadata;
     
-    // TODO: setMarkInfo
-    // destCatalog.markInfo = sourceCatalog.markInfo;
+    destCatalog.markInfo = sourceCatalog.markInfo;
     
     return document;
   }

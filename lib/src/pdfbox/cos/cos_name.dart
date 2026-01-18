@@ -37,6 +37,7 @@ class COSName extends COSBase implements Comparable<COSName> {
   static final COSName alt = COSName('Alt');
   static final COSName actualText = COSName('ActualText');
   static final COSName mcid = COSName('MCID');
+  static final COSName attached = COSName('Attached');
   static final COSName kids = COSName('Kids');
   static final COSName annots = COSName('Annots');
   static final COSName count = COSName('Count');
@@ -117,6 +118,10 @@ class COSName extends COSBase implements Comparable<COSName> {
   static final COSName procSet = COSName('ProcSet');
   static final COSName pattern = COSName('Pattern');
   static final COSName patternType = COSName('PatternType');
+  static final COSName paintType = COSName('PaintType');
+  static final COSName tilingType = COSName('TilingType');
+  static final COSName xStep = COSName('XStep');
+  static final COSName yStep = COSName('YStep');
   static final COSName shading = COSName('Shading');
   static final COSName xObject = COSName('XObject');
   static final COSName colorSpace = COSName('ColorSpace');
@@ -188,11 +193,16 @@ class COSName extends COSBase implements Comparable<COSName> {
   static final COSName sm = COSName('SM');
   static final COSName sa = COSName('SA');
   static final COSName ca = COSName('CA');
-  static final COSName caNs = COSName('CA_NS');
+  // PDF spec: non-stroking alpha constant is `ca` (lowercase).
+  static final COSName caNs = COSName('ca');
   static final COSName ais = COSName('AIS');
   static final COSName tk = COSName('TK');
   static final COSName sMask = COSName('SMask');
+  static final COSName g = COSName('G');
   static final COSName shadingType = COSName('ShadingType');
+  static final COSName coords = COSName('Coords');
+  static final COSName extend = COSName('Extend');
+  static final COSName background = COSName('Background');
   static final COSName bm = COSName('BM');
   static final COSName tr = COSName('TR');
   static final COSName tr2 = COSName('TR2');

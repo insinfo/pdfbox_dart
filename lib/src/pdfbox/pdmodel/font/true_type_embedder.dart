@@ -10,8 +10,7 @@ class TrueTypeSubsetResult {
     required this.tag,
     required this.fontData,
     required Map<int, int> newToOldGlyphId,
-  }) :
-        newToOldGlyphId = Map<int, int>.unmodifiable(newToOldGlyphId),
+  })  : newToOldGlyphId = Map<int, int>.unmodifiable(newToOldGlyphId),
         oldToNewGlyphId = Map<int, int>.unmodifiable(
           newToOldGlyphId.map((newId, oldId) => MapEntry(oldId, newId)),
         );
@@ -35,21 +34,27 @@ class TrueTypeEmbedder {
     this._ttf, {
     bool embedSubset = true,
     List<String>? tablesToKeep,
-  })  : _embedSubset = embedSubset,
-        _subsetter = TtfSubsetter(_ttf, tablesToKeep ?? _defaultTables);
+  }) : _embedSubset = embedSubset {
+    if (_embedSubset) {
+      _subsetter = TtfSubsetter(_ttf, tablesToKeep ?? _defaultTables);
+    }
+  }
 
   static const List<String> _defaultTables = <String>[
+    'cmap',
     'head',
     'hhea',
     'loca',
     'maxp',
     'name',
+    'OS/2',
     'cvt ',
     'prep',
     'glyf',
     'hmtx',
     'fpgm',
     'gasp',
+    'post',
   ];
 
   static const List<int> _forcedInvisibleCodePoints = <int>[
@@ -61,7 +66,7 @@ class TrueTypeEmbedder {
 
   final TrueTypeFont _ttf;
   final bool _embedSubset;
-  final TtfSubsetter _subsetter;
+  TtfSubsetter? _subsetter;
 
   bool _subsetWritten = false;
 
@@ -70,7 +75,7 @@ class TrueTypeEmbedder {
     if (!_embedSubset) {
       return;
     }
-    _subsetter.add(codePoint);
+    _subsetter!.add(codePoint);
   }
 
   /// Adds glyph ids that must be retained even if they are not reachable via cmap lookups.
@@ -78,7 +83,7 @@ class TrueTypeEmbedder {
     if (!_embedSubset) {
       return;
     }
-    _subsetter.addGlyphIds(glyphIds);
+    _subsetter!.addGlyphIds(glyphIds);
   }
 
   /// Returns true if a subset needs to be produced instead of a full embedding.
@@ -87,7 +92,8 @@ class TrueTypeEmbedder {
   /// Builds a subset of the current TrueType font and returns the resulting data.
   TrueTypeSubsetResult subset() {
     if (_subsetWritten) {
-      throw StateError('Subset has already been produced for this embedder instance');
+      throw StateError(
+          'Subset has already been produced for this embedder instance');
     }
     _subsetWritten = true;
 
@@ -95,18 +101,23 @@ class TrueTypeEmbedder {
       throw StateError('Subsetting is disabled for this embedder instance');
     }
 
+    final subsetter = _subsetter;
+    if (subsetter == null) {
+      throw StateError('Subsetter not initialised');
+    }
+
     if (!_isSubsettingPermitted(_ttf)) {
       throw StateError('This font does not permit subsetting');
     }
 
     for (final codePoint in _forcedInvisibleCodePoints) {
-      _subsetter.forceInvisible(codePoint);
+      subsetter.forceInvisible(codePoint);
     }
 
-    final gidMap = _subsetter.getGidMap();
+    final gidMap = subsetter.getGidMap();
     final tag = _computeTag(gidMap);
-    _subsetter.setPrefix(tag);
-    final subsetBytes = _subsetter.buildSubset();
+    subsetter.setPrefix(tag);
+    final subsetBytes = subsetter.buildSubset();
 
     return TrueTypeSubsetResult(
       tag: tag,

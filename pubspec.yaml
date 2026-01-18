@@ -24,13 +24,18 @@ dependencies:
   # xpath_selector: ^3.0.2
   # xpath_selector_xml_parser: ^3.0.1
   # ninja: ^3.0.8
-  
+  dart_graphics:
+    path: ../dart_graphics
+    # git:
+    #   url: https://github.com/insinfo/dart_graphics.git
+    #   ref: master
+
 dev_dependencies: 
   dart_pdf:
   #   path: insinfo_dart_pdf
    git:
     url: https://github.com/insinfo/insinfo_dart_pdf
-    ref: 31.1.21   #branch name   
+    ref: 31.1.21-fix   #branch name   
   test: ^1.26.3
 
  

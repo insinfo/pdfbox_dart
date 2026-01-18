@@ -2,15 +2,19 @@ import '../../../fontbox/encoding/encoding.dart';
 import '../../../fontbox/encoding/symbol_encoding.dart';
 import '../../../fontbox/encoding/win_ansi_encoding.dart';
 import '../../../fontbox/encoding/zapf_dingbats_encoding.dart';
+import '../../../fontbox/cff/char_string_path.dart';
+import '../../../fontbox/font_box_font.dart';
 import '../../cos/cos_dictionary.dart';
 import '../../cos/cos_name.dart';
 import 'encoding/glyph_list.dart';
+import 'font_mappers.dart';
 import 'pd_simple_font.dart';
+import 'pd_vector_font.dart';
 import 'standard14_fonts.dart';
 import 'encoding/dictionary_encoding.dart';
 
 /// Lightweight implementation of PDFBox's PDType1Font focused on creation scenarios.
-class PDType1Font extends PDSimpleFont {
+class PDType1Font extends PDSimpleFont implements PDVectorFont {
   PDType1Font._(
     COSDictionary dictionary, {
     required Encoding encoding,
@@ -22,6 +26,46 @@ class PDType1Font extends PDSimpleFont {
           glyphList: glyphList,
           standard14Font: standard14Font,
         );
+
+  FontBoxFont? _mappedFont;
+
+  FontBoxFont? _resolveMappedFont() {
+    final cached = _mappedFont;
+    if (cached != null) {
+      return cached;
+    }
+
+    final baseFont = dictionary.getNameAsString(COSName.baseFont);
+    if (baseFont == null || baseFont.isEmpty) {
+      return null;
+    }
+
+    final mapping =
+        FontMappers.instance().getFontBoxFont(baseFont, fontDescriptor);
+    _mappedFont = mapping.font;
+    return _mappedFont;
+  }
+
+  @override
+  bool hasGlyph(int code) {
+    final font = _resolveMappedFont();
+    if (font == null) {
+      return false;
+    }
+    return font.hasGlyph(codeToName(code));
+  }
+
+  @override
+  CharStringPath getPath(int code) {
+    final font = _resolveMappedFont();
+    if (font == null) {
+      return CharStringPath();
+    }
+    return font.getPath(codeToName(code));
+  }
+
+  @override
+  CharStringPath getNormalizedPath(int code) => getPath(code);
 
   factory PDType1Font(COSDictionary dictionary) {
     final encoding = _readEncoding(dictionary);

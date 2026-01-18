@@ -573,7 +573,7 @@ class PDFStreamEngine {
     COSName? patternName,
   }) {
     final state = _ensureGraphicsState();
-    final color = PDColor(components, colorSpace);
+    final color = PDColor(components, colorSpace, patternName: patternName);
     if (stroking) {
       state.strokingColor = color;
     } else {

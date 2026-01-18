@@ -12,9 +12,9 @@ import 'font/pdfont_factory.dart';
 
 import 'graphics/form/pd_form_xobject.dart';
 import 'graphics/pattern/pd_abstract_pattern.dart';
+import 'graphics/shading/pd_shading.dart';
 import 'graphics/pd_post_script_xobject.dart';
 import 'graphics/pdxobject.dart';
-import 'graphics/shading/pd_shading.dart';
 import 'graphics/state/pd_extended_graphics_state.dart';
 import 'resource_cache.dart';
 
@@ -361,6 +361,26 @@ class PDResources {
     return xObjects;
   }
 
+  COSDictionary _ensureExtGStateDictionary() {
+    final existing = _dictionary.getCOSDictionary(COSName.extGState);
+    if (existing != null) {
+      return existing;
+    }
+    final states = COSDictionary();
+    _dictionary[COSName.extGState] = states;
+    return states;
+  }
+
+  COSDictionary _ensurePatternDictionary() {
+    final existing = _dictionary.getCOSDictionary(COSName.pattern);
+    if (existing != null) {
+      return existing;
+    }
+    final patterns = COSDictionary();
+    _dictionary[COSName.pattern] = patterns;
+    return patterns;
+  }
+
   /// Adds an XObject to the resources and returns the name it was assigned.
   COSName add(PDXObject xObject, [String prefix = "XO"]) {
     final xObjects = _ensureXObjectDictionary();
@@ -389,6 +409,58 @@ class PDResources {
     return name;
   }
 
+  /// Adds an ExtGState resource and returns the name it was assigned.
+  COSName addExtGState(PDExtendedGraphicsState state, [String prefix = 'GS']) {
+    final extGStates = _ensureExtGStateDictionary();
+    var nameKey = prefix;
+    var i = 0;
+    while (extGStates.containsKey(COSName.getPDFName(nameKey))) {
+      i++;
+      nameKey = "$prefix$i";
+    }
+    final name = COSName.getPDFName(nameKey);
+    extGStates[name] = state.cosObject;
+    return name;
+  }
+
+  /// Adds a Pattern resource and returns the name it was assigned.
+  COSName addPattern(PDAbstractPattern pattern, [String prefix = 'P']) {
+    final patterns = _ensurePatternDictionary();
+    var nameKey = prefix;
+    var i = 0;
+    while (patterns.containsKey(COSName.getPDFName(nameKey))) {
+      i++;
+      nameKey = "$prefix$i";
+    }
+    final name = COSName.getPDFName(nameKey);
+    patterns[name] = pattern.cosObject;
+    return name;
+  }
+
+  /// Adds a Shading resource and returns the name it was assigned.
+  COSName addShading(PDShading shading, [String prefix = 'SH']) {
+    final shadings = _ensureShadingDictionary();
+    var nameKey = prefix;
+    var i = 0;
+    while (shadings.containsKey(COSName.getPDFName(nameKey))) {
+      i++;
+      nameKey = "$prefix$i";
+    }
+    final name = COSName.getPDFName(nameKey);
+    shadings[name] = shading.cosObject;
+    return name;
+  }
+
+  COSDictionary _ensureShadingDictionary() {
+    final existing = _dictionary.getCOSDictionary(COSName.shading);
+    if (existing != null) {
+      return existing;
+    }
+    final shadings = COSDictionary();
+    _dictionary[COSName.shading] = shadings;
+    return shadings;
+  }
+
   void _configureXObject(PDXObject xObject) {
     if (xObject is PDImageXObject) {
       xObject.setAssociatedResources(this);
@@ -397,4 +469,3 @@ class PDResources {
     }
   }
 }
-

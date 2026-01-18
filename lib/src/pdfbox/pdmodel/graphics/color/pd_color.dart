@@ -3,6 +3,7 @@ import 'package:pdfbox_dart/src/pdfbox/pdmodel/graphics/color/pd_color_space.dar
 import '../../../cos/cos_array.dart';
 import '../../../cos/cos_base.dart';
 import '../../../cos/cos_float.dart';
+import '../../../cos/cos_name.dart';
 import '../../../cos/cos_number.dart';
 
 
@@ -10,13 +11,13 @@ import '../../../cos/cos_number.dart';
 /// Represents a colour value within a [PDColorSpace].
 class PDColor implements COSObjectable {
   /// Creates a colour instance using raw component values.
-  PDColor(Iterable<double> components, this.colorSpace)
+  PDColor(Iterable<double> components, this.colorSpace, {this.patternName})
       : _components = List<double>.from(
             colorSpace.normalizeComponents(components),
             growable: false);
 
   /// Constructs a colour from a COS array.
-  PDColor.fromCOSArray(COSArray array, this.colorSpace)
+  PDColor.fromCOSArray(COSArray array, this.colorSpace, {this.patternName})
       : _components = colorSpace.normalizeComponents(
           array.map(_extractCosValue),
         ),
@@ -24,6 +25,7 @@ class PDColor implements COSObjectable {
 
   final List<double> _components;
   final PDColorSpace colorSpace;
+  final COSName? patternName;
   COSArray? _cosArray;
 
   /// Returns an immutable view of the component array.

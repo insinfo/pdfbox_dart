@@ -14,6 +14,7 @@ import 'pd_document_name_dictionary.dart';
 import 'interactive/documentnavigation/pd_outline_node.dart';
 import 'interactive/form/pd_acro_form.dart';
 import 'documentinterchange/logicalstructure/pd_structure_tree_root.dart';
+import 'documentinterchange/logicalstructure/pd_mark_info.dart';
 
 /// Represents the document catalog (/Root) dictionary.
 class PDDocumentCatalog {
@@ -32,6 +33,7 @@ class PDDocumentCatalog {
   PDOutlineRoot? _documentOutline;
   PDAcroForm? _acroForm;
   PDStructureTreeRoot? _structureTreeRoot;
+  PDMarkInfo? _markInfo;
 
   COSDictionary get cosObject => _dictionary;
 
@@ -198,6 +200,30 @@ class PDDocumentCatalog {
       _dictionary.removeItem(COSName.acroForm);
     } else {
       _dictionary[COSName.acroForm] = value.cosObject;
+    }
+  }
+
+  /// Returns the MarkInfo dictionary if present.
+  PDMarkInfo? get markInfo {
+    final current = _markInfo;
+    if (current != null) {
+      return current;
+    }
+    final dict = _dictionary.getCOSDictionary(COSName('MarkInfo'));
+    if (dict == null) {
+      return null;
+    }
+    final info = PDMarkInfo.fromDictionary(dict);
+    _markInfo = info;
+    return info;
+  }
+
+  set markInfo(PDMarkInfo? info) {
+    _markInfo = info;
+    if (info == null) {
+      _dictionary.removeItem(COSName('MarkInfo'));
+    } else {
+      _dictionary[COSName('MarkInfo')] = info.cosObject;
     }
   }
 

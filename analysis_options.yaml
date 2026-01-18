@@ -1,0 +1,9 @@
+# Root analyzer configuration for this workspace.
+# Keep analysis fast by excluding large non-source folders.
+
+analyzer:
+  exclude:
+    - "doc/**"
+    - "insinfo_dart_pdf/**"
+    - "referencias/**"
+    - "resources/**"

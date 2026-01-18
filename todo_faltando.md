@@ -1,0 +1,557 @@
+# TODO - Itens faltando para portar alem da renderização de PDF
+fonte C:\MyDartProjects\pdfbox_dart\referencias\pdfbox-java
+C:\MyDartProjects\pdfbox_dart\referencias\pdfbox-java\pdfbox\src\main\java\org\apache\pdfbox\rendering
+
+utilize o dart_graphics C:\MyDartProjects\dart_graphics C:\MyDartProjects\dart_graphics\lib\src\dart_graphics\graphics2D.dart C:\MyDartProjects\dart_graphics\lib\dart_graphics.dart para ir portando o que falta de C:\MyDartProjects\pdfbox_dart\referencias\pdfbox-java na parte de renderização de PDF
+
+siga portando a risca o pdfbox mantenha a mesma logica e nome de classes e metodos para evitar bugs de renderização de PDF
+
+se precisar que implemente algo na lib dart_graphics implemente
+
+
+e va atualizando este roteiro com o que for sendo implementado
+
+dart analyze só na pasta onde aplicou modificações para ser mais rapido
+
+## implementado (marcos)
+- PageDrawer: clipping real `W/W*` (mask em device-space), com stack sincronizado com `q/Q`.
+- dart_graphics (recording): suporte a fill-rule em `clipPath` + backend de replay com clipping (`ImageGraphicsBackend`).
+- PageDrawer: texto (Tj/TJ) via outlines de `PDType0Font` (fill/stroke) + modos de clip de texto (`Tr=4..7`, clip aplicado por operacao).
+- Testes: renderizacao basica para clip `W/W*` e text-clip `Tr=4` (validacao por pixels).
+- Rendering: `GlyphCache` (PDFBox) portado e integrado ao `PageDrawer` (cache de outline normalizado por code/font).
+- ExtGState: suporte/validacao de alpha non-stroking (`/ca`) via `gs` + helper `PDResources.addExtGState`.
+- Transparencia: suporte minimo a `SoftMask (SMask)` (`/Alpha` e `/Luminosity`), com render do `/G` (Form XObject) em layer e aplicacao do mask por multiplicacao do alpha (straight-alpha) + testes por pixels.
+- Transparencia: SoftMask mais fiel com suporte a `/BC` (backdrop color fora do bbox do grupo) e `/TR` (transfer function) + testes por pixels.
+- Patterns: suporte inicial a PatternType=1 (tiling) com `PDTilingPattern` + rendering (fill/stroke) via tile pre-renderizado e repeticao (TilingPaint/TilingPaintFactory) + teste por pixels.
+- Shading: suporte inicial a ShadingType=2 (axial) para operador `sh`, com rasterizacao em `ImageBuffer` respeitando clip/SoftMask + teste por pixels.
+- Shading: suporte inicial a ShadingType=3 (radial), com port do calculo de intersecao (equacao quadratica) e teste por pixels.
+- Patterns: suporte a PatternType=2 (shading pattern), usando matriz do pattern e shading (Type2/Type3) para fill/stroke + teste por pixels.
+- Texto: suporte a fontes simples (subtype `TrueType` e `Type1`) via outlines (`PDVectorFont`), usando fonte embutida quando disponivel e fallback por `FontMapper` + teste por pixels (TrueType embutida).
+- TrueTypeEmbedder/TtfSubsetter: subset agora preserva/gera `cmap`/`post`/`OS/2` por default (subset reparseavel) + teste de regressao.
+- TaggedPDF: testes unitarios para `PDMarkInfo`, `PDArtifactMarkedContent`, `PDAttributeObject.create` (incl. `Layout`) e bump de revisao em `PDStructureElement`.
+- TaggedPDF: `PDStructureTreeRoot` (`/ParentTree`, `/ParentTreeNextKey`, `/IDTree`) + integracao no `PDDocumentCatalog` com testes de roundtrip.
+- TaggedPDF: `PDStructureElement` campos comuns (`/Pg`, `/ID`, `/Lang`, `/Alt`, `/ActualText`) + `ParentTree` com arrays indexados por MCID (helper em `PDParentTreeValue`) e testes.
+
+## pendente (observado)
+- TaggedPDF: ParentTree com entrada do tipo dicionario (nao array) para objetos individuais (ex.: annotation/XObject) via `/StructParent` ou `/StructParents`; portar helpers/roundtrip e testes.
+
+
+Gerado por comparacao automatica entre `referencias/pdfbox-java/**/src/main/java` e `lib` com reducao de falsos positivos por correspondencia de tipos (nomes de classes/enum/interface), normalizacao de sufixos (Operator/Processor/Handler/Impl/Adapter/Factory/Helper), comparacao case-insensitive e variacoes de prefixos/underscore (CFF*, _*).
+Excluidos caminhos contendo `/rendering/` e exemplos/benchmarks claramente voltados a renderizacao de imagem.
+Recomendado revisar manualmente equivalencias de nomes divergentes e itens fora de escopo (ex.: GUI/debugger).
+
+## equivalencias_manuais
+- AppendRectangleToPath -> RectangleOperator
+- BeginMarkedContentSequence -> BeginMarkedContentOperator
+- BeginMarkedContentSequenceWithProperties -> BeginMarkedContentWithPropertiesOperator
+- ClipEvenOddRule -> ClipEvenOddOperator
+- ClipNonZeroRule -> ClipPathOperator
+- CloseAndStrokePath -> CloseStrokePathOperator
+- CloseFillEvenOddAndStrokePath -> CloseFillEvenOddAndStrokeOperator
+- CloseFillNonZeroAndStrokePath -> CloseFillAndStrokeOperator
+- Concatenate -> ConcatMatrixOperator
+- EndMarkedContentSequence -> EndMarkedContentOperator
+- FillEvenOddAndStrokePath -> FillEvenOddAndStrokeOperator
+- FillEvenOddRule -> FillEvenOddOperator
+- FillNonZeroAndStrokePath -> FillAndStrokeOperator
+- FillNonZeroRule -> FillPathOperator
+- LegacyFillNonZeroRule -> FillPathOperator
+- MarkedContentPoint -> MarkedContentPointOperator
+- MarkedContentPointWithProperties -> MarkedContentPointWithPropertiesOperator
+- Restore -> RestoreGraphicsStateOperator
+- Save -> SaveGraphicsStateOperator
+- SetFontAndSize -> SetFontOperator
+- SetGraphicsStateParameters -> SetGraphicsStateOperator
+- SetLineCapStyle -> SetLineCapOperator
+- SetLineDashPattern -> SetLineDashOperator
+- SetLineJoinStyle -> SetLineJoinOperator
+- SetLineMiterLimit -> SetMiterLimitOperator
+- SetMatrix -> SetTextMatrixOperator
+- SetNonStrokingColorN -> SetNonStrokingColorNOPatternOperator
+- SetNonStrokingDeviceCMYKColor -> SetNonStrokingCMYKOperator
+- SetNonStrokingDeviceGrayColor -> SetNonStrokingGrayOperator
+- SetNonStrokingDeviceRGBColor -> SetNonStrokingRGBOperator
+- SetStrokingColorN -> SetStrokingColorNOPatternOperator
+- SetStrokingDeviceCMYKColor -> SetStrokingCMYKOperator
+- SetStrokingDeviceGrayColor -> SetStrokingGrayOperator
+- SetStrokingDeviceRGBColor -> SetStrokingRGBOperator
+- ShowTextAdjusted -> ShowTextArrayOperator
+- ShowTextLineAndSpace -> ShowTextLineAndSpaceOperator
+
+## benchmark (2)
+- benchmark/src/main/java/org/apache/pdfbox/benchmark/LoadAndSave.java
+- benchmark/src/main/java/org/apache/pdfbox/benchmark/TextExtraction.java
+
+## debugger (72)
+- debugger/src/main/java/org/apache/pdfbox/debugger/colorpane/ColorBarCellRenderer.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/colorpane/CSArrayBased.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/colorpane/CSDeviceN.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/colorpane/CSIndexed.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/colorpane/CSSeparation.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/colorpane/DeviceNColorant.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/colorpane/DeviceNTableModel.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/colorpane/IndexedColorant.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/colorpane/IndexedTableModel.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/flagbitspane/AnnotFlag.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/flagbitspane/EncryptFlag.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/flagbitspane/FieldFlag.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/flagbitspane/Flag.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/flagbitspane/FlagBitsPane.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/flagbitspane/FlagBitsPaneView.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/flagbitspane/FontFlag.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/flagbitspane/PanoseFlag.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/flagbitspane/SigFlag.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/fontencodingpane/FontEncodingPaneController.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/fontencodingpane/FontEncodingView.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/fontencodingpane/SimpleFont.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/fontencodingpane/Type3Font.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/hexviewer/AddressPane.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/hexviewer/ASCIIPane.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/hexviewer/HexChangeListener.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/hexviewer/HexEditor.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/hexviewer/HexModel.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/hexviewer/HexModelChangedEvent.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/hexviewer/HexModelChangeListener.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/hexviewer/HexPane.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/hexviewer/HexView.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/hexviewer/SelectEvent.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/hexviewer/SelectionChangeListener.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/hexviewer/StatusPane.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/hexviewer/UpperPane.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/pagepane/DebugTextOverlay.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/pagepane/PagePane.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/signaturepane/SignaturePane.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/streampane/OperatorMarker.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/streampane/Stream.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/streampane/StreamImageView.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/streampane/StreamPane.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/streampane/StreamPaneView.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/streampane/StreamTextView.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/streampane/tooltip/FontToolTip.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/streampane/tooltip/GToolTip.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/streampane/tooltip/KToolTip.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/streampane/tooltip/RGToolTip.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/streampane/tooltip/SCNToolTip.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/streampane/tooltip/ToolTipController.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/stringpane/StringPane.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/treestatus/TreeStatus.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/treestatus/TreeStatusPane.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/ui/ArrayEntry.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/ui/DebugLogAppender.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/ui/DocumentEntry.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/ui/FileOpenSaveDialog.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/ui/HighResolutionImageIcon.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/ui/LogDialog.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/ui/MapEntry.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/ui/MenuBase.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/ui/PageEntry.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/ui/PrintDpiMenu.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/ui/ReaderBottomPanel.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/ui/TextDialog.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/ui/textsearcher/SearchEngine.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/ui/textsearcher/Searcher.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/ui/textsearcher/SearchPanel.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/ui/TextStripperMenu.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/ui/Tree.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/ui/ViewMenu.java
+- debugger/src/main/java/org/apache/pdfbox/debugger/ui/XrefEntries.java
+
+## examples (83)
+- examples/src/main/java/org/apache/pdfbox/examples/ant/PDFToTextTask.java
+- examples/src/main/java/org/apache/pdfbox/examples/interactive/form/AddBorderToField.java
+- examples/src/main/java/org/apache/pdfbox/examples/interactive/form/CreateCheckBox.java
+- examples/src/main/java/org/apache/pdfbox/examples/interactive/form/CreateMultiWidgetsForm.java
+- examples/src/main/java/org/apache/pdfbox/examples/interactive/form/CreatePushButton.java
+- examples/src/main/java/org/apache/pdfbox/examples/interactive/form/CreateRadioButtons.java
+- examples/src/main/java/org/apache/pdfbox/examples/interactive/form/CreateSimpleForm.java
+- examples/src/main/java/org/apache/pdfbox/examples/interactive/form/CreateSimpleFormWithEmbeddedFont.java
+- examples/src/main/java/org/apache/pdfbox/examples/interactive/form/DetermineTextFitsField.java
+- examples/src/main/java/org/apache/pdfbox/examples/interactive/form/FieldTriggers.java
+- examples/src/main/java/org/apache/pdfbox/examples/interactive/form/FillFormField.java
+- examples/src/main/java/org/apache/pdfbox/examples/interactive/form/package-info.java
+- examples/src/main/java/org/apache/pdfbox/examples/interactive/form/PrintFields.java
+- examples/src/main/java/org/apache/pdfbox/examples/interactive/form/SetField.java
+- examples/src/main/java/org/apache/pdfbox/examples/interactive/form/UpdateFieldOnDocumentOpen.java
+- examples/src/main/java/org/apache/pdfbox/examples/lucene/IndexPDFFiles.java
+- examples/src/main/java/org/apache/pdfbox/examples/pdmodel/AddAnnotations.java
+- examples/src/main/java/org/apache/pdfbox/examples/pdmodel/AddImageToPDF.java
+- examples/src/main/java/org/apache/pdfbox/examples/pdmodel/AddJavascript.java
+- examples/src/main/java/org/apache/pdfbox/examples/pdmodel/AddMessageToEachPage.java
+- examples/src/main/java/org/apache/pdfbox/examples/pdmodel/AddMetadataFromDocInfo.java
+- examples/src/main/java/org/apache/pdfbox/examples/pdmodel/BengaliPdfGenerationHelloWorld.java
+- examples/src/main/java/org/apache/pdfbox/examples/pdmodel/CreateBlankPDF.java
+- examples/src/main/java/org/apache/pdfbox/examples/pdmodel/CreateBookmarks.java
+- examples/src/main/java/org/apache/pdfbox/examples/pdmodel/CreateGradientShadingPDF.java
+- examples/src/main/java/org/apache/pdfbox/examples/pdmodel/CreateLandscapePDF.java
+- examples/src/main/java/org/apache/pdfbox/examples/pdmodel/CreatePageLabels.java
+- examples/src/main/java/org/apache/pdfbox/examples/pdmodel/CreatePatternsPDF.java
+- examples/src/main/java/org/apache/pdfbox/examples/pdmodel/CreatePDFA.java
+- examples/src/main/java/org/apache/pdfbox/examples/pdmodel/CreatePortableCollection.java
+- examples/src/main/java/org/apache/pdfbox/examples/pdmodel/CreateSeparationColorBox.java
+- examples/src/main/java/org/apache/pdfbox/examples/pdmodel/EmbeddedFiles.java
+- examples/src/main/java/org/apache/pdfbox/examples/pdmodel/EmbeddedFonts.java
+- examples/src/main/java/org/apache/pdfbox/examples/pdmodel/EmbeddedMultipleFonts.java
+- examples/src/main/java/org/apache/pdfbox/examples/pdmodel/EmbeddedVerticalFonts.java
+- examples/src/main/java/org/apache/pdfbox/examples/pdmodel/ExtractEmbeddedFiles.java
+- examples/src/main/java/org/apache/pdfbox/examples/pdmodel/ExtractMetadata.java
+- examples/src/main/java/org/apache/pdfbox/examples/pdmodel/ExtractTTFFonts.java
+- examples/src/main/java/org/apache/pdfbox/examples/pdmodel/GoToSecondBookmarkOnOpen.java
+- examples/src/main/java/org/apache/pdfbox/examples/pdmodel/HelloWorld.java
+- examples/src/main/java/org/apache/pdfbox/examples/pdmodel/HelloWorldTTF.java
+- examples/src/main/java/org/apache/pdfbox/examples/pdmodel/HelloWorldType1.java
+- examples/src/main/java/org/apache/pdfbox/examples/pdmodel/ImageToPDF.java
+- examples/src/main/java/org/apache/pdfbox/examples/pdmodel/PrintBookmarks.java
+- examples/src/main/java/org/apache/pdfbox/examples/pdmodel/PrintDocumentMetaData.java
+- examples/src/main/java/org/apache/pdfbox/examples/pdmodel/PrintURLs.java
+- examples/src/main/java/org/apache/pdfbox/examples/pdmodel/RemoveFirstPage.java
+- examples/src/main/java/org/apache/pdfbox/examples/pdmodel/ReplaceURLs.java
+- examples/src/main/java/org/apache/pdfbox/examples/pdmodel/RubberStamp.java
+- examples/src/main/java/org/apache/pdfbox/examples/pdmodel/RubberStampWithImage.java
+- examples/src/main/java/org/apache/pdfbox/examples/pdmodel/ShowColorBoxes.java
+- examples/src/main/java/org/apache/pdfbox/examples/pdmodel/ShowTextWithPositioning.java
+- examples/src/main/java/org/apache/pdfbox/examples/pdmodel/SuperimposePage.java
+- examples/src/main/java/org/apache/pdfbox/examples/pdmodel/UsingTextMatrix.java
+- examples/src/main/java/org/apache/pdfbox/examples/printing/Printing.java
+- examples/src/main/java/org/apache/pdfbox/examples/signature/cert/CertificateVerificationException.java
+- examples/src/main/java/org/apache/pdfbox/examples/signature/cert/CertificateVerificationResult.java
+- examples/src/main/java/org/apache/pdfbox/examples/signature/cert/CertificateVerifier.java
+- examples/src/main/java/org/apache/pdfbox/examples/signature/cert/CRLVerifier.java
+- examples/src/main/java/org/apache/pdfbox/examples/signature/cert/OcspHelper.java
+- examples/src/main/java/org/apache/pdfbox/examples/signature/cert/RevokedCertificateException.java
+- examples/src/main/java/org/apache/pdfbox/examples/signature/CMSProcessableInputStream.java
+- examples/src/main/java/org/apache/pdfbox/examples/signature/CreateEmbeddedTimeStamp.java
+- examples/src/main/java/org/apache/pdfbox/examples/signature/CreateEmptySignatureForm.java
+- examples/src/main/java/org/apache/pdfbox/examples/signature/CreateSignature.java
+- examples/src/main/java/org/apache/pdfbox/examples/signature/CreateSignatureBase.java
+- examples/src/main/java/org/apache/pdfbox/examples/signature/CreateSignedTimeStamp.java
+- examples/src/main/java/org/apache/pdfbox/examples/signature/ShowSignature.java
+- examples/src/main/java/org/apache/pdfbox/examples/signature/TSAClient.java
+- examples/src/main/java/org/apache/pdfbox/examples/signature/validation/AddValidationInformation.java
+- examples/src/main/java/org/apache/pdfbox/examples/signature/validation/CertificateProccessingException.java
+- examples/src/main/java/org/apache/pdfbox/examples/signature/validation/CertInformationHelper.java
+- examples/src/main/java/org/apache/pdfbox/examples/signature/ValidationTimeStamp.java
+- examples/src/main/java/org/apache/pdfbox/examples/util/AddWatermarkText.java
+- examples/src/main/java/org/apache/pdfbox/examples/util/DrawPrintTextLocations.java
+- examples/src/main/java/org/apache/pdfbox/examples/util/ExtractTextSimple.java
+- examples/src/main/java/org/apache/pdfbox/examples/util/PDFHighlighter.java
+- examples/src/main/java/org/apache/pdfbox/examples/util/PDFMergerExample.java
+- examples/src/main/java/org/apache/pdfbox/examples/util/PrintImageLocations.java
+- examples/src/main/java/org/apache/pdfbox/examples/util/PrintTextColors.java
+- examples/src/main/java/org/apache/pdfbox/examples/util/PrintTextLocations.java
+- examples/src/main/java/org/apache/pdfbox/examples/util/RemoveAllText.java
+- examples/src/main/java/org/apache/pdfbox/examples/util/SplitBooklet.java
+
+## pdfbox (217)
+- pdfbox/src/main/java/org/apache/pdfbox/contentstream/operator/color/SetColor.java
+- pdfbox/src/main/java/org/apache/pdfbox/contentstream/operator/DrawObject.java
+- pdfbox/src/main/java/org/apache/pdfbox/contentstream/operator/graphics/BeginInlineImage.java
+- pdfbox/src/main/java/org/apache/pdfbox/contentstream/operator/graphics/DrawObject.java
+- pdfbox/src/main/java/org/apache/pdfbox/contentstream/operator/markedcontent/DrawObject.java
+- pdfbox/src/main/java/org/apache/pdfbox/contentstream/operator/MissingOperandException.java
+- pdfbox/src/main/java/org/apache/pdfbox/contentstream/operator/state/EmptyGraphicsStackException.java
+- pdfbox/src/main/java/org/apache/pdfbox/contentstream/PDFGraphicsStreamEngine.java
+- pdfbox/src/main/java/org/apache/pdfbox/cos/COSDocumentState.java
+- pdfbox/src/main/java/org/apache/pdfbox/cos/COSIncrement.java
+- pdfbox/src/main/java/org/apache/pdfbox/cos/COSInputStream.java
+- pdfbox/src/main/java/org/apache/pdfbox/cos/COSOutputStream.java
+- pdfbox/src/main/java/org/apache/pdfbox/cos/COSUpdateInfo.java
+- pdfbox/src/main/java/org/apache/pdfbox/cos/COSUpdateState.java
+- pdfbox/src/main/java/org/apache/pdfbox/cos/ICOSParser.java
+- pdfbox/src/main/java/org/apache/pdfbox/cos/PDFDocEncoding.java
+- pdfbox/src/main/java/org/apache/pdfbox/cos/UnmodifiableCOSDictionary.java
+- pdfbox/src/main/java/org/apache/pdfbox/filter/CCITTFaxDecoderStream.java
+- pdfbox/src/main/java/org/apache/pdfbox/filter/CCITTFaxEncoderStream.java
+- pdfbox/src/main/java/org/apache/pdfbox/filter/CCITTFaxFilter.java
+- pdfbox/src/main/java/org/apache/pdfbox/filter/CryptFilter.java
+- pdfbox/src/main/java/org/apache/pdfbox/filter/FlateFilterDecoderStream.java
+- pdfbox/src/main/java/org/apache/pdfbox/filter/IdentityFilter.java
+- pdfbox/src/main/java/org/apache/pdfbox/filter/JBIG2Filter.java
+- pdfbox/src/main/java/org/apache/pdfbox/filter/JPXFilter.java
+- pdfbox/src/main/java/org/apache/pdfbox/filter/MissingImageReaderException.java
+- pdfbox/src/main/java/org/apache/pdfbox/filter/RunLengthDecodeFilter.java
+- pdfbox/src/main/java/org/apache/pdfbox/filter/TIFFExtension.java
+- pdfbox/src/main/java/org/apache/pdfbox/Loader.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/common/function/PDFunctionTypeIdentity.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/DefaultResourceCache.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/DefaultResourceCacheCreateImpl.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/documentinterchange/prepress/PDBoxStyle.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/encryption/PublicKeyDecryptionMaterial.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/encryption/PublicKeySecurityHandler.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/encryption/SecurityProvider.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/fdf/FDFAnnotation.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/fdf/FDFAnnotationCaret.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/fdf/FDFAnnotationCircle.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/fdf/FDFAnnotationFileAttachment.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/fdf/FDFAnnotationFreeText.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/fdf/FDFAnnotationHighlight.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/fdf/FDFAnnotationInk.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/fdf/FDFAnnotationLine.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/fdf/FDFAnnotationLink.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/fdf/FDFAnnotationPolygon.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/fdf/FDFAnnotationPolyline.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/fdf/FDFAnnotationSound.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/fdf/FDFAnnotationSquare.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/fdf/FDFAnnotationSquiggly.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/fdf/FDFAnnotationStamp.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/fdf/FDFAnnotationStrikeOut.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/fdf/FDFAnnotationText.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/fdf/FDFAnnotationUnderline.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/fdf/FDFCatalog.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/fdf/FDFDictionary.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/fdf/FDFField.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/fdf/FDFIconFit.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/fdf/FDFJavaScript.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/fdf/FDFNamedPageReference.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/fdf/FDFOptionElement.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/fdf/FDFPage.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/fdf/FDFPageInfo.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/fdf/FDFTemplate.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/fixup/AbstractFixup.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/fixup/AcroFormDefaultFixup.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/fixup/PDDocumentFixup.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/fixup/processor/AbstractProcessor.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/fixup/processor/AcroFormDefaultsProcessor.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/fixup/processor/AcroFormGenerateAppearancesProcessor.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/fixup/processor/AcroFormOrphanWidgetsProcessor.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/fixup/processor/PDDocumentProcessor.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/font/encoding/MacOSRomanEncoding.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/font/encoding/Type1Encoding.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/font/PDCIDFontType0.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/font/PDMMType1Font.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/font/PDType1CFont.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/font/PDType3CharProc.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/font/Subsetter.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/graphics/blend/BlendComposite.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/graphics/color/PDCIEBasedColorSpace.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/graphics/color/PDIndexed.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/graphics/color/PDJPXColorSpace.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/graphics/color/PDOutputIntent.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/graphics/color/PDPattern.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/graphics/form/PDTransparencyGroup.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/graphics/form/PDTransparencyGroupAttributes.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/graphics/image/CCITTFactory.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/graphics/image/CustomFactory.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/graphics/image/JPEGFactory.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/graphics/image/LosslessFactory.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/graphics/image/PDImage.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/graphics/image/PDInlineImage.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/graphics/image/PNGConverter.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/graphics/image/SampledImageReader.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/graphics/pattern/PDTilingPattern.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/graphics/shading/AxialShadingContext.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/graphics/shading/AxialShadingPaint.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/graphics/shading/GouraudShadingContext.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/graphics/shading/Line.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/graphics/shading/Patch.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/graphics/shading/PDMeshBasedShadingType.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/graphics/shading/PDShadingType1.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/graphics/shading/PDShadingType2.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/graphics/shading/PDShadingType3.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/graphics/shading/PDShadingType4.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/graphics/shading/PDShadingType5.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/graphics/shading/PDShadingType6.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/graphics/shading/PDShadingType7.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/graphics/shading/PDTriangleBasedShadingType.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/graphics/shading/RadialShadingContext.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/graphics/shading/RadialShadingPaint.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/graphics/shading/TriangleBasedShadingContext.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/graphics/shading/Type1ShadingContext.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/graphics/shading/Type1ShadingPaint.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/graphics/shading/Type4ShadingContext.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/graphics/shading/Type4ShadingPaint.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/graphics/shading/Type5ShadingContext.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/graphics/shading/Type5ShadingPaint.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/graphics/shading/Type6ShadingContext.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/graphics/shading/Type6ShadingPaint.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/graphics/shading/Type7ShadingContext.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/graphics/shading/Type7ShadingPaint.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/graphics/shading/Vertex.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/action/OpenMode.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/action/PDActionHide.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/action/PDActionImportData.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/action/PDActionMovie.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/action/PDActionResetForm.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/action/PDActionSound.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/action/PDActionSubmitForm.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/action/PDActionThread.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/action/PDAdditionalActions.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/action/PDTargetDirectory.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/action/PDURIDictionary.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/action/PDWindowsLaunchParams.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/annotation/AnnotationFilter.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/annotation/handlers/AnnotationBorder.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/annotation/handlers/CloudyBorder.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/annotation/handlers/PDAbstractAppearanceHandler.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/annotation/handlers/PDAppearanceHandler.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/annotation/handlers/PDCaretAppearanceHandler.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/annotation/handlers/PDCircleAppearanceHandler.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/annotation/handlers/PDFileAttachmentAppearanceHandler.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/annotation/handlers/PDFreeTextAppearanceHandler.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/annotation/handlers/PDHighlightAppearanceHandler.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/annotation/handlers/PDInkAppearanceHandler.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/annotation/handlers/PDLineAppearanceHandler.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/annotation/handlers/PDLinkAppearanceHandler.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/annotation/handlers/PDPolygonAppearanceHandler.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/annotation/handlers/PDPolylineAppearanceHandler.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/annotation/handlers/PDSoundAppearanceHandler.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/annotation/handlers/PDSquareAppearanceHandler.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/annotation/handlers/PDSquigglyAppearanceHandler.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/annotation/handlers/PDStrikeoutAppearanceHandler.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/annotation/handlers/PDTextAppearanceHandler.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/annotation/handlers/PDUnderlineAppearanceHandler.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/annotation/PDAnnotationCaret.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/annotation/PDAnnotationCircle.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/annotation/PDAnnotationFileAttachment.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/annotation/PDAnnotationFreeText.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/annotation/PDAnnotationHighlight.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/annotation/PDAnnotationInk.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/annotation/PDAnnotationLine.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/annotation/PDAnnotationPolygon.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/annotation/PDAnnotationPolyline.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/annotation/PDAnnotationPopup.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/annotation/PDAnnotationRubberStamp.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/annotation/PDAnnotationSound.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/annotation/PDAnnotationSquare.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/annotation/PDAnnotationSquareCircle.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/annotation/PDAnnotationSquiggly.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/annotation/PDAnnotationStrikeout.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/annotation/PDAnnotationTextMarkup.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/annotation/PDAnnotationUnderline.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/AppearanceStyle.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/digitalsignature/COSFilterInputStream.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/digitalsignature/visible/PDFTemplateBuilder.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/digitalsignature/visible/PDFTemplateCreator.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/digitalsignature/visible/PDFTemplateStructure.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/digitalsignature/visible/PDVisibleSigBuilder.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/digitalsignature/visible/PDVisibleSignDesigner.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/documentnavigation/destination/PDPageFitHeightDestination.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/documentnavigation/destination/PDPageFitWidthDestination.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/documentnavigation/outline/PDDocumentOutline.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/documentnavigation/outline/PDOutlineItemIterator.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/form/FieldUtils.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/form/PDFieldTree.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/form/PDXFAResource.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/form/ScriptingHandler.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/pagenavigation/PDThread.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/pagenavigation/PDTransition.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/pagenavigation/PDTransitionDimension.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/pagenavigation/PDTransitionDirection.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/pagenavigation/PDTransitionMotion.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/pagenavigation/PDTransitionStyle.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/PlainText.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/PlainTextFormatter.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/TextAlign.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/PDAbstractContentStream.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/PDAppearanceContentStream.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/PDDocumentNameDestinationDictionary.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/PDPatternContentStream.java
+- pdfbox/src/main/java/org/apache/pdfbox/pdmodel/ResourceCacheFactory.java
+- pdfbox/src/main/java/org/apache/pdfbox/printing/Orientation.java
+- pdfbox/src/main/java/org/apache/pdfbox/printing/PDFPageable.java
+- pdfbox/src/main/java/org/apache/pdfbox/printing/PDFPrintable.java
+- pdfbox/src/main/java/org/apache/pdfbox/printing/Scaling.java
+- pdfbox/src/main/java/org/apache/pdfbox/text/PDFTextStripperByArea.java
+- pdfbox/src/main/java/org/apache/pdfbox/util/DateConverter.java
+- pdfbox/src/main/java/org/apache/pdfbox/util/filetypedetector/ByteTrie.java
+- pdfbox/src/main/java/org/apache/pdfbox/util/filetypedetector/FileType.java
+- pdfbox/src/main/java/org/apache/pdfbox/util/filetypedetector/FileTypeDetector.java
+- pdfbox/src/main/java/org/apache/pdfbox/util/Hex.java
+- pdfbox/src/main/java/org/apache/pdfbox/util/StringUtil.java
+- pdfbox/src/main/java/org/apache/pdfbox/util/Version.java
+- pdfbox/src/main/java/org/apache/pdfbox/util/XMLUtil.java
+
+## tools (22)
+- tools/src/main/java/org/apache/pdfbox/tools/DecompressObjectstreams.java
+- tools/src/main/java/org/apache/pdfbox/tools/Decrypt.java
+- tools/src/main/java/org/apache/pdfbox/tools/Encrypt.java
+- tools/src/main/java/org/apache/pdfbox/tools/ExportFDF.java
+- tools/src/main/java/org/apache/pdfbox/tools/ExportXFDF.java
+- tools/src/main/java/org/apache/pdfbox/tools/ExtractImages.java
+- tools/src/main/java/org/apache/pdfbox/tools/ExtractXMP.java
+- tools/src/main/java/org/apache/pdfbox/tools/imageio/ImageIOUtil.java
+- tools/src/main/java/org/apache/pdfbox/tools/imageio/JPEGUtil.java
+- tools/src/main/java/org/apache/pdfbox/tools/imageio/MetaUtil.java
+- tools/src/main/java/org/apache/pdfbox/tools/imageio/TIFFUtil.java
+- tools/src/main/java/org/apache/pdfbox/tools/ImageToPDF.java
+- tools/src/main/java/org/apache/pdfbox/tools/ImportFDF.java
+- tools/src/main/java/org/apache/pdfbox/tools/ImportXFDF.java
+- tools/src/main/java/org/apache/pdfbox/tools/OverlayPDF.java
+- tools/src/main/java/org/apache/pdfbox/tools/PDFBox.java
+- tools/src/main/java/org/apache/pdfbox/tools/PDFMerger.java
+- tools/src/main/java/org/apache/pdfbox/tools/PDFSplit.java
+- tools/src/main/java/org/apache/pdfbox/tools/PDFToImage.java
+- tools/src/main/java/org/apache/pdfbox/tools/TextToPDF.java
+- tools/src/main/java/org/apache/pdfbox/tools/Version.java
+- tools/src/main/java/org/apache/pdfbox/tools/WriteDecodedDoc.java
+
+## xmpbox (70)
+- xmpbox/src/main/java/org/apache/xmpbox/schema/AdobePDFSchema.java
+- xmpbox/src/main/java/org/apache/xmpbox/schema/DublinCoreSchema.java
+- xmpbox/src/main/java/org/apache/xmpbox/schema/ExifSchema.java
+- xmpbox/src/main/java/org/apache/xmpbox/schema/PDFAExtensionSchema.java
+- xmpbox/src/main/java/org/apache/xmpbox/schema/PDFAIdentificationSchema.java
+- xmpbox/src/main/java/org/apache/xmpbox/schema/PhotoshopSchema.java
+- xmpbox/src/main/java/org/apache/xmpbox/schema/TiffSchema.java
+- xmpbox/src/main/java/org/apache/xmpbox/schema/XMPageTextSchema.java
+- xmpbox/src/main/java/org/apache/xmpbox/schema/XMPBasicJobTicketSchema.java
+- xmpbox/src/main/java/org/apache/xmpbox/schema/XMPBasicSchema.java
+- xmpbox/src/main/java/org/apache/xmpbox/schema/XMPMediaManagementSchema.java
+- xmpbox/src/main/java/org/apache/xmpbox/schema/XMPRightsManagementSchema.java
+- xmpbox/src/main/java/org/apache/xmpbox/schema/XmpSchemaException.java
+- xmpbox/src/main/java/org/apache/xmpbox/schema/XMPSchemaFactory.java
+- xmpbox/src/main/java/org/apache/xmpbox/type/AbstractComplexProperty.java
+- xmpbox/src/main/java/org/apache/xmpbox/type/AbstractField.java
+- xmpbox/src/main/java/org/apache/xmpbox/type/AbstractSimpleProperty.java
+- xmpbox/src/main/java/org/apache/xmpbox/type/AbstractStructuredType.java
+- xmpbox/src/main/java/org/apache/xmpbox/type/AgentNameType.java
+- xmpbox/src/main/java/org/apache/xmpbox/type/ArrayProperty.java
+- xmpbox/src/main/java/org/apache/xmpbox/type/Attribute.java
+- xmpbox/src/main/java/org/apache/xmpbox/type/BadFieldValueException.java
+- xmpbox/src/main/java/org/apache/xmpbox/type/BooleanType.java
+- xmpbox/src/main/java/org/apache/xmpbox/type/Cardinality.java
+- xmpbox/src/main/java/org/apache/xmpbox/type/CFAPatternType.java
+- xmpbox/src/main/java/org/apache/xmpbox/type/ChoiceType.java
+- xmpbox/src/main/java/org/apache/xmpbox/type/ComplexPropertyContainer.java
+- xmpbox/src/main/java/org/apache/xmpbox/type/DateType.java
+- xmpbox/src/main/java/org/apache/xmpbox/type/DefinedStructuredType.java
+- xmpbox/src/main/java/org/apache/xmpbox/type/DeviceSettingsType.java
+- xmpbox/src/main/java/org/apache/xmpbox/type/DimensionsType.java
+- xmpbox/src/main/java/org/apache/xmpbox/type/FlashType.java
+- xmpbox/src/main/java/org/apache/xmpbox/type/GPSCoordinateType.java
+- xmpbox/src/main/java/org/apache/xmpbox/type/GUIDType.java
+- xmpbox/src/main/java/org/apache/xmpbox/type/IntegerType.java
+- xmpbox/src/main/java/org/apache/xmpbox/type/JobType.java
+- xmpbox/src/main/java/org/apache/xmpbox/type/LayerType.java
+- xmpbox/src/main/java/org/apache/xmpbox/type/LocaleType.java
+- xmpbox/src/main/java/org/apache/xmpbox/type/MIMEType.java
+- xmpbox/src/main/java/org/apache/xmpbox/type/OECFType.java
+- xmpbox/src/main/java/org/apache/xmpbox/type/PartType.java
+- xmpbox/src/main/java/org/apache/xmpbox/type/PDFAFieldType.java
+- xmpbox/src/main/java/org/apache/xmpbox/type/PDFAPropertyType.java
+- xmpbox/src/main/java/org/apache/xmpbox/type/PDFASchemaType.java
+- xmpbox/src/main/java/org/apache/xmpbox/type/PDFATypeType.java
+- xmpbox/src/main/java/org/apache/xmpbox/type/ProperNameType.java
+- xmpbox/src/main/java/org/apache/xmpbox/type/PropertiesDescription.java
+- xmpbox/src/main/java/org/apache/xmpbox/type/PropertyType.java
+- xmpbox/src/main/java/org/apache/xmpbox/type/RationalType.java
+- xmpbox/src/main/java/org/apache/xmpbox/type/RealType.java
+- xmpbox/src/main/java/org/apache/xmpbox/type/RenditionClassType.java
+- xmpbox/src/main/java/org/apache/xmpbox/type/ResourceEventType.java
+- xmpbox/src/main/java/org/apache/xmpbox/type/ResourceRefType.java
+- xmpbox/src/main/java/org/apache/xmpbox/type/StructuredType.java
+- xmpbox/src/main/java/org/apache/xmpbox/type/TextType.java
+- xmpbox/src/main/java/org/apache/xmpbox/type/ThumbnailType.java
+- xmpbox/src/main/java/org/apache/xmpbox/type/TypeMapping.java
+- xmpbox/src/main/java/org/apache/xmpbox/type/Types.java
+- xmpbox/src/main/java/org/apache/xmpbox/type/URIType.java
+- xmpbox/src/main/java/org/apache/xmpbox/type/URLType.java
+- xmpbox/src/main/java/org/apache/xmpbox/type/VersionType.java
+- xmpbox/src/main/java/org/apache/xmpbox/type/XPathType.java
+- xmpbox/src/main/java/org/apache/xmpbox/xml/DomHelper.java
+- xmpbox/src/main/java/org/apache/xmpbox/xml/DomXmpParser.java
+- xmpbox/src/main/java/org/apache/xmpbox/xml/PdfaExtensionHelper.java
+- xmpbox/src/main/java/org/apache/xmpbox/xml/XmpParsingException.java
+- xmpbox/src/main/java/org/apache/xmpbox/xml/XmpSerializationException.java
+- xmpbox/src/main/java/org/apache/xmpbox/xml/XmpSerializer.java
+- xmpbox/src/main/java/org/apache/xmpbox/XmpConstants.java
+- xmpbox/src/main/java/org/apache/xmpbox/XMPMetadata.java
