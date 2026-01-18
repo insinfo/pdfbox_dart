@@ -162,8 +162,6 @@ class PDTrueTypeFont extends PDSimpleFont implements PDVectorFont {
         'TrueTypeFont';
 
     final encoding = _readEncoding(fontDictionary);
-    print(
-        'PDTrueTypeFont created. BaseFont: $baseFont, Encoding: ${encoding.runtimeType}');
 
     return PDTrueTypeFont._(
       fontDictionary,
@@ -178,14 +176,11 @@ class PDTrueTypeFont extends PDSimpleFont implements PDVectorFont {
   static Encoding _readEncoding(COSDictionary dictionary) {
     final encoding = dictionary.getDictionaryObject(COSName.encoding);
     if (encoding is COSDictionary) {
-      print('Reading DictionaryEncoding');
       return DictionaryEncoding(encoding);
     } else if (encoding is COSName) {
-      print('Reading Encoding Name: ${encoding.name}');
       return DictionaryEncoding.resolveEncoding(encoding) ??
           WinAnsiEncoding.instance;
     }
-    print('No encoding found, using WinAnsiEncoding');
     return WinAnsiEncoding.instance;
   }
 
@@ -496,47 +491,6 @@ class PDTrueTypeFont extends PDSimpleFont implements PDVectorFont {
 
   @override
   String? toUnicode(int code) {
-    final result = super.toUnicode(code);
-
-    // Debugging for the specific issue
-    if (_basePostScriptName.contains('+')) {
-      // It's a subset
-      // Check what the embedded font thinks about this code
-      try {
-        final cmap = _trueTypeFont.getCmapTable();
-        if (cmap != null) {
-          final subtable = cmap.getSubtable(3, 1) ??
-              cmap.getSubtable(3, 0) ??
-              cmap.cmaps.first;
-          final gid = subtable.getGlyphId(code);
-
-          String? glyphName;
-          try {
-            final post = _trueTypeFont.getPostScriptTable();
-            final names = post?.glyphNames;
-            if (names != null && gid < names.length) {
-              glyphName = names[gid];
-            }
-
-            // Try to reverse map using (3, 1) cmap
-            final unicodeCmap = cmap.getSubtable(3, 1);
-            if (unicodeCmap != null) {
-              final codes = unicodeCmap.getCharCodes(gid);
-              print(
-                  'DEBUG: Code: $code, Result: $result, GID: $gid, GlyphName: $glyphName, ReverseCodes: $codes');
-            } else {
-              print(
-                  'DEBUG: Code: $code, Result: $result, GID: $gid, GlyphName: $glyphName, No (3,1) Cmap');
-            }
-          } catch (e) {
-            // ignore
-          }
-        }
-      } catch (e) {
-        print('DEBUG: Error probing embedded font: $e');
-      }
-    }
-
-    return result;
+    return super.toUnicode(code);
   }
 }

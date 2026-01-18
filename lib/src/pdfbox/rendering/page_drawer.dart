@@ -14,6 +14,7 @@ import '../cos/cos_number.dart';
 import '../cos/cos_string.dart';
 import '../filter/decode_options.dart';
 import '../pdmodel/font/pd_type0_font.dart';
+import '../pdmodel/font/pd_type3_font.dart';
 import '../pdmodel/font/pd_vector_font.dart';
 import '../pdmodel/font/pdfont.dart';
 import '../pdmodel/graphics/state/pd_graphics_state.dart';
@@ -28,6 +29,7 @@ import '../pdmodel/graphics/pattern/pd_abstract_pattern.dart';
 import '../pdmodel/graphics/pattern/pd_tiling_pattern.dart';
 import '../pdmodel/graphics/shading/pd_shading.dart';
 import '../pdmodel/common/function/pdf_function.dart';
+import '../pdmodel/pd_stream.dart';
 import '../util/matrix.dart';
 import 'page_drawer_parameters.dart';
 import 'glyph_cache.dart';
@@ -67,6 +69,10 @@ class PageDrawer extends PDFGraphicsStreamEngine {
 
   final Map<PDFont, GlyphCache> _glyphCaches = <PDFont, GlyphCache>{};
 
+  bool _processingType3CharProc = false;
+  double? _type3CharProcWidthWx;
+  double? _type3CharProcWidthWy;
+
   /// Draws the page using the supplied Graphics2D.
   void drawPage(Graphics2D graphics, PDRectangle pageSize) {
     _graphics = graphics;
@@ -85,6 +91,12 @@ class PageDrawer extends PDFGraphicsStreamEngine {
     _syncTransform();
     processPage(_parameters.getPage());
   }
+
+  // NOTE on transform composition:
+  // `dart_graphics`' `Affine.multiply(m)` composes so that `m` is applied LAST
+  // on points (i.e. `(a.multiply(b))(p) == b(a(p))`). This is easy to get
+  // backwards when porting from PDFBox/Java2D.
+  // See test/dart_graphics/affine_multiply_test.dart for a minimal proof.
 
   Graphics2D getGraphics() => _graphics;
 
@@ -123,6 +135,28 @@ class PageDrawer extends PDFGraphicsStreamEngine {
   ) {
     super.concatenateMatrix(a, b, c, d, e, f);
     _syncTransform();
+  }
+
+  @override
+  void setType3GlyphWidth(double wx, double wy) {
+    if (!_processingType3CharProc) {
+      return;
+    }
+    // d0/d1 are specified once per charproc; keep the first.
+    _type3CharProcWidthWx ??= wx;
+    _type3CharProcWidthWy ??= wy;
+  }
+
+  @override
+  void setType3GlyphWidthAndBoundingBox(
+    double wx,
+    double wy,
+    double llx,
+    double lly,
+    double urx,
+    double ury,
+  ) {
+    setType3GlyphWidth(wx, wy);
   }
 
   @override
@@ -1593,6 +1627,11 @@ class PageDrawer extends PDFGraphicsStreamEngine {
       return;
     }
 
+    if (font is PDType3Font) {
+      _drawType3Glyph(code: code, font: font);
+      return;
+    }
+
     if (font is! PDVectorFont) {
       // TODO: Fallback to a font substitution path (e.g. Type1/TrueType simple
       // fonts via a TypeFace bridge). For now keep spacing consistent.
@@ -1621,9 +1660,11 @@ class PageDrawer extends PDFGraphicsStreamEngine {
       ctm.translateY,
     );
 
-    final combined = _cloneAffine(_xform)
+    // dart_graphics Affine.multiply() is a premultiply (this = other * this).
+    // We want: combined = base * CTM * TRM.
+    final combined = _matrixToAffine(trm)
       ..multiply(ctmAffine)
-      ..multiply(_matrixToAffine(trm));
+      ..multiply(_xform);
     _graphics.setTransform(combined);
 
     _graphics.beginPath();
@@ -1638,6 +1679,81 @@ class PageDrawer extends PDFGraphicsStreamEngine {
     if (mode.isStroke) {
       _syncPaintStateForStroke();
       _graphics.strokePath();
+    }
+  }
+
+  void _drawType3Glyph({required int code, required PDType3Font font}) {
+    final state = currentGraphicsState;
+    if (state == null) {
+      return;
+    }
+
+    final charStream = font.getCharStream(code);
+    if (charStream == null) {
+      return;
+    }
+
+    // Render the glyph by executing its charproc content stream.
+    final savedXform = _xform;
+    final savedColorOps = shouldProcessColorOperators;
+
+    pushGraphicsState();
+    try {
+      final state = currentGraphicsState;
+      if (state == null) {
+        return;
+      }
+
+      // Port of PDFBox's processType3Stream(): replace the CTM with the text
+      // rendering matrix (text space -> device space), then pre-concatenate the
+      // Type3 font's matrix (FontMatrix) for the charproc stream.
+      final textState = state.textState;
+      final fontSize = textState.fontSize;
+      final horizontalScaling = textState.horizontalScaling / 100.0;
+      final rise = textState.rise;
+
+      final parameters = Matrix.fromComponents(
+        fontSize * horizontalScaling,
+        0,
+        0,
+        fontSize,
+        0,
+        rise,
+      );
+
+      final textMatrix = state.textMatrix ?? Matrix();
+      final ctm = state.currentTransformationMatrix;
+
+      // Compute the Type3 charproc CTM.
+          // Type3 charproc coordinates are in glyph space.
+          // Apply glyph->text scaling first (FontMatrix, textStateMatrix), then
+          // the text matrix (Tm), and finally the page CTM.
+          state.currentTransformationMatrix = font.fontMatrix
+            .multiply(parameters)
+            .multiply(textMatrix)
+            .multiply(ctm);
+      state.textMatrix = Matrix();
+      state.textLineMatrix = Matrix();
+
+      _xform = savedXform;
+      _syncTransform();
+
+      _processingType3CharProc = true;
+      _type3CharProcWidthWx = null;
+      _type3CharProcWidthWy = null;
+
+      // Type3 glyphs use the font's resource dictionary (spec). Some files are
+      // malformed and omit it, so fall back to the current resource stack.
+      final type3Resources = font.resources ?? currentResources;
+      if (type3Resources != null) {
+        setShouldProcessColorOperators(true);
+        processContentStream(PDStream(charStream), type3Resources);
+      }
+    } finally {
+      _processingType3CharProc = false;
+      setShouldProcessColorOperators(savedColorOps);
+      _xform = savedXform;
+      popGraphicsState();
     }
   }
 
@@ -1712,9 +1828,11 @@ class PageDrawer extends PDFGraphicsStreamEngine {
     );
     final trm = _glyphRenderingMatrix(state: state, font: font);
 
-    final combined = _cloneAffine(base)
+    // dart_graphics Affine.multiply() premultiplies (this = other * this).
+    // We want: combined = base * CTM * TRM.
+    final combined = _matrixToAffine(trm)
       ..multiply(ctmAffine)
-      ..multiply(_matrixToAffine(trm));
+      ..multiply(base);
 
     final closed = _closeSubpathsForClip(outline);
     return _transformPath(closed, combined);
@@ -1732,7 +1850,9 @@ class PageDrawer extends PDFGraphicsStreamEngine {
     final charSpacing = textState.characterSpacing;
     final wordSpacing = code == 32 ? textState.wordSpacing : 0.0;
 
-    final width = font.getWidthFromFont(code);
+    final width = font is PDType3Font
+        ? (_type3CharProcWidthWx ?? font.getWidthFromFont(code))
+        : font.getWidthFromFont(code);
     final glyphToText = font.fontMatrix.scaleX;
 
     final tx = ((width * glyphToText) * fontSize + charSpacing + wordSpacing) *
@@ -1741,6 +1861,11 @@ class PageDrawer extends PDFGraphicsStreamEngine {
     final textMatrix = state.textMatrix ?? Matrix();
     textMatrix.translate(tx, 0);
     state.textMatrix = textMatrix;
+
+    if (font is PDType3Font) {
+      _type3CharProcWidthWx = null;
+      _type3CharProcWidthWy = null;
+    }
   }
 
   Matrix _glyphRenderingMatrix(
@@ -2105,7 +2230,9 @@ class PageDrawer extends PDFGraphicsStreamEngine {
             ctm.translateX,
             ctm.translateY,
           );
-    final combined = _cloneAffine(_xform)..multiply(ctmAffine);
+    // dart_graphics Affine.multiply() premultiplies (this = other * this).
+    // We want: combined = base * CTM.
+    final combined = _cloneAffine(ctmAffine)..multiply(_xform);
     _graphics.setTransform(combined);
   }
 

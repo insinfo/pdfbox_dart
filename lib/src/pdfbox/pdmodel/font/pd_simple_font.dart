@@ -22,7 +22,7 @@ abstract class PDSimpleFont extends PDFont {
   })  : _encoding = encoding,
         super(dictionary, standard14Font: standard14Font) {
     this.glyphList = glyphList ?? GlyphList.getAdobeGlyphList();
-    
+
     _readToUnicodeCMap();
   }
 
@@ -32,18 +32,16 @@ abstract class PDSimpleFont extends PDFont {
   void _readToUnicodeCMap() {
     final toUnicode = dictionary.getDictionaryObject(COSName.toUnicode);
     if (toUnicode is COSStream) {
-      print('PDSimpleFont: Found ToUnicode CMap stream for ${dictionary.getNameAsString(COSName.baseFont)}');
       try {
         final parser = CMapParser();
         final view = toUnicode.createView();
         try {
           _toUnicodeCMap = parser.parse(view);
-          print('PDSimpleFont: Parsed ToUnicode CMap: ${_toUnicodeCMap?.name}');
         } finally {
           view.close();
         }
       } catch (e) {
-        print('PDSimpleFont: Error parsing ToUnicode CMap: $e');
+        // Ignore malformed ToUnicode streams; callers will fall back.
       }
     }
   }

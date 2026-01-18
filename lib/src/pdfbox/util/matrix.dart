@@ -8,8 +8,7 @@ import 'vector.dart';
 /// 3x3 matrix implementation matching PDFBox semantics.
 class Matrix {
   /// Creates an identity matrix.
-  Matrix()
-      : _values = <double>[1, 0, 0, 0, 1, 0, 0, 0, 1];
+  Matrix() : _values = <double>[1, 0, 0, 0, 1, 0, 0, 0, 1];
 
   Matrix._fromValues(List<double> values)
       : _values = List<double>.from(values, growable: false) {
@@ -25,7 +24,7 @@ class Matrix {
     double e,
     double f,
   ) {
-  return Matrix._fromValues(<double>[a, b, 0, c, d, 0, e, f, 1]);
+    return Matrix._fromValues(<double>[a, b, 0, c, d, 0, e, f, 1]);
   }
 
   /// Parses a matrix from a COS array when valid, otherwise returns identity.
@@ -94,7 +93,8 @@ class Matrix {
   }
 
   /// Multiplies this matrix by [other] returning a new instance.
-  Matrix multiply(Matrix other) => Matrix._fromValues(_multiply(_values, other._values));
+  Matrix multiply(Matrix other) =>
+      Matrix._fromValues(_multiply(_values, other._values));
 
   /// Applies a translation.
   void translate(double tx, double ty) {
@@ -212,5 +212,4 @@ class Matrix {
     double yScale = _values[4];
     return math.sqrt(xScale * xScale + yScale * yScale);
   }
-
 }

@@ -106,11 +106,13 @@ class PDType0Font extends PDFont implements PDVectorFont, PDCIDFontParent {
     }
     final list = _type0Font?.fontMatrix;
     if (list != null && list.length >= 6) {
-       return Matrix.fromComponents(
-         list[0].toDouble(), list[1].toDouble(),
-         list[2].toDouble(), list[3].toDouble(),
-         list[4].toDouble(), list[5].toDouble()
-       );
+      return Matrix.fromComponents(
+          list[0].toDouble(),
+          list[1].toDouble(),
+          list[2].toDouble(),
+          list[3].toDouble(),
+          list[4].toDouble(),
+          list[5].toDouble());
     }
     return super.fontMatrix;
   }
@@ -556,7 +558,8 @@ class PDType0Font extends PDFont implements PDVectorFont, PDCIDFontParent {
     return collection.getFontAtIndex(targetIndex);
   }
 
-  static COSArray _buildDescendantFontsArray(Type0Font type0Font, String baseFont) {
+  static COSArray _buildDescendantFontsArray(
+      Type0Font type0Font, String baseFont) {
     final descendant = COSDictionary()
       ..setName(COSName.type, 'Font')
       ..setName(COSName.subtype, COSName.cidFontType0.name)
@@ -577,7 +580,8 @@ class PDType0Font extends PDFont implements PDVectorFont, PDCIDFontParent {
   }
 
   /// Delegates glyph decoding to the underlying [Type0Font].
-  List<Type0Glyph> decodeGlyphs(Uint8List encoded) => type0Font.decodeGlyphs(encoded);
+  List<Type0Glyph> decodeGlyphs(Uint8List encoded) =>
+      type0Font.decodeGlyphs(encoded);
 
   /// Delegates CID decoding to the underlying [Type0Font].
   List<int> decodeCids(Uint8List encoded) => type0Font.decodeCids(encoded);
@@ -586,14 +590,16 @@ class PDType0Font extends PDFont implements PDVectorFont, PDCIDFontParent {
   List<int> decodeGids(Uint8List encoded) => type0Font.decodeGids(encoded);
 
   /// Decodes [encoded] bytes into a Unicode string using the configured CMaps.
-  String decodeToUnicode(Uint8List encoded) => type0Font.decodeToUnicode(encoded);
+  String decodeToUnicode(Uint8List encoded) =>
+      type0Font.decodeToUnicode(encoded);
 
   @override
   String? toUnicode(int code) {
     final helper = _type0Font;
     if (helper != null) {
       for (final length in Type0Font.candidateCodeLengths(code)) {
-        final glyphs = helper.decodeGlyphs(Type0Font.encodeCodeWithLength(code, length));
+        final glyphs =
+            helper.decodeGlyphs(Type0Font.encodeCodeWithLength(code, length));
         if (glyphs.isNotEmpty) {
           return glyphs.first.unicode;
         }
@@ -618,7 +624,7 @@ class PDType0Font extends PDFont implements PDVectorFont, PDCIDFontParent {
         return unicode;
       }
     } else {
-       stderr.writeln('DEBUG: descendant is not PDCIDFontType2: $descendant');
+      stderr.writeln('DEBUG: descendant is not PDCIDFontType2: $descendant');
     }
 
     return null;
@@ -740,23 +746,21 @@ class PDType0Font extends PDFont implements PDVectorFont, PDCIDFontParent {
 
     final base = cosObject.getDictionaryObject(COSName.toUnicode);
     if (base is COSStream) {
-     
       final decoded = base.decode();
       if (decoded != null) {
         final buffer = RandomAccessReadBuffer.fromBytes(decoded);
         try {
           _cachedToUnicode = CMapManager.parseCMap(buffer);
-          
         } catch (e) {
-          print('PDType0Font: Error parsing ToUnicode CMap: $e');
+          // Ignore malformed ToUnicode streams; callers will fall back.
         } finally {
           buffer.close();
         }
       } else {
-          print('PDType0Font: Failed to decode ToUnicode stream');
+        // Failed to decode ToUnicode stream; callers will fall back.
       }
     } else {
-        print('PDType0Font: No ToUnicode CMap found');
+      // No ToUnicode CMap found; callers will fall back.
     }
     return _cachedToUnicode;
   }
