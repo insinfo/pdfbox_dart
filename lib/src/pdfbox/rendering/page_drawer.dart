@@ -485,7 +485,14 @@ class PageDrawer extends PDFGraphicsStreamEngine {
       final shadingToDevice = _cloneAffine(_graphics.transform);
 
       ImageBuffer? shadingBuffer;
-      if (shading is PDShadingType2) {
+      if (shading is PDShadingType1) {
+        shadingBuffer = _renderFunctionShading(
+          shading,
+          width: w,
+          height: h,
+          shadingToDevice: shadingToDevice,
+        );
+      } else if (shading is PDShadingType2) {
         shadingBuffer = _renderAxialShading(
           shading,
           width: w,
@@ -494,6 +501,14 @@ class PageDrawer extends PDFGraphicsStreamEngine {
         );
       } else if (shading is PDShadingType3) {
         shadingBuffer = _renderRadialShading(
+          shading,
+          width: w,
+          height: h,
+          shadingToDevice: shadingToDevice,
+        );
+      } else if (shading is PDTriangleBasedShadingType) {
+        // Type 4 and Type 5 (triangle mesh shadings)
+        shadingBuffer = _renderTriangleMeshShading(
           shading,
           width: w,
           height: h,
@@ -521,6 +536,240 @@ class PageDrawer extends PDFGraphicsStreamEngine {
       _graphics.setTransform(oldTransform);
       _graphics.masterAlpha = oldAlpha;
     });
+  }
+
+  /// Renders a Type 1 (function-based) shading.
+  /// Port of PDFBox Type1ShadingContext.
+  ImageBuffer? _renderFunctionShading(
+    PDShadingType1 shading, {
+    required int width,
+    required int height,
+    required Affine shadingToDevice,
+  }) {
+    final cs = shading.colorSpace;
+    if (cs == null) {
+      return null;
+    }
+
+    // Domain: [xmin xmax ymin ymax], default [0 1 0 1]
+    final domain = shading.domainValues;
+    final xmin = domain[0];
+    final xmax = domain[1];
+    final ymin = domain[2];
+    final ymax = domain[3];
+
+    // Background color (optional)
+    int? rgbBackground;
+    final bg = shading.background;
+    if (bg != null && bg.isNotEmpty) {
+      final components = <double>[];
+      for (var i = 0; i < bg.length; i++) {
+        components.add(bg.getDouble(i) ?? 0.0);
+      }
+      final rgb = cs.toRGB(cs.normalizeComponents(components));
+      rgbBackground = _rgbToInt(rgb);
+    }
+
+    // Compute BBox restriction if present
+    _IntRect? bboxDevice;
+    final bbox = shading.bbox;
+    if (bbox != null) {
+      final xA = bbox.lowerLeftX;
+      final yA = bbox.lowerLeftY;
+      final xB = bbox.upperRightX;
+      final yB = bbox.upperRightY;
+      final t = shadingToDevice;
+      final p00 = t.transformPoint(xA, yA);
+      final p10 = t.transformPoint(xB, yA);
+      final p01 = t.transformPoint(xA, yB);
+      final p11 = t.transformPoint(xB, yB);
+      final minX = <double>[p00.x, p10.x, p01.x, p11.x].reduce(math.min);
+      final maxX = <double>[p00.x, p10.x, p01.x, p11.x].reduce(math.max);
+      final minY = <double>[p00.y, p10.y, p01.y, p11.y].reduce(math.min);
+      final maxY = <double>[p00.y, p10.y, p01.y, p11.y].reduce(math.max);
+      final left = minX.floor().clamp(0, width);
+      final right = maxX.ceil().clamp(0, width);
+      final top = minY.floor().clamp(0, height);
+      final bottom = maxY.ceil().clamp(0, height);
+      if (right > left && bottom > top) {
+        bboxDevice = _IntRect(left, top, right, bottom);
+      }
+    }
+
+    // Build the inverse transform:
+    // device -> shading space (shadingToDevice^-1) -> shading matrix^-1
+    // This gives us coordinates in the domain space for function evaluation.
+    final shadingMatrix = shading.matrix;
+    final shadingMatrixAffine = Affine(
+      shadingMatrix.scaleX,
+      shadingMatrix.shearY,
+      shadingMatrix.shearX,
+      shadingMatrix.scaleY,
+      shadingMatrix.translateX,
+      shadingMatrix.translateY,
+    );
+    
+    // Compute inverse transforms
+    final deviceToShading = _invertAffine(shadingToDevice);
+    final shadingToFunction = _invertAffine(shadingMatrixAffine);
+    
+    // Combined: device -> shading -> function domain
+    final deviceToFunction = Affine.identity();
+    deviceToFunction.multiply(shadingToFunction);
+    deviceToFunction.multiply(deviceToShading);
+
+    final out = ImageBuffer(width, height);
+    final buf = out.getBuffer();
+
+    for (var y = 0; y < height; y++) {
+      for (var x = 0; x < width; x++) {
+        if (bboxDevice != null &&
+            (x < bboxDevice.left ||
+                x >= bboxDevice.right ||
+                y < bboxDevice.top ||
+                y >= bboxDevice.bottom)) {
+          continue;
+        }
+
+        // Transform pixel center to function domain space
+        final p = deviceToFunction.transformPoint(x + 0.5, y + 0.5);
+        final fx = p.x;
+        final fy = p.y;
+
+        final o = (y * width + x) * 4;
+
+        // Check if point is within domain
+        if (fx < xmin || fx > xmax || fy < ymin || fy > ymax) {
+          // Outside domain - use background if available
+          if (rgbBackground != null) {
+            buf[o] = (rgbBackground >> 16) & 0xFF;
+            buf[o + 1] = (rgbBackground >> 8) & 0xFF;
+            buf[o + 2] = rgbBackground & 0xFF;
+            buf[o + 3] = 255;
+          }
+          continue;
+        }
+
+        // Evaluate function at (fx, fy)
+        final values = shading.evalFunction(<double>[fx, fy]);
+        if (values == null) {
+          continue;
+        }
+
+        // Convert to RGB
+        final rgb = cs.toRGB(cs.normalizeComponents(values));
+        final rgbInt = _rgbToInt(rgb);
+
+        buf[o] = (rgbInt >> 16) & 0xFF;
+        buf[o + 1] = (rgbInt >> 8) & 0xFF;
+        buf[o + 2] = rgbInt & 0xFF;
+        buf[o + 3] = 255;
+      }
+    }
+
+    return out;
+  }
+
+  /// Renders a Type 4/5 (Gouraud-shaded triangle mesh) shading.
+  /// Port of PDFBox TriangleBasedShadingContext.
+  ImageBuffer? _renderTriangleMeshShading(
+    PDTriangleBasedShadingType shading, {
+    required int width,
+    required int height,
+    required Affine shadingToDevice,
+  }) {
+    final cs = shading.colorSpace;
+    if (cs == null) {
+      return null;
+    }
+
+    // Background color (optional)
+    int? rgbBackground;
+    final bg = shading.background;
+    if (bg != null && bg.isNotEmpty) {
+      final components = <double>[];
+      for (var i = 0; i < bg.length; i++) {
+        components.add(bg.getDouble(i) ?? 0.0);
+      }
+      final rgb = cs.toRGB(cs.normalizeComponents(components));
+      rgbBackground = _rgbToInt(rgb);
+    }
+
+    // Get the current transform matrix
+    final state = currentGraphicsState;
+    if (state == null) {
+      return null;
+    }
+
+    // Collect triangles - pass transform and matrix
+    final matrix = shading is PDShadingType1 ? (shading as PDShadingType1).matrix : Matrix();
+    List<ShadedTriangle> triangles;
+    try {
+      triangles = shading.collectTriangles(shadingToDevice, matrix);
+    } catch (e) {
+      _log.fine('Error collecting triangles: $e');
+      return null;
+    }
+
+    if (triangles.isEmpty) {
+      return null;
+    }
+
+    // Check for function to use for color transformation
+    final fn = shading.cosObject.getDictionaryObject(COSName.function);
+    final PDFunction? shadingFunction = fn != null ? PDFunction.create(fn) : null;
+
+    final out = ImageBuffer(width, height);
+    final buf = out.getBuffer();
+
+    // For each pixel, find the triangle it belongs to and calculate the color
+    for (var y = 0; y < height; y++) {
+      for (var x = 0; x < width; x++) {
+        final o = (y * width + x) * 4;
+        
+        // Create a point for this pixel
+        final pixel = Point(x + 0.5, y + 0.5);
+        
+        // Find which triangle contains this point
+        ShadedTriangle? containingTriangle;
+        for (final triangle in triangles) {
+          if (triangle.contains(pixel)) {
+            containingTriangle = triangle;
+            break;
+          }
+        }
+
+        if (containingTriangle == null) {
+          // Not inside any triangle - use background if available
+          if (rgbBackground != null) {
+            buf[o] = (rgbBackground >> 16) & 0xFF;
+            buf[o + 1] = (rgbBackground >> 8) & 0xFF;
+            buf[o + 2] = rgbBackground & 0xFF;
+            buf[o + 3] = 255;
+          }
+          continue;
+        }
+
+        // Calculate the color for this point using barycentric interpolation
+        var colorValues = containingTriangle.calcColor(pixel);
+
+        // Apply function if present
+        if (shadingFunction != null) {
+          colorValues = shadingFunction.eval(colorValues);
+        }
+
+        // Convert to RGB
+        final rgb = cs.toRGB(cs.normalizeComponents(colorValues));
+        final rgbInt = _rgbToInt(rgb);
+
+        buf[o] = (rgbInt >> 16) & 0xFF;
+        buf[o + 1] = (rgbInt >> 8) & 0xFF;
+        buf[o + 2] = rgbInt & 0xFF;
+        buf[o + 3] = 255;
+      }
+    }
+
+    return out;
   }
 
   ImageBuffer? _renderAxialShading(
@@ -1863,7 +2112,14 @@ class PageDrawer extends PDFGraphicsStreamEngine {
         ..multiply(_cloneAffine(_graphics.transform));
 
       ImageBuffer? shadingBuffer;
-      if (shading is PDShadingType2) {
+      if (shading is PDShadingType1) {
+        shadingBuffer = _renderFunctionShading(
+          shading,
+          width: w,
+          height: h,
+          shadingToDevice: shadingToDevice,
+        );
+      } else if (shading is PDShadingType2) {
         shadingBuffer = _renderAxialShading(
           shading,
           width: w,
@@ -1872,6 +2128,13 @@ class PageDrawer extends PDFGraphicsStreamEngine {
         );
       } else if (shading is PDShadingType3) {
         shadingBuffer = _renderRadialShading(
+          shading,
+          width: w,
+          height: h,
+          shadingToDevice: shadingToDevice,
+        );
+      } else if (shading is PDTriangleBasedShadingType) {
+        shadingBuffer = _renderTriangleMeshShading(
           shading,
           width: w,
           height: h,
@@ -1965,7 +2228,14 @@ class PageDrawer extends PDFGraphicsStreamEngine {
         ..multiply(_cloneAffine(_graphics.transform));
 
       ImageBuffer? shadingBuffer;
-      if (shading is PDShadingType2) {
+      if (shading is PDShadingType1) {
+        shadingBuffer = _renderFunctionShading(
+          shading,
+          width: w,
+          height: h,
+          shadingToDevice: shadingToDevice,
+        );
+      } else if (shading is PDShadingType2) {
         shadingBuffer = _renderAxialShading(
           shading,
           width: w,
@@ -1974,6 +2244,13 @@ class PageDrawer extends PDFGraphicsStreamEngine {
         );
       } else if (shading is PDShadingType3) {
         shadingBuffer = _renderRadialShading(
+          shading,
+          width: w,
+          height: h,
+          shadingToDevice: shadingToDevice,
+        );
+      } else if (shading is PDTriangleBasedShadingType) {
+        shadingBuffer = _renderTriangleMeshShading(
           shading,
           width: w,
           height: h,

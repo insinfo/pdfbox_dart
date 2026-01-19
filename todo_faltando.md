@@ -41,11 +41,11 @@ dart analyze só na pasta onde aplicou modificações para ser mais rapido
 - Fontes: `EmbeddedFonts` - fontes Standard 14 embedadas em Base64 para uso offline + script `generate_embedded_fonts.dart` para gerar automaticamente.
 - FontMapperImpl: fallback para fontes embedadas quando sistema não tem fontes disponíveis.
 - Annotations: renderização de anotações (links, widgets, etc.) via `showAnnotation`/`processAnnotation` no PDFStreamEngine + loop em `PageDrawer.drawPage`.
+- Shading: ShadingType1 (function-based) portado com `PDShadingType1` + renderizador `_renderFunctionShading` no PageDrawer, seguindo lógica do Type1ShadingContext do PDFBox.
+- Shading: ShadingType4 (free-form Gouraud-shaded triangle mesh) portado com `PDShadingType4`, `PDTriangleBasedShadingType`, `ShadedTriangle`, `ShadingVertex`, `ShadingLine`, `BitInputStream`, `PDRange` + renderizador `_renderTriangleMeshShading`.
+- Shading: ShadingType5 (lattice-form Gouraud-shaded triangle mesh) portado com `PDShadingType5`, reusando infraestrutura do Type4.
 
 ## pendente (renderização - prioritário)
-- Shading: ShadingType1 (function-based) - PDShadingType1.java
-- Shading: ShadingType4 (free-form Gouraud-shaded triangle mesh) - PDShadingType4.java
-- Shading: ShadingType5 (lattice-form Gouraud-shaded triangle mesh) - PDShadingType5.java
 - Shading: ShadingType6 (Coons patch mesh) - PDShadingType6.java
 - Shading: ShadingType7 (tensor-product patch mesh) - PDShadingType7.java
 - GroupGraphics.java: suporte completo a grupos de transparência não-isolados (backdrop removal)

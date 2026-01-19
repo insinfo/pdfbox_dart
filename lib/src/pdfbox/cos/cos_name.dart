@@ -240,6 +240,9 @@ class COSName extends COSBase implements Comparable<COSName> {
   static final COSName colors = COSName('Colors');
   static final COSName bitsPerComponent = COSName('BitsPerComponent');
   static final COSName bitsPerSample = COSName('BitsPerSample');
+  static final COSName bitsPerCoordinate = COSName('BitsPerCoordinate');
+  static final COSName bitsPerFlag = COSName('BitsPerFlag');
+  static final COSName verticesPerRow = COSName('VerticesPerRow');
   static final COSName columns = COSName('Columns');
   static final COSName earlyChange = COSName('EarlyChange');
   static final COSName imageMask = COSName('ImageMask');
