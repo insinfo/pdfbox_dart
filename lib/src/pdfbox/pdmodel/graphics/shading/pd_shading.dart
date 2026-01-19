@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:dart_graphics/dart_graphics.dart' show Affine;
 import 'package:pdfbox_dart/src/pdfbox/pdmodel/graphics/color/pd_color_space.dart';
 
@@ -14,11 +16,15 @@ import '../../common/pd_rectangle.dart';
 
 part 'shaded_triangle.dart';
 part 'pd_triangle_based_shading_type.dart';
+part 'patch.dart';
+part 'pd_mesh_based_shading_type.dart';
 part 'pd_shading_type1.dart';
 part 'pd_shading_type2.dart';
 part 'pd_shading_type3.dart';
 part 'pd_shading_type4.dart';
 part 'pd_shading_type5.dart';
+part 'pd_shading_type6.dart';
+part 'pd_shading_type7.dart';
 
 /// Base wrapper for shading resources.
 class PDShading {
@@ -65,6 +71,10 @@ class PDShading {
         return PDShadingType4(dictionary, resources: resources);
       case 5:
         return PDShadingType5(dictionary, resources: resources);
+      case 6:
+        return PDShadingType6(dictionary, resources: resources);
+      case 7:
+        return PDShadingType7(dictionary, resources: resources);
       default:
         return PDShading(dictionary, resources: resources);
     }

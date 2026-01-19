@@ -44,10 +44,11 @@ dart analyze só na pasta onde aplicou modificações para ser mais rapido
 - Shading: ShadingType1 (function-based) portado com `PDShadingType1` + renderizador `_renderFunctionShading` no PageDrawer, seguindo lógica do Type1ShadingContext do PDFBox.
 - Shading: ShadingType4 (free-form Gouraud-shaded triangle mesh) portado com `PDShadingType4`, `PDTriangleBasedShadingType`, `ShadedTriangle`, `ShadingVertex`, `ShadingLine`, `BitInputStream`, `PDRange` + renderizador `_renderTriangleMeshShading`.
 - Shading: ShadingType5 (lattice-form Gouraud-shaded triangle mesh) portado com `PDShadingType5`, reusando infraestrutura do Type4.
+- Shading: ShadingType6 (Coons patch mesh) portado com `PDShadingType6`, `PDMeshBasedShadingType`, `Patch`, `CoonsPatch`, `CubicBezierCurve`, `CoordinateColorPair` - reutiliza `_renderTriangleMeshShading`.
+- Shading: ShadingType7 (tensor-product patch mesh) portado com `PDShadingType7`, `TensorPatch` - reutiliza infraestrutura de mesh shading.
+- Shading Tests: 17 testes unitários cobrindo todas as classes de suporte: ShadingVertex, ShadingLine, ShadedTriangle, BitInputStream, PDRange, CubicBezierCurve, CoonsPatch, TensorPatch.
 
 ## pendente (renderização - prioritário)
-- Shading: ShadingType6 (Coons patch mesh) - PDShadingType6.java
-- Shading: ShadingType7 (tensor-product patch mesh) - PDShadingType7.java
 - GroupGraphics.java: suporte completo a grupos de transparência não-isolados (backdrop removal)
 - SoftMask.java (classe helper): extrair lógica de SoftMask em classe separada como no Java
 

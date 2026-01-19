@@ -101,8 +101,13 @@ void main(List<String> args) async {
     buffer.writeln('');
   }
 
-  // Gerar mapa de nomes -> chave
-  buffer.writeln('  /// Mapa de nomes de fonte (lowercase) para chave interna.');
+  // Gerar getters estáticos para acesso direto
+  for (final key in embeddedKeys) {
+    buffer.writeln('  static Uint8List? get $key => _getByKey(\'$key\');');
+  }
+  buffer.writeln('');
+
+  // Mapa de nomes de fonte (lowercase) para chave interna.
   buffer.writeln('  static const Map<String, String> _fontNameToKey = {');
   for (final entry in fontNameMap.entries) {
     buffer.writeln("    '${entry.key}': '${entry.value}',");
@@ -110,9 +115,8 @@ void main(List<String> args) async {
   buffer.writeln('  };');
   buffer.writeln('');
 
-  // Gerar método de lookup
-  buffer.writeln('  /// Retorna os bytes da fonte embedada pelo nome.');
-  buffer.writeln('  /// Retorna null se a fonte não estiver disponível.');
+  /// Retorna os bytes da fonte embedada pelo nome.
+  /// Retorna null se a fonte não estiver disponível.
   buffer.writeln('  static Uint8List? getFontBytes(String fontName) {');
   buffer.writeln('    final key = _fontNameToKey[fontName.toLowerCase()];');
   buffer.writeln('    if (key == null) return null;');
@@ -139,6 +143,8 @@ void main(List<String> args) async {
   buffer.writeln('');
   buffer.writeln('    String? base64Data;');
   buffer.writeln('    switch (key) {');
+  
+  // O switch case para as constantes, mas vamos usar um método helper para decodificar
   for (final key in embeddedKeys) {
     buffer.writeln("      case '$key':");
     buffer.writeln('        base64Data = _${key}Base64;');
@@ -148,11 +154,13 @@ void main(List<String> args) async {
   buffer.writeln('        return null;');
   buffer.writeln('    }');
   buffer.writeln('');
-  buffer.writeln('    final bytes = base64Decode(base64Data);');
+  buffer.writeln('    // Remove newlines and whitespace from base64 string');
+  buffer.writeln(r'    final cleanBase64 = base64Data!.replaceAll(RegExp(r"\s+"), "");');
+  buffer.writeln('    final bytes = base64Decode(cleanBase64);');
   buffer.writeln('    _cache[key] = bytes;');
   buffer.writeln('    return bytes;');
   buffer.writeln('  }');
-
+  
   buffer.writeln('}');
 
   // Criar diretório de saída se não existir

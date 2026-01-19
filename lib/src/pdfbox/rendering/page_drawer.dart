@@ -5,6 +5,12 @@ import 'package:dart_graphics/dart_graphics.dart';
 import 'package:image/image.dart' as img;
 import 'package:logging/logging.dart';
 
+import '../../fontbox/cff/char_string_path.dart';
+import '../../fontbox/ttf/true_type_font.dart';
+import '../../fontbox/ttf/ttf_parser.dart';
+import '../../fontbox/ttf/glyph_renderer.dart' as ttf_glyph;
+import '../pdmodel/font/embedded_fonts.dart';
+
 import '../contentstream/pdf_graphics_stream_engine.dart';
 import '../contentstream/pdf_stream_engine.dart' show PathWindingRule;
 import '../cos/cos_array.dart';
@@ -108,6 +114,8 @@ class PageDrawer extends PDFGraphicsStreamEngine {
   PageDrawer(this._parameters) : super() {}
 
   static final Logger _log = Logger('pdfbox.rendering.PageDrawer');
+
+  static TrueTypeFont? _fallbackFont;
 
   final PageDrawerParameters _parameters;
 
@@ -2391,11 +2399,9 @@ class PageDrawer extends PDFGraphicsStreamEngine {
       _drawType3Glyph(code: code, font: font);
       return;
     }
-
+    // TODO verificar como é no java
     if (font is! PDVectorFont) {
-      // TODO: Fallback to a font substitution path (e.g. Type1/TrueType simple
-      // fonts via a TypeFace bridge). For now keep spacing consistent.
-      print('drawGlyph: non-vector font ${font.runtimeType}');
+      _drawWithFallbackFont(code: code, font: font);
       return;
     }
 
@@ -2443,6 +2449,166 @@ class PageDrawer extends PDFGraphicsStreamEngine {
       _syncPaintStateForStroke();
       _graphics.strokePath();
     }
+  }
+  // TODO verificar e testar isso
+  void _drawWithFallbackFont({required int code, required PDFont font}) {
+    if (_fallbackFont == null) {
+      try {
+        final ttfBytes = EmbeddedFonts.helvetica;
+        if (ttfBytes != null) {
+          final parser = TtfParser();
+          _fallbackFont = parser.parse(RandomAccessReadBuffer.fromBytes(ttfBytes));
+        }
+      } catch (e) {
+        _log.warning('Failed to load fallback font: $e');
+      }
+    }
+
+    final fallback = _fallbackFont;
+    if (fallback == null) return;
+
+    final unicode = font.toUnicode(code);
+    if (unicode == null || unicode.isEmpty) return;
+
+    // Use the first code point for fallback
+    final codePoint = unicode.codeUnitAt(0);
+    var gid = 0;
+    try {
+      final cmap = fallback.getUnicodeCmapLookup(isStrict: false);
+      gid = cmap?.getGlyphId(codePoint) ?? 0;
+    } catch (e) {
+      // ignore
+    }
+
+    if (gid == 0) return;
+
+    try {
+      final glyphData = fallback.getGlyphTable()?.getGlyph(gid);
+      if (glyphData == null) return;
+
+      final glyphPath = glyphData.getPath();
+      if (glyphPath.isEmpty) return;
+
+      // Standard PDF fonts use 1000 units per em.
+      // TrueType fonts use unitsPerEm (e.g. 2048).
+      final units = fallback.unitsPerEm;
+      final scale = (units > 0 && units != 1000) ? 1000.0 / units : 1.0;
+
+      final path = _convertAndScaleTtfPath(glyphPath, scale);
+      final outline = _charStringPathToVertexStorage(path);
+
+      if (outline.vertices().isEmpty) return;
+
+      final state = currentGraphicsState;
+      if (state == null) return;
+      final textState = state.textState;
+      final mode = textState.renderingMode;
+
+      final trm = _glyphRenderingMatrix(state: state, font: font);
+      final ctm = state.currentTransformationMatrix;
+      final ctmAffine = Affine(
+        ctm.scaleX,
+        ctm.shearY,
+        ctm.shearX,
+        ctm.scaleY,
+        ctm.translateX,
+        ctm.translateY,
+      );
+
+      final combined = _matrixToAffine(trm)
+        ..multiply(ctmAffine)
+        ..multiply(_xform);
+      _graphics.setTransform(combined);
+
+      _graphics.beginPath();
+      _graphics.currentPath.concat(outline);
+
+      _setFillRule(PathWindingRule.nonZero);
+      if (mode.isFill) {
+        _syncPaintStateForFill();
+        _graphics.fillPath();
+      }
+      if (mode.isStroke) {
+        _syncPaintStateForStroke();
+        _graphics.strokePath();
+      }
+    } catch (e) {
+      _log.warning('Error drawing fallback glyph', e);
+    }
+  }
+
+  CharStringPath _convertAndScaleTtfPath(
+      ttf_glyph.GlyphPath glyphPath, double scale) {
+    final path = CharStringPath();
+    var currentX = 0.0;
+    var currentY = 0.0;
+
+    for (final command in glyphPath.commands) {
+      if (command is ttf_glyph.MoveToCommand) {
+        final x = command.x * scale;
+        final y = command.y * scale;
+        path.moveTo(x, y);
+        currentX = x;
+        currentY = y;
+      } else if (command is ttf_glyph.LineToCommand) {
+        final x = command.x * scale;
+        final y = command.y * scale;
+        path.lineTo(x, y);
+        currentX = x;
+        currentY = y;
+      } else if (command is ttf_glyph.QuadToCommand) {
+        // Quad to Cubic conversion scaled
+        final cx = command.cx * scale;
+        final cy = command.cy * scale;
+        final x = command.x * scale;
+        final y = command.y * scale;
+
+        final x1 = currentX + (2.0 / 3.0) * (cx - currentX);
+        final y1 = currentY + (2.0 / 3.0) * (cy - currentY);
+        final x2 = x + (2.0 / 3.0) * (cx - x);
+        final y2 = y + (2.0 / 3.0) * (cy - y);
+
+        path.curveTo(x1, y1, x2, y2, x, y);
+        currentX = x;
+        currentY = y;
+      } else if (command is ttf_glyph.CubicToCommand) {
+        path.curveTo(command.cx1 * scale, command.cy1 * scale,
+            command.cx2 * scale, command.cy2 * scale, command.x * scale, command.y * scale);
+        currentX = command.x * scale;
+        currentY = command.y * scale;
+      } else if (command is ttf_glyph.ClosePathCommand) {
+        path.closePath();
+      }
+    }
+    return path;
+  }
+
+  VertexStorage _charStringPathToVertexStorage(CharStringPath path) {
+    final out = VertexStorage();
+    for (final command in path.commands) {
+      switch (command) {
+        case MoveToCommand(:final x, :final y):
+          out.moveTo(x, y);
+          break;
+        case LineToCommand(:final x, :final y):
+          out.lineTo(x, y);
+          break;
+        case CurveToCommand(
+            :final x1,
+            :final y1,
+            :final x2,
+            :final y2,
+            :final x3,
+            :final y3
+          ):
+          out.curve4(x1, y1, x2, y2, x3, y3);
+          break;
+        case ClosePathCommand():
+          out.closePath();
+          break;
+      }
+    }
+    return out;
   }
 
   void _drawType3Glyph({required int code, required PDType3Font font}) {
