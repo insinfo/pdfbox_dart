@@ -15,6 +15,7 @@ import 'encoding/glyph_list.dart';
 import 'pd_font_descriptor.dart';
 import 'pd_simple_font.dart';
 import 'pd_vector_font.dart';
+import 'font_mappers.dart';
 import 'true_type_font_box_adapter.dart';
 import 'true_type_embedder.dart';
 import 'true_type_font_descriptor_builder.dart';
@@ -130,9 +131,10 @@ class PDTrueTypeFont extends PDSimpleFont implements PDVectorFont {
     final fontDescriptorDict =
         fontDictionary.getCOSDictionary(COSName.fontDescriptor);
     TrueTypeFont? ttf;
+    PDFontDescriptor? descriptor;
 
     if (fontDescriptorDict != null) {
-      final descriptor = PDFontDescriptor(fontDescriptorDict);
+      descriptor = PDFontDescriptor(fontDescriptorDict);
       final fontFile2 = descriptor.fontFile2Stream;
       if (fontFile2 != null) {
         final parser = TtfParser(isEmbedded: true);
@@ -146,8 +148,16 @@ class PDTrueTypeFont extends PDSimpleFont implements PDVectorFont {
     }
 
     if (ttf == null) {
-      throw UnimplementedError(
-          'TrueType font loading without embedded FontFile2 is not supported yet.');
+      final baseFont = fontDictionary.getNameAsString(COSName.baseFont) ??
+          fontDictionary.getNameAsString(COSName.get('BaseFont')) ??
+          'TrueTypeFont';
+      final mapping =
+          FontMappers.instance().getTrueTypeFont(baseFont, descriptor);
+      ttf = mapping.font;
+      if (ttf == null) {
+        throw UnimplementedError(
+            'TrueType font loading without embedded FontFile2 is not supported yet.');
+      }
     }
 
     CMapLookup? unicodeCMap;
@@ -158,8 +168,8 @@ class PDTrueTypeFont extends PDSimpleFont implements PDVectorFont {
     }
     final embedder = TrueTypeEmbedder(ttf, embedSubset: false);
     final baseFont = fontDictionary.getNameAsString(COSName.baseFont) ??
-        ttf.getName() ??
-        'TrueTypeFont';
+      ttf.getName() ??
+      'TrueTypeFont';
 
     final encoding = _readEncoding(fontDictionary);
 

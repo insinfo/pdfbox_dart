@@ -26,11 +26,30 @@ dart analyze só na pasta onde aplicou modificações para ser mais rapido
 - Shading: suporte inicial a ShadingType=2 (axial) para operador `sh`, com rasterizacao em `ImageBuffer` respeitando clip/SoftMask + teste por pixels.
 - Shading: suporte inicial a ShadingType=3 (radial), com port do calculo de intersecao (equacao quadratica) e teste por pixels.
 - Patterns: suporte a PatternType=2 (shading pattern), usando matriz do pattern e shading (Type2/Type3) para fill/stroke + teste por pixels.
+- PageDrawer: compositing com BlendMode (multiply/screen/overlay/etc) em layer temporaria para operadores com clip.
+- Forms: suporte inicial a Transparency Group (PDTransparencyGroup/PDTransparencyGroupAttributes) + isolamento via renderizacao offscreen no PageDrawer.
+- Fontes: fallback para TrueType/CIDFontType2 sem FontFile2 via FontMapper (usa fontes do sistema) para renderizar texto simples.
+- Fontes: Type1 sem widths agora usa largura do FontMapper para espaçamento de texto.
+- PDFRenderer: helpers para exportar pagina como PNG (bytes e arquivo).
+- Texto: avanço de Type0 agora usa widths do CIDFont (/W) para espaçamento correto.
+- Imagens: suporte a SMask/Mask em Image XObject com alpha por pixel + teste.
 - Texto: suporte a fontes simples (subtype `TrueType` e `Type1`) via outlines (`PDVectorFont`), usando fonte embutida quando disponivel e fallback por `FontMapper` + teste por pixels (TrueType embutida).
 - TrueTypeEmbedder/TtfSubsetter: subset agora preserva/gera `cmap`/`post`/`OS/2` por default (subset reparseavel) + teste de regressao.
 - TaggedPDF: testes unitarios para `PDMarkInfo`, `PDArtifactMarkedContent`, `PDAttributeObject.create` (incl. `Layout`) e bump de revisao em `PDStructureElement`.
 - TaggedPDF: `PDStructureTreeRoot` (`/ParentTree`, `/ParentTreeNextKey`, `/IDTree`) + integracao no `PDDocumentCatalog` com testes de roundtrip.
 - TaggedPDF: `PDStructureElement` campos comuns (`/Pg`, `/ID`, `/Lang`, `/Alt`, `/ActualText`) + `ParentTree` com arrays indexados por MCID (helper em `PDParentTreeValue`) e testes.
+- Fontes: `EmbeddedFonts` - fontes Standard 14 embedadas em Base64 para uso offline + script `generate_embedded_fonts.dart` para gerar automaticamente.
+- FontMapperImpl: fallback para fontes embedadas quando sistema não tem fontes disponíveis.
+- Annotations: renderização de anotações (links, widgets, etc.) via `showAnnotation`/`processAnnotation` no PDFStreamEngine + loop em `PageDrawer.drawPage`.
+
+## pendente (renderização - prioritário)
+- Shading: ShadingType1 (function-based) - PDShadingType1.java
+- Shading: ShadingType4 (free-form Gouraud-shaded triangle mesh) - PDShadingType4.java
+- Shading: ShadingType5 (lattice-form Gouraud-shaded triangle mesh) - PDShadingType5.java
+- Shading: ShadingType6 (Coons patch mesh) - PDShadingType6.java
+- Shading: ShadingType7 (tensor-product patch mesh) - PDShadingType7.java
+- GroupGraphics.java: suporte completo a grupos de transparência não-isolados (backdrop removal)
+- SoftMask.java (classe helper): extrair lógica de SoftMask em classe separada como no Java
 
 ## pendente (observado)
 - TaggedPDF: ParentTree com entrada do tipo dicionario (nao array) para objetos individuais (ex.: annotation/XObject) via `/StructParent` ou `/StructParents`; portar helpers/roundtrip e testes.

@@ -3,7 +3,9 @@ import '../../../cos/cos_base.dart';
 import '../../../cos/cos_dictionary.dart';
 import '../../../cos/cos_float.dart';
 import '../../../cos/cos_name.dart';
+import '../../common/pd_rectangle.dart';
 import 'pd_annotation_appearance.dart';
+import 'pd_appearance_stream.dart';
 import 'pd_border_style_dictionary.dart';
 
 /// Base wrapper for annotation dictionaries (ISO 32000-1, §12.5).
@@ -162,4 +164,68 @@ abstract class PDAnnotation {
 
   /// Sets the StructParent value.
   set structParent(int value) => dictionary.setInt(COSName.structParent, value);
+
+  /// Returns the rectangle for this annotation (`/Rect`).
+  PDRectangle? get rectangle {
+    final r = rect;
+    if (r == null || r.length < 4) return null;
+    return PDRectangle(r[0], r[1], r[2] - r[0], r[3] - r[1]);
+  }
+
+  /// Returns the normal appearance stream for this annotation.
+  /// This method handles both simple streams and appearance subdictionaries
+  /// (using the current /AS state if needed).
+  PDAppearanceStream? getNormalAppearanceStream() {
+    final app = appearance;
+    if (app == null) return null;
+    
+    final normalEntry = app.normalAppearance;
+    if (normalEntry == null) return null;
+    
+    if (normalEntry.isStream) {
+      return normalEntry.appearanceStream;
+    }
+    
+    // Handle subdictionary - look up by appearance state
+    final state = appearanceState;
+    if (state == null) return null;
+    
+    final subDict = normalEntry.subDictionary;
+    for (final entry in subDict.entries) {
+      if (entry.key.name == state) {
+        return entry.value;
+      }
+    }
+    return null;
+  }
+
+  /// Returns true if the annotation is hidden.
+  bool get isHidden {
+    final flags = dictionary.getInt(COSName.f) ?? 0;
+    return (flags & 0x02) != 0; // Hidden flag
+  }
+
+  /// Returns true if the annotation is invisible.
+  bool get isInvisible {
+    final flags = dictionary.getInt(COSName.f) ?? 0;
+    return (flags & 0x01) != 0; // Invisible flag
+  }
+
+  /// Returns true if the annotation should not be displayed.
+  bool get isNoView {
+    final flags = dictionary.getInt(COSName.f) ?? 0;
+    return (flags & 0x20) != 0; // NoView flag
+  }
+
+  /// Returns true if the annotation should be printed.
+  bool get isPrinted {
+    final flags = dictionary.getInt(COSName.f) ?? 0;
+    return (flags & 0x04) != 0; // Print flag
+  }
+
+  /// Returns true if the annotation should not rotate.
+  bool get isNoRotate {
+    final flags = dictionary.getInt(COSName.f) ?? 0;
+    return (flags & 0x10) != 0; // NoRotate flag
+  }
 }

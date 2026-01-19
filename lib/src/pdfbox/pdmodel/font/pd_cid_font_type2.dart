@@ -16,6 +16,7 @@ import '../../cos/cos_dictionary.dart';
 import '../../cos/cos_name.dart';
 import '../../cos/cos_number.dart';
 import '../../util/matrix.dart';
+import 'font_mappers.dart';
 import 'pd_cid_font.dart';
 import 'pd_cid_font_parent.dart';
 import 'pd_font_descriptor.dart';
@@ -40,6 +41,15 @@ class PDCIDFontType2 extends PDCIDFont {
 			damaged = !embedded;
 		} else {
 			embedded = font != null;
+		}
+
+		if (font == null) {
+			final baseFont = dict.getNameAsString(COSName.baseFont) ?? parent.name ?? 'Helvetica';
+			final mapping =
+					FontMappers.instance().getTrueTypeFont(baseFont, fontDescriptor);
+			font = mapping.font;
+			embedded = false;
+			damaged = mapping.isFallback;
 		}
 
 		if (font == null) {

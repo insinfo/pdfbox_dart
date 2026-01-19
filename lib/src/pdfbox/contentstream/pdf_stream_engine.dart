@@ -28,6 +28,9 @@ import '../pdmodel/graphics/state/pd_text_state.dart';
 import '../pdmodel/graphics/state/rendering_intent.dart';
 import '../pdmodel/graphics/state/rendering_mode.dart';
 import '../pdmodel/graphics/shading/pd_shading.dart';
+import '../pdmodel/interactive/annotation/pd_annotation.dart';
+import '../pdmodel/interactive/annotation/pd_appearance_stream.dart';
+import '../pdmodel/common/pd_rectangle.dart';
 import '../pdmodel/resource_cache.dart';
 import '../util/matrix.dart';
 import 'operator/operator.dart';
@@ -117,6 +120,127 @@ class PDFStreamEngine {
       _processTokens(tokens);
     } finally {
       _popResources();
+    }
+  }
+
+  /// Shows an annotation on the current page.
+  /// 
+  /// @param annotation An annotation on the current page.
+  void showAnnotation(PDAnnotation annotation) {
+    final appearanceStream = getAppearance(annotation);
+    if (appearanceStream != null) {
+      processAnnotation(annotation, appearanceStream);
+    }
+  }
+
+  /// Returns the appearance stream to process for the given annotation.
+  /// May be overridden to render a specific appearance such as "hover".
+  PDAppearanceStream? getAppearance(PDAnnotation annotation) {
+    return annotation.getNormalAppearanceStream();
+  }
+
+  /// Processes an annotation's appearance stream.
+  void processAnnotation(PDAnnotation annotation, PDAppearanceStream appearance) {
+    final bbox = appearance.boundingBox;
+    final rect = annotation.rectangle;
+    
+    // zero-sized rectangles are not valid
+    if (rect == null || rect.width <= 0 || rect.height <= 0 ||
+        bbox == null || bbox.width <= 0 || bbox.height <= 0) {
+      return;
+    }
+    
+    final savedStack = _saveGraphicsStack();
+    _pushResources(appearance.resources ?? PDResources(null, null));
+    
+    final matrix = appearance.matrix;
+    
+    // Get matrix components: [a, b, 0, c, d, 0, e, f, 1]
+    final ma = matrix.getValue(0, 0); // a
+    final mb = matrix.getValue(0, 1); // b
+    final mc = matrix.getValue(1, 0); // c
+    final md = matrix.getValue(1, 1); // d
+    final me = matrix.getValue(2, 0); // e
+    final mf = matrix.getValue(2, 1); // f
+    
+    // transformed appearance box
+    final transformedMinX = ma * bbox.lowerLeftX + mc * bbox.lowerLeftY + me;
+    final transformedMinY = mb * bbox.lowerLeftX + md * bbox.lowerLeftY + mf;
+    final transformedMaxX = ma * (bbox.lowerLeftX + bbox.width) + 
+                            mc * (bbox.lowerLeftY + bbox.height) + me;
+    final transformedMaxY = mb * (bbox.lowerLeftX + bbox.width) + 
+                            md * (bbox.lowerLeftY + bbox.height) + mf;
+    final transformedWidth = (transformedMaxX - transformedMinX).abs();
+    final transformedHeight = (transformedMaxY - transformedMinY).abs();
+    
+    if (transformedWidth <= 0 || transformedHeight <= 0) {
+      _restoreGraphicsStack(savedStack);
+      _popResources();
+      return;
+    }
+    
+    // compute a matrix which scales and translates the transformed appearance box 
+    // to align with the edges of the annotation's rectangle
+    final a = Matrix();
+    a.translate(rect.lowerLeftX, rect.lowerLeftY);
+    a.scale(rect.width / transformedWidth, rect.height / transformedHeight);
+    a.translate(-transformedMinX, -transformedMinY);
+    
+    // Matrix shall be concatenated with A to form AA
+    final aa = a.multiply(matrix);
+    
+    // make matrix AA the CTM
+    final state = currentGraphicsState;
+    if (state != null) {
+      state.currentTransformationMatrix = aa;
+    }
+    
+    // clip to bounding box
+    clipToRect(bbox);
+    
+    // process the appearance stream
+    try {
+      processStreamOperators(appearance);
+    } finally {
+      _restoreGraphicsStack(savedStack);
+      _popResources();
+    }
+  }
+
+  /// Clips to the given rectangle. Override to provide actual clipping.
+  void clipToRect(PDRectangle rect) {
+    // Default implementation does nothing - PageDrawer overrides this
+  }
+
+  /// Processes the stream operators from the given content stream.
+  void processStreamOperators(PDContentStream stream) {
+    final parser = PDFStreamParser(stream);
+    final tokens = parser.parse();
+    _processTokens(tokens);
+  }
+
+  /// Saves and returns the current graphics stack.
+  List<PDGraphicsState> _saveGraphicsStack() {
+    final saved = List<PDGraphicsState>.from(_graphicsStack);
+    return saved;
+  }
+
+  /// Restores the graphics stack from saved state.
+  void _restoreGraphicsStack(List<PDGraphicsState> saved) {
+    _graphicsStack
+      ..clear()
+      ..addAll(saved);
+  }
+
+  /// Pushes resources onto the resource stack.
+  void _pushResources(PDResources resources) {
+    _resourceStack.add(resources);
+  }
+
+  /// Pops resources from the resource stack.
+  void _popResources() {
+    if (_resourceStack.isNotEmpty) {
+      _resourceStack.removeLast();
     }
   }
 
@@ -690,16 +814,6 @@ class PDFStreamEngine {
       processor.process(operator, operands);
     } else {
       unsupportedOperator(operator, operands);
-    }
-  }
-
-  void _pushResources(PDResources resources) {
-    _resourceStack.add(resources);
-  }
-
-  void _popResources() {
-    if (_resourceStack.isNotEmpty) {
-      _resourceStack.removeLast();
     }
   }
 

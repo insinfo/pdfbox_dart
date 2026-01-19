@@ -25,17 +25,77 @@ import '../pdmodel/graphics/color/pd_raster.dart';
 import '../pdmodel/graphics/pdxobject.dart';
 import '../pdmodel/graphics/form/pd_form_xobject.dart';
 import '../pdmodel/graphics/state/pd_soft_mask.dart';
+import '../pdmodel/graphics/blend/blend_mode.dart' as pdf_blend;
 import '../pdmodel/graphics/pattern/pd_abstract_pattern.dart';
 import '../pdmodel/graphics/pattern/pd_tiling_pattern.dart';
 import '../pdmodel/graphics/shading/pd_shading.dart';
 import '../pdmodel/common/function/pdf_function.dart';
+import '../pdmodel/pd_resources.dart';
 import '../pdmodel/pd_stream.dart';
 import '../util/matrix.dart';
 import 'page_drawer_parameters.dart';
 import 'glyph_cache.dart';
 import 'tiling_paint_factory.dart';
+import '../pdmodel/interactive/annotation/pd_annotation.dart';
 
 import '../../io/random_access_read_buffer.dart';
+
+enum _BlendModeLite {
+  clear,
+  src,
+  dst,
+  srcOver,
+  dstOver,
+  srcIn,
+  dstIn,
+  srcOut,
+  dstOut,
+  srcAtop,
+  dstAtop,
+  xor,
+  add,
+  multiply,
+  screen,
+  overlay,
+  darken,
+  lighten,
+  colorDodge,
+  colorBurn,
+  hardLight,
+  softLight,
+  difference,
+  exclusion,
+}
+
+enum _PorterDuff {
+  clear,
+  src,
+  dst,
+  srcOver,
+  dstOver,
+  srcIn,
+  dstIn,
+  srcOut,
+  dstOut,
+  srcAtop,
+  dstAtop,
+  xor,
+}
+
+enum _BlendFn {
+  add,
+  multiply,
+  screen,
+  overlay,
+  darken,
+  lighten,
+  colorDodge,
+  colorBurn,
+  hardLight,
+  softLight,
+  difference,
+  exclusion,
+}
 
 /// Port of PDFBox's `PageDrawer`.
 ///
@@ -89,13 +149,37 @@ class PageDrawer extends PDFGraphicsStreamEngine {
     _softMaskCacheBBoxDevice = null;
     _glyphCaches.clear();
     _syncTransform();
-    processPage(_parameters.getPage());
+    
+    final page = _parameters.getPage();
+    processPage(page);
+    
+    // Render annotations after page content
+    for (final annotation in page.annotations) {
+      if (!_shouldSkipAnnotation(annotation)) {
+        showAnnotation(annotation);
+      }
+    }
+  }
+
+  /// Returns true if the given annotation should not be rendered.
+  bool _shouldSkipAnnotation(PDAnnotation annotation) {
+    // Skip invisible/hidden annotations
+    if (annotation.isInvisible || annotation.isHidden) {
+      return true;
+    }
+    // Skip NoView annotations (visible only when interacting)
+    if (annotation.isNoView) {
+      return true;
+    }
+    return false;
   }
 
   // NOTE on transform composition:
   // `dart_graphics`' `Affine.multiply(m)` composes so that `m` is applied LAST
   // on points (i.e. `(a.multiply(b))(p) == b(a(p))`). This is easy to get
   // backwards when porting from PDFBox/Java2D.
+  // Also note: `Affine.translate/rotate/scale` follow AGG's pre-multiply
+  // semantics (they act on the existing matrix like in agg::trans_affine).
   // See test/dart_graphics/affine_multiply_test.dart for a minimal proof.
 
   Graphics2D getGraphics() => _graphics;
@@ -294,6 +378,18 @@ class PageDrawer extends PDFGraphicsStreamEngine {
   }
 
   @override
+  void clipToRect(PDRectangle rect) {
+    // Build a path for the bounding box and clip to it
+    moveTo(rect.lowerLeftX, rect.lowerLeftY);
+    lineTo(rect.lowerLeftX + rect.width, rect.lowerLeftY);
+    lineTo(rect.lowerLeftX + rect.width, rect.lowerLeftY + rect.height);
+    lineTo(rect.lowerLeftX, rect.lowerLeftY + rect.height);
+    closePath();
+    clipPath(PathWindingRule.nonZero);
+    endPath();
+  }
+
+  @override
   void processImageXObject(COSName name, PDImageXObject image) {
     final state = currentGraphicsState;
     if (state == null) {
@@ -305,6 +401,7 @@ class PageDrawer extends PDFGraphicsStreamEngine {
       _log.fine('Unable to decode image XObject ${name.name}');
       return;
     }
+    print('Image XObject ${name.name}: ${image.width}x${image.height} decoded=${decoded.width}x${decoded.height} stencil=${image.isStencil}');
 
     // PDFBox draws images in a unit square in user space. The CTM maps the
     // unit square into place. We also flip the image vertically to match PDF's
@@ -325,6 +422,20 @@ class PageDrawer extends PDFGraphicsStreamEngine {
     }
     form.resourceCache ??= _parameters.getPage().resourceCache;
 
+    final group = form.group;
+    final isIsolated = group?.isIsolated() ?? false;
+
+    if (isIsolated) {
+      _drawWithClip((_, __) {
+        _renderFormXObject(form, formResources);
+      });
+      return;
+    }
+
+    _renderFormXObject(form, formResources);
+  }
+
+  void _renderFormXObject(PDFormXObject form, PDResources formResources) {
     // In PDFBox, drawing a form behaves like an implicit q/Q around the form.
     pushGraphicsState();
     try {
@@ -837,6 +948,8 @@ class PageDrawer extends PDFGraphicsStreamEngine {
       return;
     }
 
+    print('showTextString: font=${font.runtimeType} size=${textState.fontSize} bytes=${text.bytes.length}');
+
     final fontSize = textState.fontSize;
     if (fontSize == 0) {
       return;
@@ -914,6 +1027,7 @@ class PageDrawer extends PDFGraphicsStreamEngine {
     final state = currentGraphicsState;
     final softMask = state?.softMask;
     final hasClip = _clipEntries.isNotEmpty;
+    final blendMode = state?.blendMode ?? pdf_blend.BlendMode.normal;
 
     if (!hasClip && softMask == null) {
       draw(0, 0);
@@ -1001,19 +1115,385 @@ class PageDrawer extends PDFGraphicsStreamEngine {
       }
     }
 
-    originalGraphics.save();
-    final originalAlpha = originalGraphics.masterAlpha;
-    originalGraphics.masterAlpha = 1.0;
-    originalGraphics.setTransform(Affine.identity());
-    originalGraphics.drawImage(
-      temp,
-      bounds.left.toDouble(),
-      bounds.top.toDouble(),
-      width.toDouble(),
-      height.toDouble(),
-    );
-    originalGraphics.masterAlpha = originalAlpha;
-    originalGraphics.restore();
+    if (blendMode != pdf_blend.BlendMode.normal &&
+        originalGraphics is BasicGraphics2D &&
+        originalGraphics.destImage is ImageBuffer) {
+      _compositeBlendLayer(
+        temp,
+        originalGraphics,
+        bounds,
+        blendMode,
+      );
+    } else {
+      originalGraphics.save();
+      final originalAlpha = originalGraphics.masterAlpha;
+      originalGraphics.masterAlpha = 1.0;
+      originalGraphics.setTransform(Affine.identity());
+      originalGraphics.drawImage(
+        temp,
+        bounds.left.toDouble(),
+        bounds.top.toDouble(),
+        width.toDouble(),
+        height.toDouble(),
+      );
+      originalGraphics.masterAlpha = originalAlpha;
+      originalGraphics.restore();
+    }
+  }
+
+  void _compositeBlendLayer(
+    ImageBuffer layer,
+    BasicGraphics2D target,
+    _IntRect bounds,
+    pdf_blend.BlendMode mode,
+  ) {
+    final dst = target.destImage;
+    if (dst is! ImageBuffer) {
+      target.save();
+      final originalAlpha = target.masterAlpha;
+      target.masterAlpha = 1.0;
+      target.setTransform(Affine.identity());
+      target.drawImage(
+        layer,
+        bounds.left.toDouble(),
+        bounds.top.toDouble(),
+        bounds.width.toDouble(),
+        bounds.height.toDouble(),
+      );
+      target.masterAlpha = originalAlpha;
+      target.restore();
+      return;
+    }
+
+    final srcBytes = layer.getBuffer();
+    final dstBytes = dst.getBuffer();
+
+    final dstW = dst.width;
+    final srcW = layer.width;
+    final srcH = layer.height;
+
+    final left = bounds.left;
+    final top = bounds.top;
+
+    for (var y = 0; y < srcH; y++) {
+      final dstRow = (top + y) * dstW;
+      final srcRow = y * srcW;
+      for (var x = 0; x < srcW; x++) {
+        final si = (srcRow + x) * 4;
+        final di = (dstRow + left + x) * 4;
+
+        final sr = srcBytes[si];
+        final sg = srcBytes[si + 1];
+        final sb = srcBytes[si + 2];
+        final sa = srcBytes[si + 3];
+        if (sa == 0) continue;
+
+        final dr = dstBytes[di];
+        final dg = dstBytes[di + 1];
+        final db = dstBytes[di + 2];
+        final da = dstBytes[di + 3];
+
+        final out = _blendPixel(
+          sr,
+          sg,
+          sb,
+          sa,
+          dr,
+          dg,
+          db,
+          da,
+          _mapBlendMode(mode),
+        );
+
+        dstBytes[di] = out.$1;
+        dstBytes[di + 1] = out.$2;
+        dstBytes[di + 2] = out.$3;
+        dstBytes[di + 3] = out.$4;
+      }
+    }
+  }
+
+  _BlendModeLite _mapBlendMode(pdf_blend.BlendMode mode) {
+    switch (mode) {
+      case pdf_blend.BlendMode.multiply:
+        return _BlendModeLite.multiply;
+      case pdf_blend.BlendMode.screen:
+        return _BlendModeLite.screen;
+      case pdf_blend.BlendMode.overlay:
+        return _BlendModeLite.overlay;
+      case pdf_blend.BlendMode.darken:
+        return _BlendModeLite.darken;
+      case pdf_blend.BlendMode.lighten:
+        return _BlendModeLite.lighten;
+      case pdf_blend.BlendMode.colorDodge:
+        return _BlendModeLite.colorDodge;
+      case pdf_blend.BlendMode.colorBurn:
+        return _BlendModeLite.colorBurn;
+      case pdf_blend.BlendMode.hardLight:
+        return _BlendModeLite.hardLight;
+      case pdf_blend.BlendMode.softLight:
+        return _BlendModeLite.softLight;
+      case pdf_blend.BlendMode.difference:
+        return _BlendModeLite.difference;
+      case pdf_blend.BlendMode.exclusion:
+        return _BlendModeLite.exclusion;
+      case pdf_blend.BlendMode.normal:
+      case pdf_blend.BlendMode.hue:
+      case pdf_blend.BlendMode.saturation:
+      case pdf_blend.BlendMode.color:
+      case pdf_blend.BlendMode.luminosity:
+        return _BlendModeLite.srcOver;
+    }
+  }
+
+  (int, int, int, int) _blendPixel(
+    int sr,
+    int sg,
+    int sb,
+    int sa,
+    int dr,
+    int dg,
+    int db,
+    int da,
+    _BlendModeLite mode,
+  ) {
+    final as = sa / 255.0;
+    final ad = da / 255.0;
+    final cs = sr / 255.0;
+    final csG = sg / 255.0;
+    final csB = sb / 255.0;
+    final cd = dr / 255.0;
+    final cdG = dg / 255.0;
+    final cdB = db / 255.0;
+
+    switch (mode) {
+      case _BlendModeLite.clear:
+        return (0, 0, 0, 0);
+      case _BlendModeLite.dst:
+        return (dr, dg, db, da);
+      case _BlendModeLite.src:
+        return (sr, sg, sb, sa);
+      case _BlendModeLite.srcOver:
+        return _porterDuff(cs, csG, csB, as, cd, cdG, cdB, ad, _PorterDuff.srcOver);
+      case _BlendModeLite.dstOver:
+        return _porterDuff(cs, csG, csB, as, cd, cdG, cdB, ad, _PorterDuff.dstOver);
+      case _BlendModeLite.srcIn:
+        return _porterDuff(cs, csG, csB, as, cd, cdG, cdB, ad, _PorterDuff.srcIn);
+      case _BlendModeLite.dstIn:
+        return _porterDuff(cs, csG, csB, as, cd, cdG, cdB, ad, _PorterDuff.dstIn);
+      case _BlendModeLite.srcOut:
+        return _porterDuff(cs, csG, csB, as, cd, cdG, cdB, ad, _PorterDuff.srcOut);
+      case _BlendModeLite.dstOut:
+        return _porterDuff(cs, csG, csB, as, cd, cdG, cdB, ad, _PorterDuff.dstOut);
+      case _BlendModeLite.srcAtop:
+        return _porterDuff(cs, csG, csB, as, cd, cdG, cdB, ad, _PorterDuff.srcAtop);
+      case _BlendModeLite.dstAtop:
+        return _porterDuff(cs, csG, csB, as, cd, cdG, cdB, ad, _PorterDuff.dstAtop);
+      case _BlendModeLite.xor:
+        return _porterDuff(cs, csG, csB, as, cd, cdG, cdB, ad, _PorterDuff.xor);
+      case _BlendModeLite.add:
+        return _blendWithMode(cs, csG, csB, as, cd, cdG, cdB, ad, _BlendFn.add);
+      case _BlendModeLite.multiply:
+        return _blendWithMode(cs, csG, csB, as, cd, cdG, cdB, ad, _BlendFn.multiply);
+      case _BlendModeLite.screen:
+        return _blendWithMode(cs, csG, csB, as, cd, cdG, cdB, ad, _BlendFn.screen);
+      case _BlendModeLite.overlay:
+        return _blendWithMode(cs, csG, csB, as, cd, cdG, cdB, ad, _BlendFn.overlay);
+      case _BlendModeLite.darken:
+        return _blendWithMode(cs, csG, csB, as, cd, cdG, cdB, ad, _BlendFn.darken);
+      case _BlendModeLite.lighten:
+        return _blendWithMode(cs, csG, csB, as, cd, cdG, cdB, ad, _BlendFn.lighten);
+      case _BlendModeLite.colorDodge:
+        return _blendWithMode(cs, csG, csB, as, cd, cdG, cdB, ad, _BlendFn.colorDodge);
+      case _BlendModeLite.colorBurn:
+        return _blendWithMode(cs, csG, csB, as, cd, cdG, cdB, ad, _BlendFn.colorBurn);
+      case _BlendModeLite.hardLight:
+        return _blendWithMode(cs, csG, csB, as, cd, cdG, cdB, ad, _BlendFn.hardLight);
+      case _BlendModeLite.softLight:
+        return _blendWithMode(cs, csG, csB, as, cd, cdG, cdB, ad, _BlendFn.softLight);
+      case _BlendModeLite.difference:
+        return _blendWithMode(cs, csG, csB, as, cd, cdG, cdB, ad, _BlendFn.difference);
+      case _BlendModeLite.exclusion:
+        return _blendWithMode(cs, csG, csB, as, cd, cdG, cdB, ad, _BlendFn.exclusion);
+    }
+  }
+
+  (int, int, int, int) _porterDuff(
+    double cs,
+    double csG,
+    double csB,
+    double as,
+    double cd,
+    double cdG,
+    double cdB,
+    double ad,
+    _PorterDuff mode,
+  ) {
+    double ps = cs * as;
+    double psG = csG * as;
+    double psB = csB * as;
+    double pd = cd * ad;
+    double pdG = cdG * ad;
+    double pdB = cdB * ad;
+
+    double po = 0;
+    double poG = 0;
+    double poB = 0;
+    double ao = 0;
+
+    switch (mode) {
+      case _PorterDuff.clear:
+        ao = 0;
+        po = 0;
+        poG = 0;
+        poB = 0;
+        break;
+      case _PorterDuff.src:
+        ao = as;
+        po = ps;
+        poG = psG;
+        poB = psB;
+        break;
+      case _PorterDuff.dst:
+        ao = ad;
+        po = pd;
+        poG = pdG;
+        poB = pdB;
+        break;
+      case _PorterDuff.srcOver:
+        ao = as + ad * (1 - as);
+        po = ps + pd * (1 - as);
+        poG = psG + pdG * (1 - as);
+        poB = psB + pdB * (1 - as);
+        break;
+      case _PorterDuff.dstOver:
+        ao = ad + as * (1 - ad);
+        po = pd + ps * (1 - ad);
+        poG = pdG + psG * (1 - ad);
+        poB = pdB + psB * (1 - ad);
+        break;
+      case _PorterDuff.srcIn:
+        ao = as * ad;
+        po = ps * ad;
+        poG = psG * ad;
+        poB = psB * ad;
+        break;
+      case _PorterDuff.dstIn:
+        ao = ad * as;
+        po = pd * as;
+        poG = pdG * as;
+        poB = pdB * as;
+        break;
+      case _PorterDuff.srcOut:
+        ao = as * (1 - ad);
+        po = ps * (1 - ad);
+        poG = psG * (1 - ad);
+        poB = psB * (1 - ad);
+        break;
+      case _PorterDuff.dstOut:
+        ao = ad * (1 - as);
+        po = pd * (1 - as);
+        poG = pdG * (1 - as);
+        poB = pdB * (1 - as);
+        break;
+      case _PorterDuff.srcAtop:
+        ao = ad;
+        po = ps * ad + pd * (1 - as);
+        poG = psG * ad + pdG * (1 - as);
+        poB = psB * ad + pdB * (1 - as);
+        break;
+      case _PorterDuff.dstAtop:
+        ao = as;
+        po = pd * as + ps * (1 - ad);
+        poG = pdG * as + psG * (1 - ad);
+        poB = pdB * as + psB * (1 - ad);
+        break;
+      case _PorterDuff.xor:
+        ao = as * (1 - ad) + ad * (1 - as);
+        po = ps * (1 - ad) + pd * (1 - as);
+        poG = psG * (1 - ad) + pdG * (1 - as);
+        poB = psB * (1 - ad) + pdB * (1 - as);
+        break;
+    }
+
+    if (ao <= 0) {
+      return (0, 0, 0, 0);
+    }
+
+    final r = (po / ao * 255).round().clamp(0, 255);
+    final g = (poG / ao * 255).round().clamp(0, 255);
+    final b = (poB / ao * 255).round().clamp(0, 255);
+    final a = (ao * 255).round().clamp(0, 255);
+    return (r, g, b, a);
+  }
+
+  (int, int, int, int) _blendWithMode(
+    double cs,
+    double csG,
+    double csB,
+    double as,
+    double cd,
+    double cdG,
+    double cdB,
+    double ad,
+    _BlendFn mode,
+  ) {
+    final ao = as + ad - as * ad;
+    if (ao <= 0) {
+      return (0, 0, 0, 0);
+    }
+
+    double blend(double s, double d) {
+      switch (mode) {
+        case _BlendFn.add:
+          return math.min(1.0, s + d);
+        case _BlendFn.multiply:
+          return s * d;
+        case _BlendFn.screen:
+          return s + d - s * d;
+        case _BlendFn.overlay:
+          return d <= 0.5 ? 2 * s * d : 1 - 2 * (1 - s) * (1 - d);
+        case _BlendFn.darken:
+          return math.min(s, d);
+        case _BlendFn.lighten:
+          return math.max(s, d);
+        case _BlendFn.colorDodge:
+          if (s >= 1.0) return 1.0;
+          return math.min(1.0, d / (1 - s));
+        case _BlendFn.colorBurn:
+          if (s <= 0.0) return 0.0;
+          return 1 - math.min(1.0, (1 - d) / s);
+        case _BlendFn.hardLight:
+          return s <= 0.5 ? 2 * s * d : 1 - 2 * (1 - s) * (1 - d);
+        case _BlendFn.softLight:
+          if (s <= 0.5) {
+            return d - (1 - 2 * s) * d * (1 - d);
+          }
+          double g;
+          if (d <= 0.25) {
+            g = ((16 * d - 12) * d + 4) * d;
+          } else {
+            g = math.sqrt(d);
+          }
+          return d + (2 * s - 1) * (g - d);
+        case _BlendFn.difference:
+          return (d - s).abs();
+        case _BlendFn.exclusion:
+          return s + d - 2 * s * d;
+      }
+    }
+
+    final r = (255 * ((1 - as) * cd + (1 - ad) * cs + as * ad * blend(cs, cd)))
+        .round()
+        .clamp(0, 255);
+    final g = (255 * ((1 - as) * cdG + (1 - ad) * csG + as * ad * blend(csG, cdG)))
+        .round()
+        .clamp(0, 255);
+    final b = (255 * ((1 - as) * cdB + (1 - ad) * csB + as * ad * blend(csB, cdB)))
+        .round()
+        .clamp(0, 255);
+    final a = (ao * 255).round().clamp(0, 255);
+    return (r, g, b, a);
   }
 
   ImageBuffer? _ensureSoftMaskMask(PDSoftMask softMask,
@@ -1275,11 +1755,12 @@ class PageDrawer extends PDFGraphicsStreamEngine {
       return null;
     }
 
-    final combined = _cloneAffine(base);
+    // Build form->initial->base (base applied last to points).
+    final combined = _matrixToAffine(form.matrix);
     if (initial != null) {
       combined.multiply(_matrixToAffine(initial));
     }
-    combined.multiply(_matrixToAffine(form.matrix));
+    combined.multiply(_cloneAffine(base));
 
     final x0 = bbox.lowerLeftX;
     final y0 = bbox.lowerLeftY;
@@ -1377,8 +1858,9 @@ class PageDrawer extends PDFGraphicsStreamEngine {
         return;
       }
 
-      final shadingToDevice = _cloneAffine(_graphics.transform)
-        ..multiply(_matrixToAffine(pattern.matrix));
+      // pattern matrix first, then current graphics transform.
+      final shadingToDevice = _matrixToAffine(pattern.matrix)
+        ..multiply(_cloneAffine(_graphics.transform));
 
       ImageBuffer? shadingBuffer;
       if (shading is PDShadingType2) {
@@ -1478,8 +1960,9 @@ class PageDrawer extends PDFGraphicsStreamEngine {
         return;
       }
 
-      final shadingToDevice = _cloneAffine(_graphics.transform)
-        ..multiply(_matrixToAffine(pattern.matrix));
+      // pattern matrix first, then current graphics transform.
+      final shadingToDevice = _matrixToAffine(pattern.matrix)
+        ..multiply(_cloneAffine(_graphics.transform));
 
       ImageBuffer? shadingBuffer;
       if (shading is PDShadingType2) {
@@ -1635,17 +2118,20 @@ class PageDrawer extends PDFGraphicsStreamEngine {
     if (font is! PDVectorFont) {
       // TODO: Fallback to a font substitution path (e.g. Type1/TrueType simple
       // fonts via a TypeFace bridge). For now keep spacing consistent.
+      print('drawGlyph: non-vector font ${font.runtimeType}');
       return;
     }
 
     final vectorFont = font as PDVectorFont;
     if (!vectorFont.hasGlyph(code)) {
+      print('drawGlyph: missing glyph code=$code for ${font.runtimeType}');
       return;
     }
 
     final cache = _glyphCaches.putIfAbsent(font, () => GlyphCache(vectorFont));
     final outline = cache.getPathForCharacterCode(code);
     if (outline.vertices().isEmpty) {
+      print('drawGlyph: empty outline for code=$code ${font.runtimeType}');
       return;
     }
 
@@ -1660,7 +2146,7 @@ class PageDrawer extends PDFGraphicsStreamEngine {
       ctm.translateY,
     );
 
-    // dart_graphics Affine.multiply() is a premultiply (this = other * this).
+    // dart_graphics Affine.multiply() applies the RHS last (this = this * other).
     // We want: combined = base * CTM * TRM.
     final combined = _matrixToAffine(trm)
       ..multiply(ctmAffine)
@@ -1828,7 +2314,7 @@ class PageDrawer extends PDFGraphicsStreamEngine {
     );
     final trm = _glyphRenderingMatrix(state: state, font: font);
 
-    // dart_graphics Affine.multiply() premultiplies (this = other * this).
+    // dart_graphics Affine.multiply() applies the RHS last (this = this * other).
     // We want: combined = base * CTM * TRM.
     final combined = _matrixToAffine(trm)
       ..multiply(ctmAffine)
@@ -1850,9 +2336,15 @@ class PageDrawer extends PDFGraphicsStreamEngine {
     final charSpacing = textState.characterSpacing;
     final wordSpacing = code == 32 ? textState.wordSpacing : 0.0;
 
-    final width = font is PDType3Font
-        ? (_type3CharProcWidthWx ?? font.getWidthFromFont(code))
-        : font.getWidthFromFont(code);
+    final double width;
+    if (font is PDType3Font) {
+      width = _type3CharProcWidthWx ?? font.getWidthFromFont(code);
+    } else if (font is PDType0Font) {
+      final cid = font.cidFont;
+      width = cid != null ? cid.getWidth(code) : font.getWidthFromFont(code);
+    } else {
+      width = font.getWidthFromFont(code);
+    }
     final glyphToText = font.fontMatrix.scaleX;
 
     final tx = ((width * glyphToText) * fontSize + charSpacing + wordSpacing) *
@@ -2106,7 +2598,11 @@ class PageDrawer extends PDFGraphicsStreamEngine {
     return _IntRect(left, top, right, bottom);
   }
 
-  ImageBuffer? _decodeImage(PDImageXObject image) {
+  ImageBuffer? _decodeImage(
+    PDImageXObject image, {
+    bool ignoreSoftMask = false,
+    bool forMask = false,
+  }) {
     final stream = image.stream;
 
     // For JPEGs, the DCT filter already outputs RGBA bytes by default.
@@ -2125,7 +2621,7 @@ class PageDrawer extends PDFGraphicsStreamEngine {
     }
 
     // Handle stencil images (image masks) as transparency.
-    if (image.isStencil) {
+    if (image.isStencil && !forMask) {
       if (image.bitsPerComponent != 1) {
         return null;
       }
@@ -2136,12 +2632,20 @@ class PageDrawer extends PDFGraphicsStreamEngine {
       return _decode1BitMask(width, height, bytes, maskColor);
     }
 
+    if (forMask) {
+      return _decodeMaskImage(image, bytes, width, height);
+    }
+
     // Fast path: already RGBA.
     final rgbaLen = width * height * 4;
     if (bytes.length == rgbaLen) {
       final buffer = ImageBuffer(width, height);
       buffer.getBuffer().setAll(0, bytes);
-      return buffer;
+      return _applyImageSoftMaskIfNeeded(
+        buffer,
+        image,
+        ignoreSoftMask: ignoreSoftMask,
+      );
     }
 
     // Sampled images: decode into raster and convert via colorspace.
@@ -2161,16 +2665,184 @@ class PageDrawer extends PDFGraphicsStreamEngine {
         final rgba = rgb.getBytes(order: img.ChannelOrder.rgba, alpha: 255);
         final buffer = ImageBuffer(width, height);
         buffer.getBuffer().setAll(0, rgba);
-        return buffer;
+        return _applyImageSoftMaskIfNeeded(
+          buffer,
+          image,
+          ignoreSoftMask: ignoreSoftMask,
+        );
       }
     }
 
     // 1-bit grayscale fallback.
     if (image.bitsPerComponent == 1) {
-      return _decode1BitGray(width, height, bytes);
+      return _applyImageSoftMaskIfNeeded(
+        _decode1BitGray(width, height, bytes),
+        image,
+        ignoreSoftMask: ignoreSoftMask,
+      );
     }
 
     return null;
+  }
+
+  ImageBuffer _applyImageSoftMaskIfNeeded(
+    ImageBuffer buffer,
+    PDImageXObject image, {
+    required bool ignoreSoftMask,
+  }) {
+    if (ignoreSoftMask) {
+      return buffer;
+    }
+
+    if (buffer.width == 1 && buffer.height == 1) {
+      final buf = buffer.getBuffer();
+      print('Image before SMask: (r:${buf[0]}, g:${buf[1]}, b:${buf[2]}, a:${buf[3]})');
+    }
+
+    final maskStream = image.softMask ?? image.imageMaskStream;
+    if (maskStream == null) {
+      return buffer;
+    }
+
+    final maskImage = PDImageXObject.fromCOSStream(
+      maskStream.cosStream,
+      resources: currentResources,
+    );
+    print('SMask present: ${maskStream.cosStream.getInt(COSName.width)}x${maskStream.cosStream.getInt(COSName.height)}');
+    print('SMask BPC: ${maskStream.cosStream.getInt(COSName.bitsPerComponent)}');
+    print('SMask ColorSpace: ${maskStream.cosStream.getItem(COSName.colorSpace)}');
+    final maskBuffer = _decodeImage(
+      maskImage,
+      ignoreSoftMask: true,
+      forMask: true,
+    );
+    if (maskBuffer == null) {
+      print('SMask decode failed: maskBuffer is null');
+      return buffer;
+    }
+    print('SMask decoded buffer: ${maskBuffer.width}x${maskBuffer.height}');
+
+    _applyImageMask(buffer, maskBuffer);
+    if (buffer.width == 1 && buffer.height == 1) {
+      final buf = buffer.getBuffer();
+      print('Image after SMask: (r:${buf[0]}, g:${buf[1]}, b:${buf[2]}, a:${buf[3]})');
+    }
+    return buffer;
+  }
+
+  ImageBuffer? _decodeMaskImage(
+    PDImageXObject image,
+    Uint8List bytes,
+    int width,
+    int height,
+  ) {
+    if (image.bitsPerComponent == 1) {
+      return _decode1BitMask(width, height, bytes, Color(255, 255, 255, 255));
+    }
+
+    if (image.bitsPerComponent == 8) {
+      final colorSpace = image.colorSpace;
+      if (colorSpace != null) {
+        final cpp = colorSpace.numberOfComponents;
+        final expected = width * height * cpp;
+        if (bytes.length >= expected) {
+          final raster = PDRaster.fromBytes(
+            width: width,
+            height: height,
+            componentsPerPixel: cpp,
+            bytes: bytes,
+            bitsPerComponent: image.bitsPerComponent,
+          );
+          final rgb = colorSpace.toRGBImage(raster);
+          final rgba = rgb.getBytes(order: img.ChannelOrder.rgba, alpha: 255);
+          return _maskFromRgba(width, height, rgba);
+        }
+      }
+
+      final grayLen = width * height;
+      if (bytes.length >= grayLen) {
+        final out = ImageBuffer(width, height);
+        final buf = out.getBuffer();
+        for (var i = 0; i < grayLen; i++) {
+          final g = bytes[i];
+          final o = i * 4;
+          buf[o] = 255;
+          buf[o + 1] = 255;
+          buf[o + 2] = 255;
+          buf[o + 3] = g;
+        }
+        return out;
+      }
+    }
+
+    final rgbaLen = width * height * 4;
+    if (bytes.length == rgbaLen) {
+      return _maskFromRgba(width, height, bytes);
+    }
+    final rgbLen = width * height * 3;
+    if (bytes.length == rgbLen) {
+      final out = ImageBuffer(width, height);
+      final buf = out.getBuffer();
+      for (var i = 0; i < width * height; i++) {
+        final o = i * 4;
+        final ri = bytes[i * 3];
+        final gi = bytes[i * 3 + 1];
+        final bi = bytes[i * 3 + 2];
+        final a = ((0.299 * ri) + (0.587 * gi) + (0.114 * bi))
+            .round()
+            .clamp(0, 255);
+        buf[o] = 255;
+        buf[o + 1] = 255;
+        buf[o + 2] = 255;
+        buf[o + 3] = a;
+      }
+      return out;
+    }
+
+    return null;
+  }
+
+  ImageBuffer _maskFromRgba(int width, int height, Uint8List rgba) {
+    final out = ImageBuffer(width, height);
+    final buf = out.getBuffer();
+    for (var i = 0; i < width * height; i++) {
+      final o = i * 4;
+      final r = rgba[o];
+      final g = rgba[o + 1];
+      final b = rgba[o + 2];
+      var a = rgba[o + 3];
+      if (a == 255) {
+        a = ((0.299 * r) + (0.587 * g) + (0.114 * b))
+            .round()
+            .clamp(0, 255);
+      }
+      buf[o] = 255;
+      buf[o + 1] = 255;
+      buf[o + 2] = 255;
+      buf[o + 3] = a;
+    }
+    return out;
+  }
+
+  void _applyImageMask(ImageBuffer image, ImageBuffer mask) {
+    if (image.width != mask.width || image.height != mask.height) {
+      print('SMask size mismatch: image=${image.width}x${image.height} mask=${mask.width}x${mask.height}');
+      return;
+    }
+    final imgBuf = image.getBuffer();
+    final maskBuf = mask.getBuffer();
+    if (image.width > 0 && image.height > 0) {
+      final ma0 = maskBuf[3];
+      print('SMask first alpha: $ma0');
+    }
+    for (var i = 0; i < image.width * image.height; i++) {
+      final o = i * 4;
+      final ma = maskBuf[o + 3];
+      if (ma == 255) {
+        continue;
+      }
+      imgBuf[o + 3] = (imgBuf[o + 3] * ma) ~/ 255;
+    }
   }
 
   ImageBuffer _decode1BitGray(int width, int height, Uint8List bytes) {
@@ -2230,7 +2902,7 @@ class PageDrawer extends PDFGraphicsStreamEngine {
             ctm.translateX,
             ctm.translateY,
           );
-    // dart_graphics Affine.multiply() premultiplies (this = other * this).
+    // dart_graphics Affine.multiply() applies the RHS last (this = this * other).
     // We want: combined = base * CTM.
     final combined = _cloneAffine(ctmAffine)..multiply(_xform);
     _graphics.setTransform(combined);

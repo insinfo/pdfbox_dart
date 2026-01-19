@@ -1,7 +1,13 @@
+import 'dart:typed_data';
+
 import 'package:logging/logging.dart';
+import 'package:pdfbox_dart/src/io/random_access_read_buffer.dart';
 
 import '../../../fontbox/font_box_font.dart';
+import '../../../fontbox/ttf/ttf_parser.dart';
 import '../../../fontbox/ttf/true_type_font.dart';
+
+import 'embedded_fonts.dart';
 import 'cid_font_mapping.dart';
 import 'file_system_font_info.dart';
 import 'file_system_font_provider.dart';
@@ -112,6 +118,24 @@ class FontMapperImpl implements FontMapper {
     return _substitutes[normalized] ?? const <String>[];
   }
 
+  TrueTypeFont? _loadBundledTrueTypeFont([String fontName = 'Helvetica']) {
+    final Uint8List? bytes = EmbeddedFonts.getFontBytes(fontName);
+    if (bytes == null) {
+      _logger.fine('No embedded font found for "$fontName"');
+      return null;
+    }
+    final parser = TtfParser();
+    final randomAccess = RandomAccessReadBuffer.fromBytes(bytes);
+    try {
+      return parser.parse(randomAccess);
+    } catch (error, stackTrace) {
+      _logger.warning('Failed to parse embedded font "$fontName"', error, stackTrace);
+      return null;
+    } finally {
+      randomAccess.close();
+    }
+  }
+
   @override
   FontMapping<TrueTypeFont> getTrueTypeFont(
     String baseFont,
@@ -140,6 +164,10 @@ class FontMapperImpl implements FontMapper {
     }
 
     _logger.warning('Returning empty TrueType mapping for "$baseFont"');
+    final bundled = _loadBundledTrueTypeFont(baseFont);
+    if (bundled != null) {
+      return FontMapping<TrueTypeFont>(bundled, isFallback: true);
+    }
     return FontMapping<TrueTypeFont>(null, isFallback: true);
   }
 
@@ -168,6 +196,10 @@ class FontMapperImpl implements FontMapper {
     }
 
     _logger.warning('Returning empty FontBox mapping for "$baseFont"');
+    final bundled = _loadBundledTrueTypeFont(baseFont);
+    if (bundled != null) {
+      return FontMapping<FontBoxFont>(TrueTypeFontBoxAdapter(bundled), isFallback: true);
+    }
     return FontMapping<FontBoxFont>(null, isFallback: true);
   }
 

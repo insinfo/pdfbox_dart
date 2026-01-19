@@ -1,6 +1,8 @@
-import 'package:dart_graphics/dart_graphics.dart';
-
 import 'dart:math' as math;
+import 'dart:typed_data';
+
+import 'package:dart_graphics/dart_graphics.dart';
+import 'package:dart_graphics/src/dart_graphics/image/png_encoder.dart';
 
 import '../pdmodel/common/pd_rectangle.dart';
 import '../pdmodel/pd_document.dart';
@@ -94,6 +96,27 @@ class PDFRenderer {
     final drawer = createPageDrawer(params);
     drawer.drawPage(graphics, box);
     return buffer;
+  }
+
+  /// Renders a page to PNG bytes.
+  Uint8List renderImageToPngBytes(
+    int pageIndex, {
+    double scale = 1.0,
+    ImageType imageType = ImageType.RGB,
+  }) {
+    final image = renderImageWithScale(pageIndex, scale, imageType);
+    return PngEncoder.encode(image);
+  }
+
+  /// Renders a page and saves it as a PNG file.
+  void renderImageToPngFile(
+    int pageIndex,
+    String filename, {
+    double scale = 1.0,
+    ImageType imageType = ImageType.RGB,
+  }) {
+    final image = renderImageWithScale(pageIndex, scale, imageType);
+    PngEncoder.saveImage(image, filename);
   }
 
   /// Factory method which may be overridden to provide custom rendering.

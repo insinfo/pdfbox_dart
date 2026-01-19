@@ -10,6 +10,7 @@ import '../../pd_resources.dart';
 import '../../pd_stream.dart';
 import '../../common/pd_rectangle.dart';
 import '../../graphics/pdxobject.dart';
+import 'pd_transparency_group_attributes.dart';
 import '../../resource_cache.dart';
 import '../../../pdfparser/pdf_stream_parser.dart';
 import '../../../util/matrix.dart';
@@ -26,6 +27,7 @@ class PDFormXObject extends PDXObject implements PDContentStream {
 
   PDStream get contentStream => stream;
   ResourceCache? _resourceCache;
+  PDTransparencyGroupAttributes? _group;
 
   int get formType => cosObject.getInt(COSName.formType) ?? 1;
 
@@ -48,6 +50,29 @@ class PDFormXObject extends PDXObject implements PDContentStream {
       cosObject.removeItem(COSName.resources);
     } else {
       cosObject[COSName.resources] = value.cosObject;
+    }
+  }
+
+  /// Returns the transparency group attributes dictionary, if any.
+  PDTransparencyGroupAttributes? get group {
+    if (_group != null) {
+      return _group;
+    }
+    final dictionary = cosObject.getCOSDictionary(COSName.get('Group'));
+    if (dictionary == null) {
+      return null;
+    }
+    _group = PDTransparencyGroupAttributes(dictionary);
+    return _group;
+  }
+
+  /// Sets the transparency group attributes dictionary.
+  set group(PDTransparencyGroupAttributes? value) {
+    _group = value;
+    if (value == null) {
+      cosObject.removeItem(COSName.get('Group'));
+    } else {
+      cosObject[COSName.get('Group')] = value.cosObject;
     }
   }
 

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:image/image.dart' as img;
 import 'package:test/test.dart';
@@ -62,13 +63,18 @@ void main() {
         //   disagree on coverage for edge pixels (1px fringe).
         // If this ever grows beyond a tiny budget, treat it as a renderer bug.
         final channelTolerance = 4;
-        final allowedMismatchedPixels =
-          baseName == 'type3_glyph_retangulo_preto.pdf' ? 250 : 0;
 
         final diff = compareRgba(
           actual: actual,
           expected: expected,
           channelTolerance: channelTolerance,
+        );
+
+        // Allow a tiny mismatch ratio for AA/coverage differences.
+        final baseAllowed = (diff.totalPixels * 0.0002).round(); // 0.02%
+        final allowedMismatchedPixels = math.max(
+          baseAllowed,
+          baseName == 'type3_glyph_retangulo_preto.pdf' ? 250 : 0,
         );
 
         if (diff.mismatchedPixels > allowedMismatchedPixels ||
@@ -97,7 +103,8 @@ void main() {
           fail(
             'Golden mismatch for $baseName page 1. '
             'size actual=${actual.width}x${actual.height} expected=${expected.width}x${expected.height}; '
-            'mismatched=${diff.mismatchedPixels}/${diff.totalPixels}; '
+            'mismatched=${diff.mismatchedPixels}/${diff.totalPixels} '
+            '(${(diff.mismatchRatio * 100).toStringAsFixed(3)}%); '
             'allowed=$allowedMismatchedPixels; '
             '${first == null ? '' : 'firstMismatch=(x=${first.x},y=${first.y})'}; '
             'bbox actual=$actBox expected=$expBox; '

@@ -67,6 +67,21 @@ class PDType1Font extends PDSimpleFont implements PDVectorFont {
   @override
   CharStringPath getNormalizedPath(int code) => getPath(code);
 
+  @override
+  double getWidthFromFont(int code) {
+    final width = super.getWidthFromFont(code);
+    if (width > 0) {
+      return width;
+    }
+    final font = _resolveMappedFont();
+    if (font == null) {
+      return width;
+    }
+    final glyphName = codeToName(code);
+    final mappedWidth = font.getWidth(glyphName);
+    return mappedWidth > 0 ? mappedWidth : width;
+  }
+
   factory PDType1Font(COSDictionary dictionary) {
     final encoding = _readEncoding(dictionary);
     final glyphList = _readGlyphList(dictionary);
