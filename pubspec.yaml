@@ -25,10 +25,10 @@ dependencies:
   # xpath_selector_xml_parser: ^3.0.1
   # ninja: ^3.0.8
   dart_graphics:
-    path: ../dart_graphics
-    # git:
-    #   url: https://github.com/insinfo/dart_graphics.git
-    #   ref: master
+    #path: ../dart_graphics
+    git:
+      url: https://github.com/insinfo/dart_graphics
+      ref: master
 
 dev_dependencies: 
   dart_pdf:
