@@ -51,6 +51,7 @@ dart analyze só na pasta onde aplicou modificações para ser mais rapido
 ## pendente (renderização - prioritário)
 - GroupGraphics.java: suporte completo a grupos de transparência não-isolados (backdrop removal)
 - SoftMask.java (classe helper): extrair lógica de SoftMask em classe separada como no Java
+- **Otimização de Fallback de Fontes**: Mover a lógica de fallback (atualmente em `PageDrawer` como rede de segurança) para a inicialização das classes de fonte (`PDType1Font`, etc.), usando um `FontMapper` robusto que delega para `EmbeddedFonts` ou fontes do sistema no momento da carga, evitando checks em tempo de renderização. (Ver `doc.md` para detalhes).
 
 ## pendente (observado)
 - TaggedPDF: ParentTree com entrada do tipo dicionario (nao array) para objetos individuais (ex.: annotation/XObject) via `/StructParent` ou `/StructParents`; portar helpers/roundtrip e testes.

@@ -130,3 +130,32 @@ Se você precisa bater 100% com o PNG do PDFBox Java:
 - Fazer **snap para inteiros** no espaço de device antes de rasterizar.
 - Ou **desativar AA** apenas para esses casos (ex.: Type3/fill).
 
+---
+
+## Mecanismo de Fallback de Fontes
+
+### Java (PDFBox Original)
+
+No PDFBox Java, o mecanismo de fallback é gerenciado durante a **inicialização da fonte** (ex: `PDType1Font`), e não no momento do desenho.
+
+1.  **Inicialização**: Ao criar uma fonte, o `FontMappers` tenta encontrar a fonte no sistema.
+2.  **Mapeamento**: Se a fonte exata não for encontrada, ele busca uma substituta equivalente ou usa uma padrão (como Helvetica).
+3.  **Delegação**: A classe da fonte (ex: `PDType1Font`) delega todas as operações (como `getPath`, `getWidth`) para essa fonte substituta (`genericFont`).
+4.  **Transparência**: O `PageDrawer` não sabe que houve fallback; ele apenas usa a fonte que lhe foi entregue, que já está configurada para usar os glifos da substituta.
+
+### Dart (Implementação Atual)
+
+Atualmente, no Dart, implementamos um mecanismo de "rede de segurança" diretamente no `PageDrawer` para lidar com casos onde a fonte falha (especificamente `NonVectorFont` em testes ou fontes corrompidas/ausentes sem mapeamento de sistema):
+
+1.  **Detecção em Tempo de Desenho**: No método `drawGlyph` (ou `_drawWithFallbackFont`), verificamos se a fonte é capaz de fornecer um caminho vetorial (`PDVectorFont`).
+2.  **Fallback Forçado**: Se a fonte não for vetorial (ou falhar), o `PageDrawer` intercepta e desenha o glifo usando a **Helvetica embutida** (`EmbeddedFonts.helvetica`).
+3.  **Propósito**: Isso garante que o texto apareça (mesmo que com a fonte errada) em vez de falhar ou renderizar nada, emulando o resultado final do Java, mas por um caminho diferente.
+
+### Otimização Futura (TODO)
+
+Para alinhar com a arquitetura do Java e melhorar a performance (evitando verificações a cada renderização de glifo):
+
+1.  **Mover a Lógica**: Implementar um `FontMapper` robusto no Dart que seja invocado no construtor das classes de fonte (`PDType1Font`, `PDTrueTypeFont`, etc.).
+2.  **Delegação no Carregamento**: Se a fonte não for encontrada, o próprio objeto de fonte deve carregar a Helvetica embutida como seu "backend" interno de renderização.
+3.  **Remover Hack do PageDrawer**: O `PageDrawer` deve apenas chamar `font.getPath()` e obter o caminho correto, sem saber se é a fonte original ou um fallback.
+
