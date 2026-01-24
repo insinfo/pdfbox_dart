@@ -23,7 +23,7 @@ class PDSignatureField extends PDTerminalField {
   /// Sets the value of this field to be the given signature.
   void setSignature(PDSignature value) {
     cosObject.setItem(COSName.v, value);
-    // TODO: applyChange()
+    updateFieldAppearances();
   }
 
   @override

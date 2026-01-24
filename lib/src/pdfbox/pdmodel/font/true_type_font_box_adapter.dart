@@ -35,7 +35,7 @@ class TrueTypeFontBoxAdapter implements FontBoxFont {
       return cff_path.CharStringPath();
     }
 
-    final gid = font.nameToGid(name);
+    final gid = _nameToGid(name);
     if (gid <= 0) {
       return cff_path.CharStringPath();
     }
@@ -67,12 +67,33 @@ class TrueTypeFontBoxAdapter implements FontBoxFont {
     if (unitsPerEm <= 0) {
       return 0;
     }
-    final rawWidth = font.getWidth(name);
+    final gid = _nameToGid(name);
+    if (gid <= 0) {
+      return 0;
+    }
+    final rawWidth = font.getAdvanceWidth(gid);
     return rawWidth * (1000.0 / unitsPerEm);
   }
 
   @override
-  bool hasGlyph(String name) => font.hasGlyph(name);
+  bool hasGlyph(String name) => _nameToGid(name) > 0;
+
+  int _nameToGid(String name) {
+    final gid = font.nameToGid(name);
+    if (gid > 0) {
+      return gid;
+    }
+    if (name.runes.length == 1) {
+      final cmap = font.getUnicodeCmapLookup(isStrict: false);
+      if (cmap != null) {
+        final fallback = cmap.getGlyphId(name.runes.first);
+        if (fallback > 0) {
+          return fallback;
+        }
+      }
+    }
+    return 0;
+  }
 
   cff_path.CharStringPath _glyphPathToCharString(glyph.GlyphPath glyphPath) {
     final path = cff_path.CharStringPath();

@@ -46,7 +46,9 @@ library;
 
 import 'dart:convert' show base64, Codec, Converter;
 import 'dart:math' as math;
-import 'package:petitparser/petitparser.dart';
+import 'package:pdfbox_dart/src/dependencies/petitparser/export.dart';
+
+
 
 import 'src/parser.dart' show stricttextualmsg, laxtextualmsg;
 

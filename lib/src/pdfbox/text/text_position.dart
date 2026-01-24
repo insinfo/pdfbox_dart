@@ -1,5 +1,5 @@
 import 'package:logging/logging.dart';
-import 'package:unorm_dart/unorm_dart.dart' as unorm;
+import 'package:pdfbox_dart/src/dependencies/unorm/export.dart' as unorm;
 
 import '../pdmodel/font/pdfont.dart';
 import '../util/matrix.dart';
@@ -134,13 +134,37 @@ class TextPosition {
   /// Same as [getUnicode] except that returned text is ensured to be
   /// visually ordered.
   ///
-  /// Note: Dart's Bidi support might be needed here if we want full parity.
-  /// For now, we return unicode as is or implement basic reversal if needed.
-  /// The Java code uses Character.getDirectionality.
+  /// Uses Bidi algorithm to handle right-to-left text.
   String getVisuallyOrderedUnicode() {
-    // TODO: Implement Bidi logic if needed.
-    // For now, just return the unicode string.
-    return unicode;
+    final text = unicode;
+    if (text.isEmpty) return text;
+    
+    // Check if any character has RTL directionality
+    bool hasRtl = false;
+    for (final codePoint in text.runes) {
+      // Unicode RTL character ranges
+      // Arabic (0600-06FF), Hebrew (0590-05FF), Arabic Supplement (0750-077F)
+      // Arabic Extended-A (08A0-08FF), Arabic Presentation Forms A/B (FB50-FDFF, FE70-FEFF)
+      if ((codePoint >= 0x0590 && codePoint <= 0x05FF) ||  // Hebrew
+          (codePoint >= 0x0600 && codePoint <= 0x06FF) ||  // Arabic
+          (codePoint >= 0x0750 && codePoint <= 0x077F) ||  // Arabic Supplement
+          (codePoint >= 0x08A0 && codePoint <= 0x08FF) ||  // Arabic Extended-A
+          (codePoint >= 0xFB50 && codePoint <= 0xFDFF) ||  // Arabic Presentation Forms-A
+          (codePoint >= 0xFE70 && codePoint <= 0xFEFF)) {  // Arabic Presentation Forms-B
+        hasRtl = true;
+        break;
+      }
+    }
+    
+    if (!hasRtl) {
+      return text;
+    }
+    
+    // For RTL text, we reverse it for visual ordering
+    // Note: For full Bidi algorithm, we would use a full Bidi implementation
+    // but for most PDF text extraction cases, character reversal is sufficient.
+    // The `bidi` package could be used for more complex cases.
+    return String.fromCharCodes(text.runes.toList().reversed);
   }
 
   /// Return the internal PDF character codes of the glyphs in this text.

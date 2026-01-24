@@ -134,7 +134,7 @@ AAEAAAANAIAAAwBQT1MvMlLPPTAAASBIAAAATmNtYXBmEQkqAAECBAAABYBjdnQgwUlrmwAAANwAAAAQ
     }
 
     // Remove newlines and whitespace from base64 string
-    final cleanBase64 = base64Data!.replaceAll(RegExp(r"\s+"), "");
+    final cleanBase64 = base64Data.replaceAll(RegExp(r"\s+"), "");
     final bytes = base64Decode(cleanBase64);
     _cache[key] = bytes;
     return bytes;

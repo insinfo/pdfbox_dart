@@ -56,7 +56,7 @@ abstract class PDButton extends PDTerminalField {
     } else {
       updateByValue(value);
     }
-    // TODO: applyChange()
+    updateFieldAppearances();
   }
 
   /// Set the selected option given its index.
@@ -66,7 +66,7 @@ abstract class PDButton extends PDTerminalField {
       throw ArgumentError("index '$index' is not a valid index.");
     }
     updateByValue(index.toString());
-    // TODO: applyChange()
+    updateFieldAppearances();
   }
 
   /// Returns the default value.

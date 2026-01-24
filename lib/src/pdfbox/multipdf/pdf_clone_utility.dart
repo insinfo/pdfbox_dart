@@ -21,6 +21,9 @@ class PDFCloneUtility {
   /// Returns the destination document.
   PDDocument get destination => _destination;
 
+  /// Returns the cloned version of a source object if it has been cloned methods.
+  COSBase? getClonedObject(COSObject source) => _clonedVersion[source];
+
   /// Clones the given COSBase object to the destination document.
   COSBase? cloneForNewDocument(COSBase? base) {
     if (base == null) {

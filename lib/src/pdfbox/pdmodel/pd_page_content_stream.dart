@@ -6,6 +6,8 @@ import 'pd_document.dart';
 import 'pd_page.dart';
 import 'pd_resources.dart';
 import 'pd_stream.dart';
+import 'graphics/form/pd_form_xobject.dart';
+import 'documentinterchange/markedcontent/pd_property_list.dart';
 
 /// Defines how newly written content should be combined with existing page data.
 enum PDPageContentMode {
@@ -250,6 +252,30 @@ class PDPageContentStream {
   void drawImage(COSName name) {
     _ensureOpen();
     _write('/${name.name} Do\n');
+  }
+
+  /// Draws a Form XObject.
+  void drawForm(PDFormXObject form) {
+    _ensureOpen();
+    final name = _resources.add(form);
+    _write('/${name.name} Do\n');
+  }
+
+  /// Begins a marked content sequence, optionally with a property list.
+  void beginMarkedContent(COSName tag, {PDPropertyList? propertyList}) {
+    _ensureOpen();
+    if (propertyList == null) {
+      _write('/${tag.name} BMC\n');
+      return;
+    }
+    final name = _resources.addPropertyList(propertyList);
+    _write('/${tag.name} /${name.name} BDC\n');
+  }
+
+  /// Ends a marked content sequence.
+  void endMarkedContent() {
+    _ensureOpen();
+    _write('EMC\n');
   }
 
   List<String> _splitParagraphLines(String text) {

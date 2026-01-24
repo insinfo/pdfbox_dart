@@ -2,7 +2,7 @@ import 'package:dart_graphics/dart_graphics.dart';
 
 /// Port of PDFBox's `TilingPaint` concept.
 ///
-/// TODO In the Java version this implements `Paint`. In this Dart port we keep a
+/// Note: In the Java version this implements `Paint`. In this Dart port we keep a
 /// minimal helper that can stamp a pre-rendered tile into a target buffer.
 final class TilingPaint {
   TilingPaint({

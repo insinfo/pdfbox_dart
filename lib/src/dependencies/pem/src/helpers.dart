@@ -1,5 +1,5 @@
 
-import 'package:petitparser/petitparser.dart';
+import 'package:pdfbox_dart/src/dependencies/petitparser/export.dart';
 
 /// Write all strings in [value] to [target], assuming [value] is a nested
 /// list of string of arbitrary finite depth.

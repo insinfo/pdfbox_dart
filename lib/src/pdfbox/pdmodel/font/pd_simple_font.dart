@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import '../../../fontbox/encoding/encoding.dart';
 import '../../../fontbox/encoding/symbol_encoding.dart';
 import '../../../fontbox/encoding/win_ansi_encoding.dart';
@@ -22,12 +24,14 @@ abstract class PDSimpleFont extends PDFont {
   })  : _encoding = encoding,
         super(dictionary, standard14Font: standard14Font) {
     this.glyphList = glyphList ?? GlyphList.getAdobeGlyphList();
-
     _readToUnicodeCMap();
   }
 
   Encoding _encoding;
   CMap? _toUnicodeCMap;
+
+  @override
+  CMap? get toUnicodeCMap => _toUnicodeCMap;
 
   void _readToUnicodeCMap() {
     final toUnicode = dictionary.getDictionaryObject(COSName.toUnicode);
@@ -40,7 +44,7 @@ abstract class PDSimpleFont extends PDFont {
         } finally {
           view.close();
         }
-      } catch (e) {
+      } catch (_) {
         // Ignore malformed ToUnicode streams; callers will fall back.
       }
     }
@@ -53,10 +57,10 @@ abstract class PDSimpleFont extends PDFont {
     _encoding = value;
   }
 
-  /// Resolves the glyph name associated with a character code.
+  /// Resolves the glyph name associated with a character code (0..255).
   String codeToName(int code) => _encoding.getName(code);
 
-  /// Attempts to resolve a Unicode character for [code] using the glyph list.
+  /// Attempts to resolve a Unicode character for [code] using ToUnicode, else glyph list.
   @override
   String? toUnicode(int code) {
     if (_toUnicodeCMap != null) {
@@ -65,7 +69,6 @@ abstract class PDSimpleFont extends PDFont {
     return glyphList.toUnicode(codeToName(code));
   }
 
-  /// Computes the font space width for the supplied [code].
   @override
   double getWidthFromFont(int code) {
     final firstChar = dictionary.getInt(COSName.firstChar);
@@ -94,29 +97,39 @@ abstract class PDSimpleFont extends PDFont {
       }
       return width;
     }
+
     return 0;
   }
 
-  /// Computes the aggregate width in font units for the provided [text].
-  double getStringWidth(String text) {
-    // TODO: This should also use the Widths array if available
-    final metrics = standard14Metrics;
-    if (metrics == null) {
-      return 0;
-    }
+  /// CORRETO: largura calculada a partir dos *códigos* (bytes) do content stream.
+  double getStringWidthFromBytes(Uint8List codes) {
     var width = 0.0;
-    for (final rune in text.runes) {
-      final glyphName = glyphList.codePointToName(rune);
-      var glyphWidth = metrics.getCharacterWidth(glyphName);
-      if (glyphWidth == 0) {
-        glyphWidth = metrics.getAverageCharacterWidth();
-      }
-      width += glyphWidth;
+    for (final code in codes) {
+      width += getWidthFromFont(code);
     }
     return width;
   }
 
-  /// Suggests an encoding for standard 14 fonts based on their PostScript name.
+  // Wrapper: use APENAS quando você tem uma "string de bytes" (latin1).
+  // Se treatAsLatin1Bytes=false, fazemos fallback "safe" (invalid vira '?').
+  @override
+  double getStringWidth(
+    String text, {
+    bool treatAsLatin1Bytes = true,
+  }) {
+    if (treatAsLatin1Bytes) {
+      final codes = Uint8List(text.length);
+      for (var i = 0; i < text.length; i++) {
+        codes[i] = text.codeUnitAt(i) & 0xFF;
+      }
+      return getStringWidthFromBytes(codes);
+    }
+
+    // Fallback: Unicode -> Latin1 (invalid -> '?')
+    final codes = Uint8List.fromList(text.codeUnits.map((u) => u > 255 ? 63 : u).toList());
+    return getStringWidthFromBytes(codes);
+  }
+
   static Encoding encodingForStandard14(String postScriptName) {
     switch (postScriptName) {
       case 'ZapfDingbats':

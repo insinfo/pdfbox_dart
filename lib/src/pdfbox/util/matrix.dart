@@ -212,4 +212,17 @@ class Matrix {
     double yScale = _values[4];
     return math.sqrt(xScale * xScale + yScale * yScale);
   }
+
+  /// Returns true if this matrix is the identity matrix.
+  bool get isIdentity {
+    return _values[0] == 1 &&
+        _values[1] == 0 &&
+        _values[2] == 0 &&
+        _values[3] == 0 &&
+        _values[4] == 1 &&
+        _values[5] == 0 &&
+        _values[6] == 0 &&
+        _values[7] == 0 &&
+        _values[8] == 1;
+  }
 }

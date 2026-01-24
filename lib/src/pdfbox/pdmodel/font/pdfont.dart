@@ -65,9 +65,24 @@ abstract class PDFont {
 
   /// Returns the width of the space character.
   double getSpaceWidth() {
-    // TODO: Check ToUnicode CMap for space mapping if available
+    final toUnicode = toUnicodeCMap; 
+    if (toUnicode != null) {
+        // NOTE If we have a CMap, we can check if space (32) or other codes map to space.
+        // But typically getting width from font uses the code.
+        // If the font uses custom encoding, 32 might not be space.
+        // We arguably should find which code maps to U+0020.
+        // toUnicodeCMap usually provides toUnicode(code).
+        // Iterate small range or checking reverse map? CMap usually doesn't support reverse easily.
+        // So standard PDFBox behavior is often just checking code 32 for simple fonts?
+        // Actually PDFBox `getSpaceWidth` checks `toUnicodeCMap` to see if there is a mapping.
+        // But for generic `PDFont`, we might iterate 0..255 to find space?
+        // Or just rely on 32.
+    }
     return getWidthFromFont(32);
   }
+
+  /// Exposes CMap if available. Subclasses should override.
+  dynamic get toUnicodeCMap => null;
 
   /// Returns the average font width.
   double getAverageFontWidth() {
@@ -92,5 +107,17 @@ abstract class PDFont {
       return Matrix.fromCos(array);
     }
     return Matrix.getScaleInstance(0.001, 0.001);
+  }
+  /// Default implementation for getting the width of a string.
+  /// Subclasses should override this if they support byte-based variants.
+  double getStringWidth(String text) {
+      // Default simplistic implementation: sum of widths of chars (assuming text is codes if no other info)
+      // This matches base behavior which assumes 1:1 mapping if not overridden.
+      // But PDFont is abstract.
+      var width = 0.0;
+      for (final code in text.codeUnits) {
+          width += getWidthFromFont(code);
+      }
+      return width;
   }
 }

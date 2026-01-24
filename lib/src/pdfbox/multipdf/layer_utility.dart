@@ -134,8 +134,7 @@ class LayerUtility {
     //Compensate for Crop Boxes not starting at 0,0
     at.translate(-viewBox.lowerLeftX, -viewBox.lowerLeftY);
     
-    // if (!at.isIdentity()) // TODO: Implement isIdentity in Matrix
-    {
+    if (!at.isIdentity) {
         form.matrix = at;
     }
 
@@ -191,23 +190,16 @@ class LayerUtility {
               _targetDoc, targetPage, mode: PDPageContentMode.append);
       
       try {
-          // contentStream.beginMarkedContent(COSName.oc, layer); // TODO: Implement beginMarkedContent with properties
-          contentStream.writeRaw("/OC /${layer.name} BDC\n"); // Workaround
+          contentStream.beginMarkedContent(COSName.oc, propertyList: layer);
           contentStream.saveGraphicsState();
           contentStream.transform(transform.getValue(0, 0), transform.getValue(0, 1), 
                                   transform.getValue(1, 0), transform.getValue(1, 1), 
                                   transform.getValue(2, 0), transform.getValue(2, 1));
-          contentStream.drawImage(COSName.getPDFName("FormXObject")); // TODO: Need to register resource and get name
-          // contentStream.drawForm(form); // TODO: Implement drawForm
           
-          // Manual drawForm implementation for now
-          // 1. Add form to resources
-          final formName = targetPage.resources.add(form);
-          contentStream.writeRaw("/$formName Do\n");
+          contentStream.drawForm(form);
 
           contentStream.restoreGraphicsState();
-          // contentStream.endMarkedContent();
-          contentStream.writeRaw("EMC\n");
+          contentStream.endMarkedContent();
       } finally {
           contentStream.close();
       }

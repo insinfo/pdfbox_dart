@@ -7,6 +7,7 @@ import 'package:dart_graphics/src/dart_graphics/image/png_encoder.dart';
 import '../pdmodel/common/pd_rectangle.dart';
 import '../pdmodel/pd_document.dart';
 import '../pdmodel/pd_page.dart';
+import '../util/matrix.dart';
 import 'image_type.dart';
 import 'page_drawer.dart';
 import 'page_drawer_parameters.dart';
@@ -60,42 +61,158 @@ class PDFRenderer {
   }
 
   ImageBuffer renderImageWithScale(int pageIndex, double scale,
-      [ImageType imageType = ImageType.RGB]) {
+      [ImageType imageType = ImageType.RGB,
+      RenderDestination? destination]) {
     final PDPage page = document.getPage(pageIndex);
-    final PDRectangle box = page.cropBox ?? page.mediaBox ?? PDRectangle.letter;
-    final widthPx = math.max(1, (box.width * scale).ceil());
-    final heightPx = math.max(1, (box.height * scale).ceil());
+    final PDRectangle cropBox = page.cropBox ?? page.mediaBox ?? PDRectangle.letter;
+    final widthPt = cropBox.width;
+    final heightPt = cropBox.height;
+
+    // PDFBOX-4306 avoid single blank pixel line on the right or on the bottom
+    int widthPx = math.max(1, (widthPt * scale).floor());
+    int heightPx = math.max(1, (heightPt * scale).floor());
+
+    final rotationAngle = page.rotation;
+
+    // Always render to ARGB to ensure clip masks and transparency (alpha/SMask)
+    // are respected by the graphics backend, then composite onto white when
+    // RGB output is requested.
+    final useArgb = true;
+
+    // Swap width and height for 90 or 270 degree rotation
+    if (rotationAngle == 90 || rotationAngle == 270) {
+      final tmp = widthPx;
+      widthPx = heightPx;
+      heightPx = tmp;
+    }
 
     final buffer = ImageBuffer(widthPx, heightPx);
     final graphics = buffer.newGraphics2D();
-    graphics.clear(
-      imageType == ImageType.ARGB
-          ? Color(0, 0, 0, 0)
-          : Color(255, 255, 255, 255),
-    );
+    // Always start transparent; RGB output is composited onto white later.
+    graphics.clear(Color(0, 0, 0, 0));
 
-    // Base transform maps PDF coordinates into image pixels.
-    // x' = (x - llx) * scale
-    // y' = (ury - y) * scale
-    final llx = box.lowerLeftX;
-    final ury = box.lowerLeftY + box.height;
-    graphics.setTransform(
-      Affine(scale, 0, 0, -scale, -llx * scale, ury * scale),
-    );
+    // Apply transform similar to Java
+    _transform(graphics, rotationAngle, cropBox, scale, scale);
 
-    final destination = _defaultDestination;
+    final actualDestination = destination ?? _defaultDestination;
     final params = PageDrawerParameters(
       this,
       page,
       _subsamplingAllowed,
-      destination,
+      actualDestination,
       _renderingHints,
       _imageDownscalingOptimizationThreshold,
     );
 
     final drawer = createPageDrawer(params);
-    drawer.drawPage(graphics, box);
+    drawer.drawPage(graphics, cropBox);
+
+    // If we used ARGB for blend modes but user wanted RGB, composite on white
+    if (useArgb && imageType == ImageType.RGB) {
+      final newBuffer = ImageBuffer(widthPx, heightPx);
+      final src = buffer.getBuffer();
+      final dst = newBuffer.getBuffer();
+      for (var i = 0; i < src.length; i += 4) {
+        final a = src[i + 3];
+        final invA = 255 - a;
+        dst[i] = (src[i] + invA).clamp(0, 255);
+        dst[i + 1] = (src[i + 1] + invA).clamp(0, 255);
+        dst[i + 2] = (src[i + 2] + invA).clamp(0, 255);
+        dst[i + 3] = 255;
+      }
+      return newBuffer;
+    }
+
     return buffer;
+  }
+
+  /// Renders a page to an existing Graphics2D instance.
+  ///
+  /// This method can be used to render onto a larger canvas or to combine
+  /// multiple pages.
+  void renderPageToGraphics(int pageIndex, Graphics2D graphics,
+      [double scaleX = 1.0, double? scaleY, RenderDestination? destination]) {
+    scaleY ??= scaleX;
+    final PDPage page = document.getPage(pageIndex);
+    final PDRectangle cropBox = page.cropBox ?? page.mediaBox ?? PDRectangle.letter;
+
+    _transform(graphics, page.rotation, cropBox, scaleX, scaleY);
+
+    final actualDestination = destination ?? _defaultDestination;
+    final params = PageDrawerParameters(
+      this,
+      page,
+      _subsamplingAllowed,
+      actualDestination,
+      _renderingHints,
+      _imageDownscalingOptimizationThreshold,
+    );
+
+    final drawer = createPageDrawer(params);
+    drawer.drawPage(graphics, cropBox);
+  }
+
+  /// Applies scale and rotation transform to the graphics context.
+  void _transform(Graphics2D graphics, int rotationAngle, PDRectangle cropBox,
+      double scaleX, double scaleY) {
+    final llx = cropBox.lowerLeftX;
+    final lly = cropBox.lowerLeftY;
+    final width = cropBox.width;
+    final height = cropBox.height;
+
+    if (rotationAngle == 0) {
+      // Map PDF user space (origin bottom-left) to device space (origin top-left).
+      graphics.setTransform(Affine(
+        scaleX,
+        0,
+        0,
+        -scaleY,
+        -llx * scaleX,
+        (height + lly) * scaleY,
+      ));
+      return;
+    }
+
+    // Rotation path: keep close to PDFBox sequencing.
+    final radians = rotationAngle * math.pi / 180;
+    double translateX = 0;
+    double translateY = 0;
+    switch (rotationAngle) {
+      case 90:
+        translateX = height;
+        break;
+      case 270:
+        translateY = width;
+        break;
+      case 180:
+        translateX = width;
+        translateY = height;
+        break;
+      default:
+        break;
+    }
+
+    var transform = Matrix();
+    transform = transform.multiply(
+      Matrix.getTranslateInstance(-llx, -lly),
+    );
+    transform = transform.multiply(
+      Matrix.getTranslateInstance(translateX, translateY),
+    );
+    transform = transform.multiply(Matrix.getRotateInstance(radians, 0, 0));
+    transform =
+        transform.multiply(Matrix.getScaleInstance(1, -1)); // flip Y axis
+    transform = transform.multiply(Matrix.getTranslateInstance(0, height));
+    transform = transform.multiply(Matrix.getScaleInstance(scaleX, scaleY));
+
+    graphics.setTransform(Affine(
+      transform.scaleX,
+      transform.shearY,
+      transform.shearX,
+      transform.scaleY,
+      transform.translateX,
+      transform.translateY,
+    ));
   }
 
   /// Renders a page to PNG bytes.
@@ -124,3 +241,4 @@ class PDFRenderer {
     return PageDrawer(parameters);
   }
 }
+

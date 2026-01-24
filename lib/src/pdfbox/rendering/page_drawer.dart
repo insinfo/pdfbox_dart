@@ -5,12 +5,6 @@ import 'package:dart_graphics/dart_graphics.dart';
 import 'package:image/image.dart' as img;
 import 'package:logging/logging.dart';
 
-import '../../fontbox/cff/char_string_path.dart';
-import '../../fontbox/ttf/true_type_font.dart';
-import '../../fontbox/ttf/ttf_parser.dart';
-import '../../fontbox/ttf/glyph_renderer.dart' as ttf_glyph;
-import '../pdmodel/font/embedded_fonts.dart';
-
 import '../contentstream/pdf_graphics_stream_engine.dart';
 import '../contentstream/pdf_stream_engine.dart' show PathWindingRule;
 import '../cos/cos_array.dart';
@@ -23,6 +17,7 @@ import '../pdmodel/font/pd_type0_font.dart';
 import '../pdmodel/font/pd_type3_font.dart';
 import '../pdmodel/font/pd_vector_font.dart';
 import '../pdmodel/font/pdfont.dart';
+import '../pdmodel/font/pdfont_factory.dart';
 import '../pdmodel/graphics/state/pd_graphics_state.dart';
 import '../pdmodel/common/pd_rectangle.dart';
 import '../pdmodel/graphics/color/pd_color.dart';
@@ -42,6 +37,8 @@ import '../util/matrix.dart';
 import 'page_drawer_parameters.dart';
 import 'glyph_cache.dart';
 import 'tiling_paint_factory.dart';
+import 'group_graphics.dart';
+import 'soft_mask.dart';
 import '../pdmodel/interactive/annotation/pd_annotation.dart';
 
 import '../../io/random_access_read_buffer.dart';
@@ -115,8 +112,6 @@ class PageDrawer extends PDFGraphicsStreamEngine {
 
   static final Logger _log = Logger('pdfbox.rendering.PageDrawer');
 
-  static TrueTypeFont? _fallbackFont;
-
   final PageDrawerParameters _parameters;
 
   late Graphics2D _graphics;
@@ -136,6 +131,7 @@ class PageDrawer extends PDFGraphicsStreamEngine {
   _IntRect? _softMaskCacheBBoxDevice;
 
   final Map<PDFont, GlyphCache> _glyphCaches = <PDFont, GlyphCache>{};
+  final Map<PDFont, PDFont> _vectorFontFallbacks = <PDFont, PDFont>{};
 
   bool _processingType3CharProc = false;
   double? _type3CharProcWidthWx;
@@ -157,10 +153,10 @@ class PageDrawer extends PDFGraphicsStreamEngine {
     _softMaskCacheBBoxDevice = null;
     _glyphCaches.clear();
     _syncTransform();
-    
+
     final page = _parameters.getPage();
     processPage(page);
-    
+
     // Render annotations after page content
     for (final annotation in page.annotations) {
       if (!_shouldSkipAnnotation(annotation)) {
@@ -409,7 +405,8 @@ class PageDrawer extends PDFGraphicsStreamEngine {
       _log.fine('Unable to decode image XObject ${name.name}');
       return;
     }
-    print('Image XObject ${name.name}: ${image.width}x${image.height} decoded=${decoded.width}x${decoded.height} stencil=${image.isStencil}');
+    print(
+        'Image XObject ${name.name}: ${image.width}x${image.height} decoded=${decoded.width}x${decoded.height} stencil=${image.isStencil}');
 
     // PDFBox draws images in a unit square in user space. The CTM maps the
     // unit square into place. We also flip the image vertically to match PDF's
@@ -432,6 +429,30 @@ class PageDrawer extends PDFGraphicsStreamEngine {
 
     final group = form.group;
     final isIsolated = group?.isIsolated() ?? false;
+
+    if (!isIsolated &&
+        _graphics is BasicGraphics2D &&
+        (_graphics as BasicGraphics2D).destImage is ImageBuffer) {
+      final basicG = _graphics as BasicGraphics2D;
+      final target = basicG.destImage as ImageBuffer;
+
+      // Create a copy of the backdrop
+      final backdrop = ImageBuffer(target.width, target.height);
+      backdrop.copyFrom(target);
+
+      final groupGraphics = GroupGraphics(target, basicG);
+      _graphics = groupGraphics;
+
+      try {
+        _renderFormXObject(form, formResources);
+      } finally {
+        _graphics = basicG;
+      }
+
+      // Remove backdrop (Standard PDF equation for non-isolated groups)
+      groupGraphics.removeBackdrop(backdrop, 0, 0);
+      return;
+    }
 
     if (isIsolated) {
       _drawWithClip((_, __) {
@@ -616,11 +637,11 @@ class PageDrawer extends PDFGraphicsStreamEngine {
       shadingMatrix.translateX,
       shadingMatrix.translateY,
     );
-    
+
     // Compute inverse transforms
     final deviceToShading = _invertAffine(shadingToDevice);
     final shadingToFunction = _invertAffine(shadingMatrixAffine);
-    
+
     // Combined: device -> shading -> function domain
     final deviceToFunction = Affine.identity();
     deviceToFunction.multiply(shadingToFunction);
@@ -710,7 +731,9 @@ class PageDrawer extends PDFGraphicsStreamEngine {
     }
 
     // Collect triangles - pass transform and matrix
-    final matrix = shading is PDShadingType1 ? (shading as PDShadingType1).matrix : Matrix();
+    final matrix = shading is PDShadingType1
+        ? (shading as PDShadingType1).matrix
+        : Matrix();
     List<ShadedTriangle> triangles;
     try {
       triangles = shading.collectTriangles(shadingToDevice, matrix);
@@ -725,7 +748,8 @@ class PageDrawer extends PDFGraphicsStreamEngine {
 
     // Check for function to use for color transformation
     final fn = shading.cosObject.getDictionaryObject(COSName.function);
-    final PDFunction? shadingFunction = fn != null ? PDFunction.create(fn) : null;
+    final PDFunction? shadingFunction =
+        fn != null ? PDFunction.create(fn) : null;
 
     final out = ImageBuffer(width, height);
     final buf = out.getBuffer();
@@ -734,10 +758,10 @@ class PageDrawer extends PDFGraphicsStreamEngine {
     for (var y = 0; y < height; y++) {
       for (var x = 0; x < width; x++) {
         final o = (y * width + x) * 4;
-        
+
         // Create a point for this pixel
         final pixel = Point(x + 0.5, y + 0.5);
-        
+
         // Find which triangle contains this point
         ShadedTriangle? containingTriangle;
         for (final triangle in triangles) {
@@ -1205,7 +1229,8 @@ class PageDrawer extends PDFGraphicsStreamEngine {
       return;
     }
 
-    print('showTextString: font=${font.runtimeType} size=${textState.fontSize} bytes=${text.bytes.length}');
+    print(
+        'showTextString: font=${font.runtimeType} size=${textState.fontSize} bytes=${text.bytes.length}');
 
     final fontSize = textState.fontSize;
     if (fontSize == 0) {
@@ -1356,31 +1381,51 @@ class PageDrawer extends PDFGraphicsStreamEngine {
             ? _softMaskCacheBBoxDevice
             : null;
 
-        final bcGray =
-            isLuminosity ? _computeBackdropGray(softMask.backdropColor) : 0;
+        // Convert COSArray backdropColor to gray value for luminosity mode
+        int? backdropGray;
+        final bcArray = softMask.backdropColor;
+        if (isLuminosity && bcArray != null && bcArray.isNotEmpty) {
+          // For luminosity soft mask, compute gray from backdrop color
+          // Using simple average or first component as approximation
+          double sum = 0;
+          for (var i = 0; i < bcArray.length; i++) {
+            sum += bcArray.getDouble(i) ?? 0.0;
+          }
+          // Normalize to 0-255 assuming components are 0-1
+          final avg = bcArray.length > 0 ? sum / bcArray.length : 0;
+          backdropGray = (avg * 255).round().clamp(0, 255);
+        }
 
-        _applySoftMaskSubset(
-          temp,
+        // Use SoftMask helper class
+        final sm = SoftMask(
           maskImage,
-          bounds.left,
-          bounds.top,
-          luminosity: isLuminosity,
-          bboxDevice: bboxDevice,
-          backdropGray: bcGray,
+          bboxDevice: bboxDevice == null
+              ? null
+              : RectangleInt(bboxDevice.left, bboxDevice.bottom,
+                  bboxDevice.right, bboxDevice.top),
+          backdropGray: backdropGray,
           transferFunction: transfer,
         );
+        sm.apply(temp, bounds.left, bounds.top, luminosity: isLuminosity);
       }
     }
 
-    if (blendMode != pdf_blend.BlendMode.normal &&
-        originalGraphics is BasicGraphics2D &&
+    if (originalGraphics is BasicGraphics2D &&
         originalGraphics.destImage is ImageBuffer) {
-      _compositeBlendLayer(
-        temp,
-        originalGraphics,
-        bounds,
-        blendMode,
-      );
+      if (blendMode != pdf_blend.BlendMode.normal) {
+        _compositeBlendLayer(
+          temp,
+          originalGraphics,
+          bounds,
+          blendMode,
+        );
+      } else {
+        _compositePremultipliedLayer(
+          temp,
+          originalGraphics.destImage as ImageBuffer,
+          bounds,
+        );
+      }
     } else {
       originalGraphics.save();
       final originalAlpha = originalGraphics.masterAlpha;
@@ -1470,6 +1515,53 @@ class PageDrawer extends PDFGraphicsStreamEngine {
     }
   }
 
+  void _compositePremultipliedLayer(
+    ImageBuffer layer,
+    ImageBuffer target,
+    _IntRect bounds,
+  ) {
+    final srcBytes = layer.getBuffer();
+    final dstBytes = target.getBuffer();
+
+    final dstW = target.width;
+    final srcW = layer.width;
+    final srcH = layer.height;
+
+    final left = bounds.left;
+    final top = bounds.top;
+
+    for (var y = 0; y < srcH; y++) {
+      final dstRow = (top + y) * dstW;
+      final srcRow = y * srcW;
+      for (var x = 0; x < srcW; x++) {
+        final si = (srcRow + x) * 4;
+        final di = (dstRow + left + x) * 4;
+
+        final sa = srcBytes[si + 3];
+        if (sa == 0) {
+          continue;
+        }
+        if (sa == 255) {
+          dstBytes[di] = srcBytes[si];
+          dstBytes[di + 1] = srcBytes[si + 1];
+          dstBytes[di + 2] = srcBytes[si + 2];
+          dstBytes[di + 3] = 255;
+          continue;
+        }
+
+        final invA = 255 - sa;
+        dstBytes[di] =
+            srcBytes[si] + ((dstBytes[di] * invA) ~/ 255);
+        dstBytes[di + 1] =
+            srcBytes[si + 1] + ((dstBytes[di + 1] * invA) ~/ 255);
+        dstBytes[di + 2] =
+            srcBytes[si + 2] + ((dstBytes[di + 2] * invA) ~/ 255);
+        dstBytes[di + 3] =
+            sa + ((dstBytes[di + 3] * invA) ~/ 255);
+      }
+    }
+  }
+
   _BlendModeLite _mapBlendMode(pdf_blend.BlendMode mode) {
     switch (mode) {
       case pdf_blend.BlendMode.multiply:
@@ -1531,47 +1623,66 @@ class PageDrawer extends PDFGraphicsStreamEngine {
       case _BlendModeLite.src:
         return (sr, sg, sb, sa);
       case _BlendModeLite.srcOver:
-        return _porterDuff(cs, csG, csB, as, cd, cdG, cdB, ad, _PorterDuff.srcOver);
+        return _porterDuff(
+            cs, csG, csB, as, cd, cdG, cdB, ad, _PorterDuff.srcOver);
       case _BlendModeLite.dstOver:
-        return _porterDuff(cs, csG, csB, as, cd, cdG, cdB, ad, _PorterDuff.dstOver);
+        return _porterDuff(
+            cs, csG, csB, as, cd, cdG, cdB, ad, _PorterDuff.dstOver);
       case _BlendModeLite.srcIn:
-        return _porterDuff(cs, csG, csB, as, cd, cdG, cdB, ad, _PorterDuff.srcIn);
+        return _porterDuff(
+            cs, csG, csB, as, cd, cdG, cdB, ad, _PorterDuff.srcIn);
       case _BlendModeLite.dstIn:
-        return _porterDuff(cs, csG, csB, as, cd, cdG, cdB, ad, _PorterDuff.dstIn);
+        return _porterDuff(
+            cs, csG, csB, as, cd, cdG, cdB, ad, _PorterDuff.dstIn);
       case _BlendModeLite.srcOut:
-        return _porterDuff(cs, csG, csB, as, cd, cdG, cdB, ad, _PorterDuff.srcOut);
+        return _porterDuff(
+            cs, csG, csB, as, cd, cdG, cdB, ad, _PorterDuff.srcOut);
       case _BlendModeLite.dstOut:
-        return _porterDuff(cs, csG, csB, as, cd, cdG, cdB, ad, _PorterDuff.dstOut);
+        return _porterDuff(
+            cs, csG, csB, as, cd, cdG, cdB, ad, _PorterDuff.dstOut);
       case _BlendModeLite.srcAtop:
-        return _porterDuff(cs, csG, csB, as, cd, cdG, cdB, ad, _PorterDuff.srcAtop);
+        return _porterDuff(
+            cs, csG, csB, as, cd, cdG, cdB, ad, _PorterDuff.srcAtop);
       case _BlendModeLite.dstAtop:
-        return _porterDuff(cs, csG, csB, as, cd, cdG, cdB, ad, _PorterDuff.dstAtop);
+        return _porterDuff(
+            cs, csG, csB, as, cd, cdG, cdB, ad, _PorterDuff.dstAtop);
       case _BlendModeLite.xor:
         return _porterDuff(cs, csG, csB, as, cd, cdG, cdB, ad, _PorterDuff.xor);
       case _BlendModeLite.add:
         return _blendWithMode(cs, csG, csB, as, cd, cdG, cdB, ad, _BlendFn.add);
       case _BlendModeLite.multiply:
-        return _blendWithMode(cs, csG, csB, as, cd, cdG, cdB, ad, _BlendFn.multiply);
+        return _blendWithMode(
+            cs, csG, csB, as, cd, cdG, cdB, ad, _BlendFn.multiply);
       case _BlendModeLite.screen:
-        return _blendWithMode(cs, csG, csB, as, cd, cdG, cdB, ad, _BlendFn.screen);
+        return _blendWithMode(
+            cs, csG, csB, as, cd, cdG, cdB, ad, _BlendFn.screen);
       case _BlendModeLite.overlay:
-        return _blendWithMode(cs, csG, csB, as, cd, cdG, cdB, ad, _BlendFn.overlay);
+        return _blendWithMode(
+            cs, csG, csB, as, cd, cdG, cdB, ad, _BlendFn.overlay);
       case _BlendModeLite.darken:
-        return _blendWithMode(cs, csG, csB, as, cd, cdG, cdB, ad, _BlendFn.darken);
+        return _blendWithMode(
+            cs, csG, csB, as, cd, cdG, cdB, ad, _BlendFn.darken);
       case _BlendModeLite.lighten:
-        return _blendWithMode(cs, csG, csB, as, cd, cdG, cdB, ad, _BlendFn.lighten);
+        return _blendWithMode(
+            cs, csG, csB, as, cd, cdG, cdB, ad, _BlendFn.lighten);
       case _BlendModeLite.colorDodge:
-        return _blendWithMode(cs, csG, csB, as, cd, cdG, cdB, ad, _BlendFn.colorDodge);
+        return _blendWithMode(
+            cs, csG, csB, as, cd, cdG, cdB, ad, _BlendFn.colorDodge);
       case _BlendModeLite.colorBurn:
-        return _blendWithMode(cs, csG, csB, as, cd, cdG, cdB, ad, _BlendFn.colorBurn);
+        return _blendWithMode(
+            cs, csG, csB, as, cd, cdG, cdB, ad, _BlendFn.colorBurn);
       case _BlendModeLite.hardLight:
-        return _blendWithMode(cs, csG, csB, as, cd, cdG, cdB, ad, _BlendFn.hardLight);
+        return _blendWithMode(
+            cs, csG, csB, as, cd, cdG, cdB, ad, _BlendFn.hardLight);
       case _BlendModeLite.softLight:
-        return _blendWithMode(cs, csG, csB, as, cd, cdG, cdB, ad, _BlendFn.softLight);
+        return _blendWithMode(
+            cs, csG, csB, as, cd, cdG, cdB, ad, _BlendFn.softLight);
       case _BlendModeLite.difference:
-        return _blendWithMode(cs, csG, csB, as, cd, cdG, cdB, ad, _BlendFn.difference);
+        return _blendWithMode(
+            cs, csG, csB, as, cd, cdG, cdB, ad, _BlendFn.difference);
       case _BlendModeLite.exclusion:
-        return _blendWithMode(cs, csG, csB, as, cd, cdG, cdB, ad, _BlendFn.exclusion);
+        return _blendWithMode(
+            cs, csG, csB, as, cd, cdG, cdB, ad, _BlendFn.exclusion);
     }
   }
 
@@ -1743,12 +1854,14 @@ class PageDrawer extends PDFGraphicsStreamEngine {
     final r = (255 * ((1 - as) * cd + (1 - ad) * cs + as * ad * blend(cs, cd)))
         .round()
         .clamp(0, 255);
-    final g = (255 * ((1 - as) * cdG + (1 - ad) * csG + as * ad * blend(csG, cdG)))
-        .round()
-        .clamp(0, 255);
-    final b = (255 * ((1 - as) * cdB + (1 - ad) * csB + as * ad * blend(csB, cdB)))
-        .round()
-        .clamp(0, 255);
+    final g =
+        (255 * ((1 - as) * cdG + (1 - ad) * csG + as * ad * blend(csG, cdG)))
+            .round()
+            .clamp(0, 255);
+    final b =
+        (255 * ((1 - as) * cdB + (1 - ad) * csB + as * ad * blend(csB, cdB)))
+            .round()
+            .clamp(0, 255);
     final a = (ao * 255).round().clamp(0, 255);
     return (r, g, b, a);
   }
@@ -1861,143 +1974,6 @@ class PageDrawer extends PDFGraphicsStreamEngine {
     _softMaskCacheKey = softMask;
     _softMaskCacheMask = mask;
     return mask;
-  }
-
-  void _applySoftMaskSubset(
-    ImageBuffer layer,
-    ImageBuffer mask,
-    int dx,
-    int dy, {
-    required bool luminosity,
-    required _IntRect? bboxDevice,
-    required int backdropGray,
-    required PDFunction? transferFunction,
-  }) {
-    final layerBytes = layer.getBuffer();
-    final maskBytes = mask.getBuffer();
-
-    final w = layer.width;
-    final h = layer.height;
-    final fullW = mask.width;
-
-    List<double?>? transferMap;
-    if (transferFunction != null) {
-      transferMap = List<double?>.filled(256, null);
-    }
-
-    for (var y = 0; y < h; y++) {
-      final maskRow = (dy + y) * fullW;
-      final layerRow = y * w;
-      for (var x = 0; x < w; x++) {
-        final li = (layerRow + x) * 4;
-        final px = dx + x;
-        final py = dy + y;
-
-        final insideBBox = bboxDevice == null
-            ? true
-            : (px >= bboxDevice.left &&
-                px < bboxDevice.right &&
-                py >= bboxDevice.top &&
-                py < bboxDevice.bottom);
-
-        int g;
-        if (!insideBBox) {
-          g = backdropGray.clamp(0, 255);
-        } else {
-          final mi = (maskRow + px) * 4;
-          if (luminosity) {
-            final r = maskBytes[mi];
-            final gg = maskBytes[mi + 1];
-            final b = maskBytes[mi + 2];
-            g = ((0.299 * r) + (0.587 * gg) + (0.114 * b))
-                .round()
-                .clamp(0, 255);
-          } else {
-            g = maskBytes[mi + 3];
-          }
-        }
-
-        // Apply transfer function, if any.
-        double factor;
-        if (transferFunction != null && transferMap != null && insideBBox) {
-          final cached = transferMap[g];
-          if (cached != null) {
-            factor = cached;
-          } else {
-            try {
-              factor = transferFunction.eval(<double>[g / 255.0])[0];
-              factor = factor.clamp(0.0, 1.0);
-              transferMap[g] = factor;
-            } catch (_) {
-              // Mirror PDFBox: if transfer fails, treat as outside.
-              factor = (backdropGray / 255.0).clamp(0.0, 1.0);
-            }
-          }
-        } else {
-          factor = (g / 255.0).clamp(0.0, 1.0);
-        }
-
-        if (factor >= 0.999999) {
-          continue;
-        }
-        if (factor <= 0.000001) {
-          layerBytes[li] = 0;
-          layerBytes[li + 1] = 0;
-          layerBytes[li + 2] = 0;
-          layerBytes[li + 3] = 0;
-          continue;
-        }
-
-        final a = layerBytes[li + 3];
-        final mf = (factor * 255.0).round().clamp(0, 255);
-        layerBytes[li + 3] = (a * mf) ~/ 255;
-      }
-    }
-  }
-
-  int _computeBackdropGray(COSArray? bc) {
-    if (bc == null || bc.length == 0) {
-      return 0;
-    }
-
-    // Minimal conversion: handle DeviceGray/DeviceRGB/DeviceCMYK inputs.
-    // Full PDFBox fidelity would require using the transparency group's
-    // color space.
-    double toUnit(int i) {
-      final v = bc.getDouble(i);
-      return (v ?? 0.0).clamp(0.0, 1.0);
-    }
-
-    if (bc.length == 1) {
-      return (toUnit(0) * 255.0).round().clamp(0, 255);
-    }
-
-    double r;
-    double g;
-    double b;
-    if (bc.length >= 3) {
-      r = toUnit(0);
-      g = toUnit(1);
-      b = toUnit(2);
-    } else {
-      // Unknown, default black.
-      return 0;
-    }
-
-    if (bc.length == 4) {
-      final c = toUnit(0);
-      final m = toUnit(1);
-      final y = toUnit(2);
-      final k = toUnit(3);
-      r = (1.0 - (c + k).clamp(0.0, 1.0));
-      g = (1.0 - (m + k).clamp(0.0, 1.0));
-      b = (1.0 - (y + k).clamp(0.0, 1.0));
-    }
-
-    final ri = (r * 255.0).round().clamp(0, 255);
-    final gi = (g * 255.0).round().clamp(0, 255);
-    final bi = (b * 255.0).round().clamp(0, 255);
-    return ((299 * ri) + (587 * gi) + (114 * bi)) ~/ 1000;
   }
 
   _IntRect? _computeSoftMaskBBoxDevice(
@@ -2399,41 +2375,31 @@ class PageDrawer extends PDFGraphicsStreamEngine {
       _drawType3Glyph(code: code, font: font);
       return;
     }
-    // TODO verificar como é no java
-    if (font is! PDVectorFont) {
-      _drawWithFallbackFont(code: code, font: font);
+    final resolved = _resolveVectorFont(font);
+    if (resolved == null) {
       return;
-    }
-
-    final vectorFont = font as PDVectorFont;
+    } 
+    final vectorFont = resolved.vectorFont;
+    final renderFont = resolved.renderFont;
     if (!vectorFont.hasGlyph(code)) {
       print('drawGlyph: missing glyph code=$code for ${font.runtimeType}');
       return;
     }
 
-    final cache = _glyphCaches.putIfAbsent(font, () => GlyphCache(vectorFont));
+    final cache =
+        _glyphCaches.putIfAbsent(renderFont, () => GlyphCache(vectorFont));
     final outline = cache.getPathForCharacterCode(code);
     if (outline.vertices().isEmpty) {
       print('drawGlyph: empty outline for code=$code ${font.runtimeType}');
       return;
     }
 
-    final trm = _glyphRenderingMatrix(state: state, font: font);
-    final ctm = state.currentTransformationMatrix;
-    final ctmAffine = Affine(
-      ctm.scaleX,
-      ctm.shearY,
-      ctm.shearX,
-      ctm.scaleY,
-      ctm.translateX,
-      ctm.translateY,
-    );
+    final trm = _glyphRenderingMatrix(state: state);
+    final glyphMatrix = renderFont.fontMatrix.multiply(trm);
 
     // dart_graphics Affine.multiply() applies the RHS last (this = this * other).
-    // We want: combined = base * CTM * TRM.
-    final combined = _matrixToAffine(trm)
-      ..multiply(ctmAffine)
-      ..multiply(_xform);
+    // We want: combined = base * (FontMatrix * TRM).
+    final combined = _matrixToAffine(glyphMatrix)..multiply(_xform);
     _graphics.setTransform(combined);
 
     _graphics.beginPath();
@@ -2450,165 +2416,29 @@ class PageDrawer extends PDFGraphicsStreamEngine {
       _graphics.strokePath();
     }
   }
-  // TODO verificar e testar isso
-  void _drawWithFallbackFont({required int code, required PDFont font}) {
-    if (_fallbackFont == null) {
-      try {
-        final ttfBytes = EmbeddedFonts.helvetica;
-        if (ttfBytes != null) {
-          final parser = TtfParser();
-          _fallbackFont = parser.parse(RandomAccessReadBuffer.fromBytes(ttfBytes));
-        }
-      } catch (e) {
-        _log.warning('Failed to load fallback font: $e');
-      }
+
+  /// Returns a vector-capable font for rendering, falling back to a
+  /// PDFontFactory-created font when the current font isn't vector-based.
+  VectorFontResolution? _resolveVectorFont(PDFont font) {
+    if (font is PDVectorFont) {
+      return VectorFontResolution(font as PDVectorFont, font);
     }
 
-    final fallback = _fallbackFont;
-    if (fallback == null) return;
-
-    final unicode = font.toUnicode(code);
-    if (unicode == null || unicode.isEmpty) return;
-
-    // Use the first code point for fallback
-    final codePoint = unicode.codeUnitAt(0);
-    var gid = 0;
-    try {
-      final cmap = fallback.getUnicodeCmapLookup(isStrict: false);
-      gid = cmap?.getGlyphId(codePoint) ?? 0;
-    } catch (e) {
-      // ignore
+    final cached = _vectorFontFallbacks[font];
+    if (cached is PDVectorFont) {
+      return VectorFontResolution(cached as PDVectorFont, cached as PDFont);
     }
-
-    if (gid == 0) return;
 
     try {
-      final glyphData = fallback.getGlyphTable()?.getGlyph(gid);
-      if (glyphData == null) return;
-
-      final glyphPath = glyphData.getPath();
-      if (glyphPath.isEmpty) return;
-
-      // Standard PDF fonts use 1000 units per em.
-      // TrueType fonts use unitsPerEm (e.g. 2048).
-      final units = fallback.unitsPerEm;
-      final scale = (units > 0 && units != 1000) ? 1000.0 / units : 1.0;
-
-      final path = _convertAndScaleTtfPath(glyphPath, scale);
-      final outline = _charStringPathToVertexStorage(path);
-
-      if (outline.vertices().isEmpty) return;
-
-      final state = currentGraphicsState;
-      if (state == null) return;
-      final textState = state.textState;
-      final mode = textState.renderingMode;
-
-      final trm = _glyphRenderingMatrix(state: state, font: font);
-      final ctm = state.currentTransformationMatrix;
-      final ctmAffine = Affine(
-        ctm.scaleX,
-        ctm.shearY,
-        ctm.shearX,
-        ctm.scaleY,
-        ctm.translateX,
-        ctm.translateY,
-      );
-
-      final combined = _matrixToAffine(trm)
-        ..multiply(ctmAffine)
-        ..multiply(_xform);
-      _graphics.setTransform(combined);
-
-      _graphics.beginPath();
-      _graphics.currentPath.concat(outline);
-
-      _setFillRule(PathWindingRule.nonZero);
-      if (mode.isFill) {
-        _syncPaintStateForFill();
-        _graphics.fillPath();
+      final created = PDFontFactory.createFont(font.cosObject);
+      if (created is PDVectorFont) {
+        _vectorFontFallbacks[font] = created;
+        return VectorFontResolution(created as PDVectorFont, created);
       }
-      if (mode.isStroke) {
-        _syncPaintStateForStroke();
-        _graphics.strokePath();
-      }
-    } catch (e) {
-      _log.warning('Error drawing fallback glyph', e);
+    } catch (_) {
+      // Ignore fallback errors.
     }
-  }
-
-  CharStringPath _convertAndScaleTtfPath(
-      ttf_glyph.GlyphPath glyphPath, double scale) {
-    final path = CharStringPath();
-    var currentX = 0.0;
-    var currentY = 0.0;
-
-    for (final command in glyphPath.commands) {
-      if (command is ttf_glyph.MoveToCommand) {
-        final x = command.x * scale;
-        final y = command.y * scale;
-        path.moveTo(x, y);
-        currentX = x;
-        currentY = y;
-      } else if (command is ttf_glyph.LineToCommand) {
-        final x = command.x * scale;
-        final y = command.y * scale;
-        path.lineTo(x, y);
-        currentX = x;
-        currentY = y;
-      } else if (command is ttf_glyph.QuadToCommand) {
-        // Quad to Cubic conversion scaled
-        final cx = command.cx * scale;
-        final cy = command.cy * scale;
-        final x = command.x * scale;
-        final y = command.y * scale;
-
-        final x1 = currentX + (2.0 / 3.0) * (cx - currentX);
-        final y1 = currentY + (2.0 / 3.0) * (cy - currentY);
-        final x2 = x + (2.0 / 3.0) * (cx - x);
-        final y2 = y + (2.0 / 3.0) * (cy - y);
-
-        path.curveTo(x1, y1, x2, y2, x, y);
-        currentX = x;
-        currentY = y;
-      } else if (command is ttf_glyph.CubicToCommand) {
-        path.curveTo(command.cx1 * scale, command.cy1 * scale,
-            command.cx2 * scale, command.cy2 * scale, command.x * scale, command.y * scale);
-        currentX = command.x * scale;
-        currentY = command.y * scale;
-      } else if (command is ttf_glyph.ClosePathCommand) {
-        path.closePath();
-      }
-    }
-    return path;
-  }
-
-  VertexStorage _charStringPathToVertexStorage(CharStringPath path) {
-    final out = VertexStorage();
-    for (final command in path.commands) {
-      switch (command) {
-        case MoveToCommand(:final x, :final y):
-          out.moveTo(x, y);
-          break;
-        case LineToCommand(:final x, :final y):
-          out.lineTo(x, y);
-          break;
-        case CurveToCommand(
-            :final x1,
-            :final y1,
-            :final x2,
-            :final y2,
-            :final x3,
-            :final y3
-          ):
-          out.curve4(x1, y1, x2, y2, x3, y3);
-          break;
-        case ClosePathCommand():
-          out.closePath();
-          break;
-      }
-    }
-    return out;
+    return null;
   }
 
   void _drawType3Glyph({required int code, required PDType3Font font}) {
@@ -2636,31 +2466,10 @@ class PageDrawer extends PDFGraphicsStreamEngine {
       // Port of PDFBox's processType3Stream(): replace the CTM with the text
       // rendering matrix (text space -> device space), then pre-concatenate the
       // Type3 font's matrix (FontMatrix) for the charproc stream.
-      final textState = state.textState;
-      final fontSize = textState.fontSize;
-      final horizontalScaling = textState.horizontalScaling / 100.0;
-      final rise = textState.rise;
-
-      final parameters = Matrix.fromComponents(
-        fontSize * horizontalScaling,
-        0,
-        0,
-        fontSize,
-        0,
-        rise,
-      );
-
-      final textMatrix = state.textMatrix ?? Matrix();
-      final ctm = state.currentTransformationMatrix;
-
-      // Compute the Type3 charproc CTM.
-          // Type3 charproc coordinates are in glyph space.
-          // Apply glyph->text scaling first (FontMatrix, textStateMatrix), then
-          // the text matrix (Tm), and finally the page CTM.
-          state.currentTransformationMatrix = font.fontMatrix
-            .multiply(parameters)
-            .multiply(textMatrix)
-            .multiply(ctm);
+      // Compute the Type3 charproc CTM from the text rendering matrix.
+      final textRenderingMatrix = _glyphRenderingMatrix(state: state);
+      state.currentTransformationMatrix =
+          font.fontMatrix.multiply(textRenderingMatrix);
       state.textMatrix = Matrix();
       state.textLineMatrix = Matrix();
 
@@ -2730,15 +2539,18 @@ class PageDrawer extends PDFGraphicsStreamEngine {
     if (state == null) {
       return null;
     }
-    if (font is! PDVectorFont) {
+    final resolved = _resolveVectorFont(font);
+    if (resolved == null) {
       return null;
     }
-    final vectorFont = font as PDVectorFont;
+    final vectorFont = resolved.vectorFont;
+    final renderFont = resolved.renderFont;
     if (!vectorFont.hasGlyph(code)) {
       return null;
     }
 
-    final cache = _glyphCaches.putIfAbsent(font, () => GlyphCache(vectorFont));
+    final cache =
+        _glyphCaches.putIfAbsent(renderFont, () => GlyphCache(vectorFont));
     final outline = cache.getPathForCharacterCode(code);
     if (outline.vertices().isEmpty) {
       return null;
@@ -2746,22 +2558,12 @@ class PageDrawer extends PDFGraphicsStreamEngine {
 
     // Compute glyph->device transform without touching the active Graphics2D
     // transform (important when drawing via an offscreen clipped layer).
-    final ctm = state.currentTransformationMatrix;
-    final ctmAffine = Affine(
-      ctm.scaleX,
-      ctm.shearY,
-      ctm.shearX,
-      ctm.scaleY,
-      ctm.translateX,
-      ctm.translateY,
-    );
-    final trm = _glyphRenderingMatrix(state: state, font: font);
+    final trm = _glyphRenderingMatrix(state: state);
+    final glyphMatrix = renderFont.fontMatrix.multiply(trm);
 
     // dart_graphics Affine.multiply() applies the RHS last (this = this * other).
-    // We want: combined = base * CTM * TRM.
-    final combined = _matrixToAffine(trm)
-      ..multiply(ctmAffine)
-      ..multiply(base);
+    // We want: combined = base * (FontMatrix * TRM).
+    final combined = _matrixToAffine(glyphMatrix)..multiply(base);
 
     final closed = _closeSubpathsForClip(outline);
     return _transformPath(closed, combined);
@@ -2803,8 +2605,7 @@ class PageDrawer extends PDFGraphicsStreamEngine {
     }
   }
 
-  Matrix _glyphRenderingMatrix(
-      {required PDGraphicsState state, required PDFont font}) {
+  Matrix _glyphRenderingMatrix({required PDGraphicsState state}) {
     final textState = state.textState;
     final textMatrix = state.textMatrix ?? Matrix();
     final fontSize = textState.fontSize;
@@ -2812,10 +2613,18 @@ class PageDrawer extends PDFGraphicsStreamEngine {
     final rise = textState.rise;
 
     final textStateMatrix = Matrix.fromComponents(
-        fontSize * horizontalScaling, 0, 0, fontSize, 0, rise);
+      fontSize * horizontalScaling,
+      0,
+      0,
+      fontSize,
+      0,
+      rise,
+    );
 
-    // Glyph space -> text space -> user space.
-    return textMatrix.multiply(textStateMatrix).multiply(font.fontMatrix);
+    // Match PDFBox: text rendering matrix = parameters * textMatrix * CTM.
+    return textStateMatrix
+        .multiply(textMatrix)
+        .multiply(state.currentTransformationMatrix);
   }
 
   Affine _matrixToAffine(Matrix matrix) {
@@ -2961,10 +2770,6 @@ class PageDrawer extends PDFGraphicsStreamEngine {
         final ta = tmpBytes[i + 3];
         final outA = (ma * ta) ~/ 255;
         maskBytes[i + 3] = outA;
-        // Keep RGB in sync (premultiplied-friendly).
-        maskBytes[i] = (maskBytes[i] * ta) ~/ 255;
-        maskBytes[i + 1] = (maskBytes[i + 1] * ta) ~/ 255;
-        maskBytes[i + 2] = (maskBytes[i + 2] * ta) ~/ 255;
       }
 
       final entryBounds = _boundsOfPath(entry.devicePath, w: w, h: h);
@@ -3001,13 +2806,12 @@ class PageDrawer extends PDFGraphicsStreamEngine {
           continue;
         }
         if (ma == 0) {
-          layerBytes[li] = 0;
-          layerBytes[li + 1] = 0;
-          layerBytes[li + 2] = 0;
           layerBytes[li + 3] = 0;
           continue;
         }
-        // Scale alpha only (straight-alpha).
+        layerBytes[li] = (layerBytes[li] * ma) ~/ 255;
+        layerBytes[li + 1] = (layerBytes[li + 1] * ma) ~/ 255;
+        layerBytes[li + 2] = (layerBytes[li + 2] * ma) ~/ 255;
         layerBytes[li + 3] = (layerBytes[li + 3] * ma) ~/ 255;
       }
     }
@@ -3139,7 +2943,8 @@ class PageDrawer extends PDFGraphicsStreamEngine {
 
     if (buffer.width == 1 && buffer.height == 1) {
       final buf = buffer.getBuffer();
-      print('Image before SMask: (r:${buf[0]}, g:${buf[1]}, b:${buf[2]}, a:${buf[3]})');
+      print(
+          'Image before SMask: (r:${buf[0]}, g:${buf[1]}, b:${buf[2]}, a:${buf[3]})');
     }
 
     final maskStream = image.softMask ?? image.imageMaskStream;
@@ -3151,9 +2956,12 @@ class PageDrawer extends PDFGraphicsStreamEngine {
       maskStream.cosStream,
       resources: currentResources,
     );
-    print('SMask present: ${maskStream.cosStream.getInt(COSName.width)}x${maskStream.cosStream.getInt(COSName.height)}');
-    print('SMask BPC: ${maskStream.cosStream.getInt(COSName.bitsPerComponent)}');
-    print('SMask ColorSpace: ${maskStream.cosStream.getItem(COSName.colorSpace)}');
+    print(
+        'SMask present: ${maskStream.cosStream.getInt(COSName.width)}x${maskStream.cosStream.getInt(COSName.height)}');
+    print(
+        'SMask BPC: ${maskStream.cosStream.getInt(COSName.bitsPerComponent)}');
+    print(
+        'SMask ColorSpace: ${maskStream.cosStream.getItem(COSName.colorSpace)}');
     final maskBuffer = _decodeImage(
       maskImage,
       ignoreSoftMask: true,
@@ -3168,7 +2976,8 @@ class PageDrawer extends PDFGraphicsStreamEngine {
     _applyImageMask(buffer, maskBuffer);
     if (buffer.width == 1 && buffer.height == 1) {
       final buf = buffer.getBuffer();
-      print('Image after SMask: (r:${buf[0]}, g:${buf[1]}, b:${buf[2]}, a:${buf[3]})');
+      print(
+          'Image after SMask: (r:${buf[0]}, g:${buf[1]}, b:${buf[2]}, a:${buf[3]})');
     }
     return buffer;
   }
@@ -3231,9 +3040,8 @@ class PageDrawer extends PDFGraphicsStreamEngine {
         final ri = bytes[i * 3];
         final gi = bytes[i * 3 + 1];
         final bi = bytes[i * 3 + 2];
-        final a = ((0.299 * ri) + (0.587 * gi) + (0.114 * bi))
-            .round()
-            .clamp(0, 255);
+        final a =
+            ((0.299 * ri) + (0.587 * gi) + (0.114 * bi)).round().clamp(0, 255);
         buf[o] = 255;
         buf[o + 1] = 255;
         buf[o + 2] = 255;
@@ -3255,9 +3063,7 @@ class PageDrawer extends PDFGraphicsStreamEngine {
       final b = rgba[o + 2];
       var a = rgba[o + 3];
       if (a == 255) {
-        a = ((0.299 * r) + (0.587 * g) + (0.114 * b))
-            .round()
-            .clamp(0, 255);
+        a = ((0.299 * r) + (0.587 * g) + (0.114 * b)).round().clamp(0, 255);
       }
       buf[o] = 255;
       buf[o + 1] = 255;
@@ -3269,7 +3075,8 @@ class PageDrawer extends PDFGraphicsStreamEngine {
 
   void _applyImageMask(ImageBuffer image, ImageBuffer mask) {
     if (image.width != mask.width || image.height != mask.height) {
-      print('SMask size mismatch: image=${image.width}x${image.height} mask=${mask.width}x${mask.height}');
+      print(
+          'SMask size mismatch: image=${image.width}x${image.height} mask=${mask.width}x${mask.height}');
       return;
     }
     final imgBuf = image.getBuffer();
@@ -3426,6 +3233,13 @@ class _ClipEntry {
 
   final VertexStorage devicePath;
   final PathWindingRule rule;
+}
+
+class VectorFontResolution {
+  VectorFontResolution(this.vectorFont, this.renderFont);
+
+  final PDVectorFont vectorFont;
+  final PDFont renderFont;
 }
 
 class _IntRect {

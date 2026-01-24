@@ -1,7 +1,7 @@
 import 'dart:collection';
 import 'dart:math' as math;
 
-import 'package:unorm_dart/unorm_dart.dart' as unorm;
+import 'package:pdfbox_dart/src/dependencies/unorm/export.dart' as unorm;
 
 import 'package:pdfbox_dart/src/pdfbox/cos/cos_dictionary.dart';
 import 'package:pdfbox_dart/src/pdfbox/cos/cos_name.dart';
@@ -14,6 +14,10 @@ import 'package:pdfbox_dart/src/pdfbox/pdmodel/interactive/pagenavigation/pd_thr
 import 'package:pdfbox_dart/src/pdfbox/pdmodel/documentinterchange/markedcontent/pd_marked_content.dart';
 import 'package:pdfbox_dart/src/pdfbox/text/legacy_pdf_stream_engine.dart';
 import 'package:pdfbox_dart/src/pdfbox/text/text_position.dart';
+import 'package:pdfbox_dart/src/pdfbox/cos/cos_object.dart';
+import 'package:pdfbox_dart/src/pdfbox/pdmodel/common/pd_destination.dart';
+import 'package:pdfbox_dart/src/pdfbox/pdmodel/common/pd_page_destination.dart';
+
 import 'package:pdfbox_dart/src/pdfbox/text/text_position_comparator.dart';
 
 /// This class will take a pdf document and strip out all of the text and ignore the formatting and such.
@@ -25,7 +29,8 @@ class PDFTextStripper extends LegacyPDFStreamEngine {
   static double defaultIndentThreshold = 2.0;
   static double defaultDropThreshold = 2.5;
 
-  // TODO: System properties support if needed
+  // Emulating system properties via static flags for Dart
+  static bool useLegacySort = false; // "org.apache.pdfbox.util.TextPositionComparator.legacy"
 
   static final String LINE_SEPARATOR = '\n'; // System.lineSeparator() in Java
 
@@ -74,6 +79,8 @@ class PDFTextStripper extends LegacyPDFStreamEngine {
 
   final Map<String, SplayTreeMap<double, SplayTreeSet<double>>>
       characterListMapping = {};
+
+  static final RegExp _listItemPattern = RegExp(r"^\s*(\d+\.|[a-zA-Z]\.|[a-zA-Z]\)|•|-|–|—)\s*");
 
   PDDocument? document;
   StringSink? output;
@@ -156,9 +163,56 @@ class PDFTextStripper extends LegacyPDFStreamEngine {
   }
 
   // Helper to find destination page (placeholder)
+  // Helper to find destination page
   Future<PDPage?> _findDestinationPage(
       PDOutlineItem item, PDDocument doc) async {
-    // TODO: Implement findDestinationPage logic
+    final dest = item.destination;
+    if (dest == null) {
+      return null;
+    }
+    return _processDestination(dest, doc);
+  }
+
+  PDPage? _processDestination(PDDestination dest, PDDocument doc) {
+    if (dest is PDNamedDestination) {
+      final names = doc.documentCatalog.names;
+      final destsTree = names.dests;
+      if (destsTree != null) {
+        final found = destsTree.getValue(dest.name);
+        if (found != null) {
+          return _processDestination(found, doc);
+        }
+      }
+      // Fallback: Check if /Dests exists directly in names dictionary or catalog?
+      // PDFBox Java checks NameDictionary.getDests(), if null checks Catalog.getDests().
+      // PDDocumentNameDictionary.dests already does this fallback check in its getter.
+      return null;
+    }
+
+    if (dest is PDPageDestination) {
+      final pageNumber = dest.pageNumber;
+      if (pageNumber != null) {
+        if (pageNumber != -1) {
+           return doc.getPage(pageNumber);
+        }
+      }
+      
+      var pageObj = dest.page;
+      if (pageObj is COSObject) {
+        pageObj = pageObj.object;
+      }
+      
+      if (pageObj is COSDictionary) {
+        // We have the page dictionary, we need to return a PDPage.
+        // It's suboptimal that we don't know the index directly here without searching,
+        // but PDFTextStripper just needs the PDPage object to match with the page tree iteration.
+        // It uses equality check.
+        // However, we need to ensure this PDPage refers to the same object in cache/tree.
+        // Since we are iterating doc.pages, checking identical(page.cosObject, pageObj) usually works.
+        // We can return a wrapper.
+        return PDPage(pageObj, doc.resourceCache);
+      }
+    }
     return null;
   }
 
@@ -452,7 +506,64 @@ class PDFTextStripper extends LegacyPDFStreamEngine {
   }
 
   void removeContainedSpaces(List<TextPosition> textList) {
-    // TODO: Implement removeContainedSpaces
+    if (textList.isEmpty) return;
+
+    final toRemove = <TextPosition>{};
+    final size = textList.length;
+
+    // Use a simplified O(N^2) check. Since N is usually page size, it should be acceptable.
+    // Optimization: if strictly sorted by Y, we could limit search range, 
+    // but textList might be large.
+    // PDFBox implementation iterates through all.
+    
+    for (int i = 0; i < size; i++) {
+        final position = textList[i];
+        if (position.getUnicode() == " ") {
+            // Check if this space is contained in another character
+            final x = position.getXDirAdj();
+            final y = position.getYDirAdj();
+            final w = position.getWidthDirAdj();
+            final h = position.getHeightDir();
+            
+            // Assume containment means fully contained or mostly contained?
+            // "Contained" usually means the space bbox is inside another char's bbox.
+            // But we should tolerate small rounding errors?
+            
+            bool isContained = false;
+            for (int k = 0; k < size; k++) {
+                if (i == k) continue;
+                final other = textList[k];
+                if (toRemove.contains(other)) continue;
+
+                final ox = other.getXDirAdj();
+                final oy = other.getYDirAdj();
+                final ow = other.getWidthDirAdj();
+                final oh = other.getHeightDir();
+
+                // Check containment:
+                // other.x <= space.x && other.x + width >= space.x + width
+                // other.y <= space.y && other.y + height >= space.y + height (roughly)
+                // Note: Text Y coordinates behavior depends on coordinate system (bottom-up vs top-down).
+                // PDFTextStripper usually deals with normalized Y (top-down or similar logic).
+                // TextPositionComparator uses adjusted Y.
+                
+                // Let's check X containment first which is most common (kerning/ligatures)
+                if (ox <= x && (ox + ow) >= (x + w)) {
+                    // Check Y overlap
+                    if (overlap(y, h, oy, oh)) {
+                        isContained = true;
+                        break;
+                    }
+                }
+            }
+            if (isContained) {
+                toRemove.add(position);
+            }
+        }
+    }
+    if (toRemove.isNotEmpty) {
+        textList.removeWhere((t) => toRemove.contains(t));
+    }
   }
 
   void writeLineSeparator() {
@@ -529,17 +640,43 @@ class PDFTextStripper extends LegacyPDFStreamEngine {
       // We iterate or use range search if available.
       // For now, simple iteration or check.
       // TODO: Optimize with proper range search
-      for (double x in sameTextCharacters.keys) {
-        if (x >= textX - tolerance && x <= textX + tolerance) {
-          SplayTreeSet<double> yMatches = sameTextCharacters[x]!;
-          for (double y in yMatches) {
-            if (y >= textY - tolerance && y <= textY + tolerance) {
-              suppressCharacter = true;
-              break;
-            }
+      // Using a simplified range check for now, matching the logic but iterating keys.
+      // SplayTreeMap supports range search efficiently in Java (subMap).
+      // In Dart, we iterate. For large pages with many overlapped chars this is slow.
+      // Optimisation: check bounds before iterating.
+      if (sameTextCharacters.isNotEmpty) {
+          final firstKey = sameTextCharacters.firstKey();
+          final lastKey = sameTextCharacters.lastKey();
+          
+          if (firstKey != null && lastKey != null) {
+              final minX = textX - tolerance;
+              final maxX = textX + tolerance;
+              
+              if (maxX >= firstKey && minX <= lastKey) {
+                  // Only iterate if overlap is possible
+                   for (double x in sameTextCharacters.keys) {
+                    if (x < minX) continue;
+                    if (x > maxX) break; // Sorted keys, so we can stop
+                    
+                    SplayTreeSet<double> yMatches = sameTextCharacters[x]!;
+                    final minY = textY - tolerance;
+                    final maxY = textY + tolerance;
+                    
+                    // Same for Y
+                    if (yMatches.isNotEmpty) {
+                        if (yMatches.first > maxY || yMatches.last < minY) continue;
+                        
+                        for (double y in yMatches) {
+                            if (y >= minY && y <= maxY) {
+                                suppressCharacter = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (suppressCharacter) break;
+                  }
+              }
           }
-        }
-        if (suppressCharacter) break;
       }
 
       if (!suppressCharacter) {
@@ -714,7 +851,23 @@ class PDFTextStripper extends LegacyPDFStreamEngine {
         if (lastLineStartPosition.isHangingIndent) {
           position.setHangingIndent();
         } else if (lastLineStartPosition.isParagraphStart) {
-          // TODO: List item pattern matching
+          // List item pattern matching
+          // Check if the current line looks like a list item (e.g. "1.", "a)", "•", "-")
+          final match = _listItemPattern.firstMatch(position.getTextPosition().getUnicode());
+          if (match != null) {
+              // It's a list item, so it should probably be separate from the paragraph start?
+              // PDFBox logic: if it IS a pattern, we might want to treat it as paragraph start (which it is, since result=true happens if we fall through?)
+              // Actually PDFBox sets result=true in some cases.
+              // Here we are inside `xGap.abs() < positionWidth`.
+              // Meaning they are aligned vertically (same indentation).
+              // If indentation is same, and new line looks like a list item, 
+              // it means we might have:
+              //   Paragraph text...
+              //   1. List item...
+              // If xGap is small (aligned), it's likely a continuation of the paragraph 
+              // UNLESS it's a new list item.
+              result = true;
+          }
         }
       }
     }
@@ -776,9 +929,17 @@ class PDFTextStripper extends LegacyPDFStreamEngine {
   }
 
   String normalizeWord(String word) {
-    // TODO: Implement full normalization logic
-    return unorm.nfkc(word).trim();
+    // Normalize word
+    String normalized = unorm.nfkc(word);
+    
+    // PDFBox sometimes does manual decomposition checks or specific replacements,
+    // but NFKC is the standard.
+    // Also handling of presentation forms.
+    
+    return normalized;
   }
+  
+
 }
 
 class LineItem {

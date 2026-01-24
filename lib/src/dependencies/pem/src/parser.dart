@@ -1,6 +1,5 @@
 
-
-import 'package:petitparser/petitparser.dart';
+import 'package:pdfbox_dart/src/dependencies/petitparser/export.dart';
 import 'helpers.dart';
 
 // https://tools.ietf.org/html/rfc5234#appendix-B.1

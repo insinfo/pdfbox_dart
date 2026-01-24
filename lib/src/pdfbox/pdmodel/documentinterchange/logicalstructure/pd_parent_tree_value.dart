@@ -29,6 +29,14 @@ class PDParentTreeValue implements COSObjectable {
     return base is COSDictionary ? base : null;
   }
 
+  /// Returns the structure element if this value is a dictionary.
+  PDStructureElement? get structureElement {
+    if (isDictionary) {
+      return PDStructureElement(dictionary!);
+    }
+    return null;
+  }
+
   /// Returns the value at the given MCID when this parent tree value is an array.
   ///
   /// According to the spec, the index in the array equals the MCID. Entries can be

@@ -1,5 +1,6 @@
-import 'package:bidi/bidi.dart';
-import 'package:unorm_dart/unorm_dart.dart' as unorm;
+import 'package:pdfbox_dart/src/dependencies/bidi/export.dart';
+import 'package:pdfbox_dart/src/dependencies/unorm/export.dart' as unorm;
+
 
 /// Minimal SASLprep implementation mirroring the PDFBox helper for revision 6 passwords.
 class SaslPrep {

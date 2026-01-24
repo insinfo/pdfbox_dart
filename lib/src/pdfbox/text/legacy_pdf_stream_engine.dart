@@ -65,13 +65,27 @@ class LegacyPDFStreamEngine extends PDFStreamEngine {
       while (!buffer.isClosed && !buffer.isEOF) {
         int code = _readCode(font, buffer);
         if (code == -1) break; // EOF
-
         double width = font.getWidthFromFont(code);
-        double height = 0; // TODO: Vertical text support
+
+        // Vertical text logic
+        double height = 0; 
+        bool isVertical = false;
+        if (font is PDType0Font && font.isVertical) {
+             isVertical = true;
+             height = width;
+             width = 0;
+        }
 
         // Use FontMatrix for scaling instead of hardcoded / 1000
-        double scaling = font.fontMatrix.scaleX;
-        Vector displacement = Vector(width * scaling, height * scaling);
+        double scalingX = font.fontMatrix.scaleX;
+        double scalingY = font.fontMatrix.scaleY;
+        
+        Vector displacement;
+        if (isVertical) {
+            displacement = Vector(0, height * scalingY);
+        } else {
+            displacement = Vector(width * scalingX, 0);
+        }
 
         _showGlyph(currentGraphicsState!.textMatrix!.clone(), font, code,
             displacement);
@@ -85,9 +99,12 @@ class LegacyPDFStreamEngine extends PDFStreamEngine {
           wordSpacing = currentGraphicsState!.textState.wordSpacing;
         }
 
-        double tx = ((width * scaling) * fontSize + charSpacing + wordSpacing) *
-            horizontalScaling;
-        double ty = 0;
+        double tx = 0, ty = 0;
+        if (isVertical) {
+             ty = ((height * scalingY) * fontSize + charSpacing + wordSpacing) * horizontalScaling;
+        } else {
+             tx = ((width * scalingX) * fontSize + charSpacing + wordSpacing) * horizontalScaling;
+        }
 
         Matrix translation = Matrix.getTranslateInstance(tx, ty);
         currentGraphicsState!.textMatrix =
@@ -193,22 +210,15 @@ class LegacyPDFStreamEngine extends PDFStreamEngine {
     double spaceWidthText = 0;
     try {
       // to avoid crash as described in PDFBOX-614, see what the space displacement should be
-      // TODO: implement getSpaceWidth in PDFont if missing
-      // spaceWidthText = font.getSpaceWidth() * glyphSpaceToTextSpaceFactor;
-      // For now assume 0 or implement logic.
-      // Standard14 fonts have space width.
-      // We can use getWidthFromFont(32) (space code).
-      spaceWidthText = font.getWidthFromFont(32) * glyphSpaceToTextSpaceFactor;
+      spaceWidthText = font.getSpaceWidth() * glyphSpaceToTextSpaceFactor;
     } catch (exception) {
       _log.warning(exception);
     }
 
     if (spaceWidthText == 0) {
-      // spaceWidthText = font.getAverageFontWidth() * glyphSpaceToTextSpaceFactor;
+      spaceWidthText = font.getAverageFontWidth() * glyphSpaceToTextSpaceFactor;
       // the average space width appears to be higher than necessary so make it smaller
-      // spaceWidthText *= .80f;
-      // TODO: implement getAverageFontWidth
-      spaceWidthText = 1.0; // fallback
+      spaceWidthText *= .80;
     }
     if (spaceWidthText == 0) {
       spaceWidthText = 1.0; // if could not find font, use a generic value
@@ -219,7 +229,7 @@ class LegacyPDFStreamEngine extends PDFStreamEngine {
         spaceWidthText * textRenderingMatrix.multiply(ctm).scalingFactorX;
 
     // use our additional glyph list for Unicode mapping
-    String? unicode = font.toUnicode(code); // TODO: pass GLYPHLIST if needed?
+    String? unicode = font.toUnicode(code);
     // PDFont.toUnicode in Dart uses its own glyph list or encoding.
     // We might need to enhance it to use the additional glyph list if we loaded it.
 

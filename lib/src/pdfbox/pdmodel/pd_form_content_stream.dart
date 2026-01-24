@@ -114,9 +114,29 @@ class PDFormContentStream {
     _write('${_formatNumber(r)} ${_formatNumber(g)} ${_formatNumber(b)} rg\n');
   }
   
+  void setNonStrokingColorGray(double gray) {
+    _ensureOpen();
+    _write('${_formatNumber(gray)} g\n');
+  }
+  
+  void setNonStrokingColorCMYK(double c, double m, double y, double k) {
+    _ensureOpen();
+    _write('${_formatNumber(c)} ${_formatNumber(m)} ${_formatNumber(y)} ${_formatNumber(k)} k\n');
+  }
+  
   void setStrokingColor(double r, double g, double b) {
     _ensureOpen();
     _write('${_formatNumber(r)} ${_formatNumber(g)} ${_formatNumber(b)} RG\n');
+  }
+  
+  void setStrokingColorGray(double gray) {
+    _ensureOpen();
+    _write('${_formatNumber(gray)} G\n');
+  }
+  
+  void setStrokingColorCMYK(double c, double m, double y, double k) {
+    _ensureOpen();
+    _write('${_formatNumber(c)} ${_formatNumber(m)} ${_formatNumber(y)} ${_formatNumber(k)} K\n');
   }
 
   void close() {

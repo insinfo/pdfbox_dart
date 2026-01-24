@@ -16,6 +16,15 @@ abstract class PDAnnotation {
     }
     _annotationCache[dictionary] = this;
   }
+  
+  // Back reference or logic to find page?
+  // Usually /P entry in annotation dictionary points to the page.
+  // Returning dictionary to avoid circular dependency with PDPage
+  COSDictionary? get page {
+     final p = dictionary.getDictionaryObject(COSName.p);
+     if (p is COSDictionary) return p;
+     return null; 
+  }
 
   static final Expando<PDAnnotation> _annotationCache =
       Expando<PDAnnotation>('pdfbox_annotation_cache');

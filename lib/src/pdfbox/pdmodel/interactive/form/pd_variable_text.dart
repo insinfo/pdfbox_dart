@@ -33,7 +33,10 @@ abstract class PDVariableText extends PDTerminalField {
   /// Set the default appearance.
   void setDefaultAppearance(String daValue) {
     cosObject.setString(COSName.defaultAppearance, daValue);
-    // TODO: Update kids if needed (PDFBOX-5797)
+    // PDFBOX-5797: If this field has widgets, their appearance might need update.
+    // Since this is a terminal field, kids usually refers to widgets in this context if any.
+    // We delegate to updateFieldAppearances() to refresh visual state if needed.
+    updateFieldAppearances();    
   }
 
   /// Get the default style string.

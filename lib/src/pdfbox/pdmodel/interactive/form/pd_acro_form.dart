@@ -4,6 +4,7 @@ import '../../../cos/cos_dictionary.dart';
 import '../../../cos/cos_name.dart';
 
 import '../../../cos/cos_document.dart';
+import '../../../cos/cos_string.dart';
 import '../../pd_resources.dart';
 import '../../resource_cache.dart';
 import 'pd_field.dart';
@@ -91,13 +92,143 @@ class PDAcroForm implements COSObjectable {
 
   /// Returns the field with the given name, or null if it does not exist.
   PDField? getField(String fullyQualifiedName) {
-    // TODO: Optimize this lookup
-    for (final field in fieldTree) {
-      if (field.fullyQualifiedName == fullyQualifiedName) {
-        return field;
+    // Optimized lookup: split name and traverse
+    if (fullyQualifiedName.isEmpty) return null;
+
+    final nameParts = fullyQualifiedName.split('.');
+    var currentFields = fields;
+
+    PDField? found;
+    for (var i = 0; i < nameParts.length; i++) {
+      final partialName = nameParts[i];
+      found = null;
+      for (final field in currentFields) {
+        if (field.partialName == partialName) {
+          found = field;
+          break;
+        }
+      }
+
+      if (found == null) return null;
+
+      if (i < nameParts.length - 1) {
+        if (found is PDNonTerminalField) {
+          currentFields = found.getChildren();
+        } else {
+          return null; // Should be terminal but path goes deeper
+        }
       }
     }
-    return null;
+    return found;
+  }
+
+  /// Imports an FDF document into this AcroForm.
+  void importFDF(COSDictionary fdf) {
+    // Basic FDF import logic
+    final fdfFields = fdf.getDictionaryObject(COSName.fields);
+    if (fdfFields is COSArray) {
+      for (var i = 0; i < fdfFields.length; i++) {
+        final fdfField = fdfFields.getObject(i);
+        if (fdfField is COSDictionary) {
+          final partialFieldName = fdfField.getString(COSName.t);
+          final value = fdfField.getDictionaryObject(COSName.v);
+          if (partialFieldName != null && value != null) {
+            final pdField = getField(partialFieldName);
+            // partialFieldName from FDF is usually fully qualified?
+            // PDFBox FDFField.getPartialFieldName actually returns full if it's top level FDF.
+            // We assume partialFieldName here might be usable with getField (which takes fully qualified).
+
+            if (pdField != null) {
+              if (value is COSString) {
+                pdField.setValue(value.string);
+              } else if (value is COSName) {
+                pdField.setValue(value.name);
+              } else {
+                // Handle other value types or extend setValue
+                // pdField.setValue(value);
+              }
+              // In a full implementation, we'd handle APs, actions, etc.
+            }
+          }
+        }
+      }
+    }
+  }
+
+  /// Flattens the form fields into the page content.
+  void flatten({List<PDField>? fields, bool refreshAppearances = true}) {
+    // If no fields provided, flatten all
+    final fieldsToFlatten = fields ?? this.fields;
+
+    if (refreshAppearances) {
+      if (needAppearances) {
+        if (needAppearances) {
+          for (final field in fieldsToFlatten) {
+            field
+                .updateFieldAppearances(); // Assuming updateFieldAppearances() effectively constructs appearances
+          }
+        }
+      }
+    }
+
+    for (final field in fieldsToFlatten) {
+      for (final widget in field.getWidgets()) {
+        final page = widget.page;
+        if (page == null) continue;
+
+        // Basic Flattening: Remove widget from page annotations
+        // To properly flatten, we should draw appearance.
+        // Without drawing, this just removes the field interaction.
+
+        final annots = page.getCOSArray(COSName.annots);
+        if (annots != null) {
+          annots.remove(widget.cosObject);
+          // If annots is empty, remove it?
+          if (annots.isEmpty) {
+            page.removeItem(COSName.annots);
+          }
+        }
+      }
+    }
+    if (fields == null) {
+      // Flattened all, remove /Fields
+      _dictionary.removeItem(COSName.fields);
+    } else {
+      // Remove specific fields from /Fields array
+      final rootFields = _dictionary.getCOSArray(COSName.fields);
+      if (rootFields != null) {
+        // Collect cosObjects of fields to remove for quick lookup
+        final toRemove = <COSDictionary>{};
+        for (final field in fieldsToFlatten) {
+          toRemove.add(field.cosObject);
+        }
+        
+        // Remove matching entries from root /Fields array
+        // Note: This handles top-level fields. Nested fields are in Kids arrays.
+        for (int i = rootFields.length - 1; i >= 0; i--) {
+          final obj = rootFields.getObject(i);
+          if (obj is COSDictionary && toRemove.contains(obj)) {
+            rootFields.removeAt(i);
+          }
+        }
+        
+        // Also need to remove from parent's Kids arrays for nested fields
+        for (final field in fieldsToFlatten) {
+          final parent = field.parent;
+          if (parent != null) {
+            final kids = parent.cosObject.getCOSArray(COSName.kids);
+            if (kids != null) {
+              for (int i = kids.length - 1; i >= 0; i--) {
+                final obj = kids.getObject(i);
+                if (obj == field.cosObject) {
+                  kids.removeAt(i);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
   }
 
   /// Returns an iterable of all fields in the form, including children.
@@ -119,6 +250,4 @@ class PDAcroForm implements COSObjectable {
       }
     }
   }
-
-  // TODO: Implement importFDF, flatten, etc.
 }

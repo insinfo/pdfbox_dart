@@ -103,7 +103,47 @@ class AppearanceGeneratorHelper {
 
     contentStream.saveGraphicsState();
 
-    // Draw background (TODO: check MK dictionary for BG color)
+    // Draw background from MK dictionary (appearance characteristics)
+    final mk = widget.appearanceCharacteristics;
+    if (mk != null) {
+      // Draw background color (BG)
+      final bgColor = mk.background;
+      if (bgColor != null) {
+        final components = bgColor.components;
+        if (components.length == 1) {
+          // Gray
+          contentStream.setNonStrokingColorGray(components[0]);
+        } else if (components.length == 3) {
+          // RGB
+          contentStream.setNonStrokingColor(
+            components[0], components[1], components[2]);
+        } else if (components.length == 4) {
+          // CMYK
+          contentStream.setNonStrokingColorCMYK(
+            components[0], components[1], components[2], components[3]);
+        }
+        contentStream.rectangle(0, 0, width, height);
+        contentStream.fill();
+      }
+      
+      // Draw border color (BC)
+      final bcColor = mk.borderColour;
+      if (bcColor != null) {
+        final components = bcColor.components;
+        if (components.length == 1) {
+          contentStream.setStrokingColorGray(components[0]);
+        } else if (components.length == 3) {
+          contentStream.setStrokingColor(
+            components[0], components[1], components[2]);
+        } else if (components.length == 4) {
+          contentStream.setStrokingColorCMYK(
+            components[0], components[1], components[2], components[3]);
+        }
+        contentStream.rectangle(0.5, 0.5, width - 1, height - 1);
+        contentStream.stroke();
+      }
+    }
+
 
     // Draw text
     contentStream.beginText();

@@ -105,6 +105,31 @@ Considere embedar apenas as fontes necessárias para seu caso de uso.
 
 ---
 
+## Cálculo de Largura de Texto (String vs Bytes)
+
+Ao implementar ou portar lógicas que calculam largura de texto em fontes simples (`PDSimpleFont`: Type1, TrueType), é crucial entender a distinção entre caracteres Unicode (String Dart) e character codes (byte codes do PDF).
+
+### O problema
+
+No PDF, o conteúdo de texto (`Tj`, `TJ`) em fontes simples é geralmente uma sequência de **bytes** (0..255), onde cada byte é um índice na encoding da fonte. Uma `String` Dart, por outro lado, é uma sequência de caracteres UTF-16.
+
+Se você chamar `getStringWidth(String text)` passando uma string Unicode comum (ex: "Olá"), e o método assumir cegamente que `text.codeUnitAt(i)` corresponde ao código da fonte, você terá resultados errados para qualquer caractere > 255.
+
+### Solução Implementada
+
+A classe `PDSimpleFont` (e subclasses) agora oferece:
+
+1.  `getStringWidthFromBytes(Uint8List codes)`: O método "verdadeiro". Recebe a lista de bytes/códigos e soma as larguras (`getWidthFromFont`). Deve ser usado por engines de renderização (`PDFStreamEngine`) que já possuem os bytes do content stream.
+2.  `getStringWidth(String text, {bool treatAsLatin1Bytes = true})`: Um wrapper de conveniência.
+    *   **treatAsLatin1Bytes = true** (default): Assume que a String foi construída a partir de bytes (ex: `latin1.decode`) e simplesmente trunca os valores para 8 bits. É rápido e adequado para muitos casos de extração/testes internos.
+    *   **treatAsLatin1Bytes = false**: Assume que a String é Unicode arbitrária e faz um fallback seguro, substituindo caracteres > 255 por `'?'` (code 63) antes de medir. Isso evita exceções e bugs silenciosos extremos, embora não seja uma substituição para um encoding reverso completo.
+
+### Recomendação
+
+Sempre que possível, trabalhe com `Uint8List` ao lidar com larguras em níveis baixos de renderização. Deixe `String` apenas para camadas de extração de texto ou logs.
+
+---
+
 ## Fringe de 1px em retângulos/Type3
 
 É normal aparecer uma “suavização” de ~1px em bordas (topo/direita) ao comparar
@@ -158,4 +183,3 @@ Para alinhar com a arquitetura do Java e melhorar a performance (evitando verifi
 1.  **Mover a Lógica**: Implementar um `FontMapper` robusto no Dart que seja invocado no construtor das classes de fonte (`PDType1Font`, `PDTrueTypeFont`, etc.).
 2.  **Delegação no Carregamento**: Se a fonte não for encontrada, o próprio objeto de fonte deve carregar a Helvetica embutida como seu "backend" interno de renderização.
 3.  **Remover Hack do PageDrawer**: O `PageDrawer` deve apenas chamar `font.getPath()` e obter o caminho correto, sem saber se é a fonte original ou um fallback.
-

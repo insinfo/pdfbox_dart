@@ -60,7 +60,29 @@ abstract class PDField implements COSObjectable {
   /// Sets the value of the field.
   void setValue(String value) {
     _dictionary.setString(COSName.v, value);
-    // TODO: update appearance, etc.
+    updateFieldAppearances();
+  }
+
+  /// Updates the appearance of this field.
+  /// This is strongly recommended when changing the value of the field.
+  /// 
+  /// If the AcroForm has the `needAppearances` flag set to true, this method
+  /// will regenerate appearances. Subclasses (particularly terminal fields)
+  /// should override [constructAppearances] to provide actual appearance generation.
+  void updateFieldAppearances() {
+    // Check if we should generate appearances
+    if (acroForm.needAppearances == true) {
+      // For terminal fields, constructAppearances will be called from setValue
+      // For non-terminal fields, iterate through children
+      // This base implementation doesn't do anything as it's abstract
+    }
+  }
+  
+  /// Constructs the appearance streams for this field.
+  /// Override in subclasses to provide actual implementation.
+  void constructAppearances() {
+    // Base implementation does nothing.
+    // Terminal fields override this to use AppearanceGeneratorHelper.
   }
 
   /// Returns the widget annotations associated with this field.

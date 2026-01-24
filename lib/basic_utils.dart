@@ -1,4 +1,4 @@
-library basic_utils;
+
 
 /// Export model and other stuff
 export 'src/dependencies/basic_utils/src/model/country_code_list.dart';

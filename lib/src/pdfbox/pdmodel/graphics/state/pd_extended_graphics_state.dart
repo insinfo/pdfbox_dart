@@ -169,6 +169,9 @@ class PDExtendedGraphicsState implements COSObjectable {
   BlendMode getBlendMode() =>
       BlendMode.fromCOSBase(_dictionary.getDictionaryObject(COSName.bm));
 
+  /// Getter for blend mode to match Java property access pattern.
+  BlendMode get blendMode => getBlendMode();
+
   COSBase? getTransfer() => _dictionary.getDictionaryObject(COSName.tr);
 
   COSBase? getTransfer2() => _dictionary.getDictionaryObject(COSName.tr2);

@@ -6,6 +6,7 @@ import '../cos/cos_array.dart';
 import '../cos/cos_dictionary.dart';
 import '../cos/cos_name.dart';
 import '../cos/cos_stream.dart';
+import '../cos/cos_object.dart';
 import '../cos/cos_number.dart';
 import '../cos/cos_integer.dart';
 import '../pdmodel/pd_document.dart';
@@ -427,10 +428,13 @@ class PDFMergerUtility {
             final oldAnnots = page.annotations;
             final newAnnots = newPage.annotations;
             for (int k = 0; k < oldAnnots.length; k++) {
-              objMapping[oldAnnots[k].cosObject] = newAnnots[k].cosObject;
+            if (objMapping.containsKey(oldAnnots[k].cosObject)) {
+               objMapping[oldAnnots[k].cosObject] = newAnnots[k].cosObject;
             }
-            // TODO update mapping for XObjects
           }
+          _updateXObjects(page, cloner, objMapping);
+        }
+
           
           destination.addPage(newPage);
       }
@@ -605,6 +609,29 @@ class PDFMergerUtility {
         _updatePageReferencesDict(cloner, base, objMapping);
       }
     }
+  }
+
+
+
+  void _updateXObjects(PDPage srcPage, PDFCloneUtility cloner, Map<COSDictionary, COSDictionary> objMapping) {
+      final res = srcPage.resources;
+      final cosRes = res.cosObject;
+      final xObjectsDict = cosRes.getCOSDictionary(COSName.xObject);
+      if (xObjectsDict != null) {
+          for (final entry in xObjectsDict.entries) {
+              final val = entry.value;
+              if (val is COSObject) {
+                  final cloned = cloner.getClonedObject(val);
+                  if (cloned is COSObject) {
+                      final srcObj = val.object;
+                      final dstObj = cloned.object;
+                      if (srcObj is COSDictionary && dstObj is COSDictionary) {
+                          objMapping[srcObj] = dstObj;
+                      }
+                  }
+              }
+          }
+      }
   }
 
   void _updatePageReferencesDict(

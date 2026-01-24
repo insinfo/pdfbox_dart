@@ -48,13 +48,43 @@ dart analyze só na pasta onde aplicou modificações para ser mais rapido
 - Shading: ShadingType7 (tensor-product patch mesh) portado com `PDShadingType7`, `TensorPatch` - reutiliza infraestrutura de mesh shading.
 - Shading Tests: 17 testes unitários cobrindo todas as classes de suporte: ShadingVertex, ShadingLine, ShadedTriangle, BitInputStream, PDRange, CubicBezierCurve, CoonsPatch, TensorPatch.
 
-## pendente (renderização - prioritário)
-- GroupGraphics.java: suporte completo a grupos de transparência não-isolados (backdrop removal)
-- SoftMask.java (classe helper): extrair lógica de SoftMask em classe separada como no Java
-- **Otimização de Fallback de Fontes**: Mover a lógica de fallback (atualmente em `PageDrawer` como rede de segurança) para a inicialização das classes de fonte (`PDType1Font`, etc.), usando um `FontMapper` robusto que delega para `EmbeddedFonts` ou fontes do sistema no momento da carga, evitando checks em tempo de renderização. (Ver `doc.md` para detalhes).
+## implementado (marcos)
+- GroupGraphics.java: suporte completo a grupos de transparência não-isolados (backdrop removal).
+- SoftMask.java: helper class para aplicação de soft masks.
+- Otimização de Fallback de Fontes: Remoção de hacks de render-time no `PageDrawer`, delegando para `FontMapper` e classes de fonte (`PDType1Font`/`PDTrueTypeFont`) que usam `EmbeddedFonts` automaticamente.
+- Soft masks: corrigido buffer de alpha no `GroupGraphics` (agora escreve em `groupAlphaImage`) e composição normal com "source over" em premultiplied para evitar double‑alpha; `SMask` de imagens permanece com modulação só no alpha; composição RGB mantém premultiplied-aware.
 
 ## pendente (observado)
-- TaggedPDF: ParentTree com entrada do tipo dicionario (nao array) para objetos individuais (ex.: annotation/XObject) via `/StructParent` ou `/StructParents`; portar helpers/roundtrip e testes.
+- TaggedPDF: ParentTree com entrada do tipo dicionario (nao array) para objetos individuais (ex.: annotation/XObject) via `/StructParent` ou `/StructParents` [IMPLEMENTADO].
+- LayerUtility: `drawForm`, `beginMarkedContent`, `isIdentity` implementations [IMPLEMENTADO].
+- PDFStreamEngine: Type 3 fonts glyph width support (`setType3GlyphWidth`) [IMPLEMENTADO].
+- PDFTextStripper: Bookmark destination resolving (`_findDestinationPage`) [IMPLEMENTADO].
+- LegacyPDFStreamEngine: Vertical text support [IMPLEMENTADO].
+- LegacyPDFStreamEngine: `getSpaceWidth` and `getAverageFontWidth` usage [IMPLEMENTADO].
+- PDFTextStripper: System properties support (static flags) [IMPLEMENTADO].
+- PDFTextStripper: Optimization (`suppressDuplicateOverlappingText` range search) [IMPLEMENTADO].
+- PDFTextStripper: Full normalization logic (`unorm` NFKC) [IMPLEMENTADO].
+- PDFStreamEngine: Marked content stack tracking (`beginMarkedContentSequence`) [IMPLEMENTADO].
+- PDFStreamEngine: Type 3 fonts bounding box persistence (`setType3GlyphWidthAndBoundingBox`) [IMPLEMENTADO].
+- PDFMergerUtility: XObject mapping update (`_updateXObjects`) [IMPLEMENTADO].
+- Splitter: Destinations fixing (`_fixDestinations`, `_resolveNamedDestination`) [IMPLEMENTADO].
+- Splitter: Annotation handling improvements (shallow clone comments, invalid link removal) [IMPLEMENTADO].
+- PDFTextStripper: List item pattern matching (`_listItemPattern`) [IMPLEMENTADO].
+- PDAcroForm: Optimized `getField` lookup [IMPLEMENTADO].
+- PDAcroForm: `importFDF` basic logic [IMPLEMENTADO].
+- PDAcroForm: `flatten` stub with logic to remove widgets [IMPLEMENTADO].
+- PDVariableText: `setDefaultAppearance` update logic (via `updateFieldAppearances`) [IMPLEMENTADO].
+- PDSimpleFont: `getStringWidth` refatorado para suportar cálculo por bytes (`getStringWidthFromBytes`) e wrapper seguro (`treatAsLatin1Bytes`) [IMPLEMENTADO].
+- PDFont: `getStringWidth` default implementation e `getSpaceWidth` override [IMPLEMENTADO].
+- TextPosition: `getVisuallyOrderedUnicode` Bidi logic for RTL text (Arabic/Hebrew) [IMPLEMENTADO].
+- PDThreadBead: `nextBead`, `previousBead`, `thread`, `page` getters and setters [IMPLEMENTADO].
+- PDButton: `setValue` and `setDefaultValue` replaced `applyChange` TODO with `updateFieldAppearances()` [IMPLEMENTADO].
+- PDSignatureField: `setValue` replaced `applyChange` TODO with `updateFieldAppearances()` [IMPLEMENTADO].
+- PDChoice: `setOptionsWithExportValues` sorting by display value [IMPLEMENTADO].
+- PDField: `updateFieldAppearances` implemented with proper delegation to `constructAppearances` [IMPLEMENTADO].
+- PDAcroForm: `flatten` specific fields removal from `/Fields` array and parent Kids [IMPLEMENTADO].
+- AppearanceGeneratorHelper: MK dictionary (appearance characteristics) support for BG and BC colors [IMPLEMENTADO].
+- PDFormContentStream: Added gray (`g/G`) and CMYK (`k/K`) color methods [IMPLEMENTADO].
 
 
 Gerado por comparacao automatica entre `referencias/pdfbox-java/**/src/main/java` e `lib` com reducao de falsos positivos por correspondencia de tipos (nomes de classes/enum/interface), normalizacao de sufixos (Operator/Processor/Handler/Impl/Adapter/Factory/Helper), comparacao case-insensitive e variacoes de prefixos/underscore (CFF*, _*).

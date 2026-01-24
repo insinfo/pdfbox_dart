@@ -49,6 +49,15 @@ class PDResources {
     return fonts.entries.map((entry) => entry.key);
   }
 
+  /// Returns the names of all extended graphics states in this resource dictionary.
+  Iterable<COSName> get extGStateNames {
+    final extGStates = _dictionary.getCOSDictionary(COSName.extGState);
+    if (extGStates == null) {
+      return const <COSName>[];
+    }
+    return extGStates.entries.map((entry) => entry.key);
+  }
+
   COSDictionary? getFont(COSName name) {
     final fonts = _dictionary.getCOSDictionary(COSName.font);
     return fonts?.getCOSDictionary(name);
@@ -459,6 +468,30 @@ class PDResources {
     final shadings = COSDictionary();
     _dictionary[COSName.shading] = shadings;
     return shadings;
+  }
+
+  COSDictionary _ensurePropertiesDictionary() {
+    final existing = _dictionary.getCOSDictionary(COSName.properties);
+    if (existing != null) {
+      return existing;
+    }
+    final properties = COSDictionary();
+    _dictionary[COSName.properties] = properties;
+    return properties;
+  }
+
+  /// Adds a PropertyList resource and returns the name it was assigned.
+  COSName addPropertyList(PDPropertyList propertyList, [String prefix = 'MC']) {
+    final properties = _ensurePropertiesDictionary();
+    var nameKey = prefix;
+    var i = 0;
+    while (properties.containsKey(COSName.getPDFName(nameKey))) {
+      i++;
+      nameKey = "$prefix$i";
+    }
+    final name = COSName.getPDFName(nameKey);
+    properties[name] = propertyList.cosObject;
+    return name;
   }
 
   void _configureXObject(PDXObject xObject) {

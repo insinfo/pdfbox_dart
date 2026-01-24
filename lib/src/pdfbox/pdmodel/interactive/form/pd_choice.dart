@@ -51,14 +51,21 @@ abstract class PDChoice extends PDVariableText {
             "The number of entries for exportValue and displayValue shall be the same.");
       }
 
-      // TODO: Implement sorting for pairs if isSort is true
+      var entries = <Map<String, String>>[];
+      for (var i = 0; i < exportValues.length; i++) {
+        entries.add({'export': exportValues[i], 'display': displayValues[i]});
+      }
+
+      if (isSort) {
+        entries.sort((a, b) => a['display']!.compareTo(b['display']!));
+      }
 
       final options = COSArray();
-      for (var i = 0; i < exportValues.length; i++) {
-        final entry = COSArray();
-        entry.add(COSString(exportValues[i]));
-        entry.add(COSString(displayValues[i]));
-        options.add(entry);
+      for (final entry in entries) {
+        final pair = COSArray();
+        pair.add(COSString(entry['export']!));
+        pair.add(COSString(entry['display']!));
+        options.add(pair);
       }
       cosObject.setItem(COSName.opt, options);
     } else {
@@ -139,6 +146,7 @@ abstract class PDChoice extends PDVariableText {
     cosObject.setString(COSName.v, value);
     // remove I key for single valued choice field
     setSelectedOptionsIndex(null);
+    // Generate appearances for choice widgets.
     constructAppearances();
   }
 
@@ -167,6 +175,7 @@ abstract class PDChoice extends PDVariableText {
       cosObject.removeItem(COSName.v);
       cosObject.removeItem(COSName.i);
     }
+    // Generate appearances for choice widgets.
     constructAppearances();
   }
 

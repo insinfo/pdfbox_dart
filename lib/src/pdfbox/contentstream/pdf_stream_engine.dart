@@ -1,6 +1,8 @@
 library pdfbox.contentstream.pdf_stream_engine;
 
+import 'dart:math' as math;
 import 'package:logging/logging.dart';
+import 'package:pdfbox_dart/src/pdfbox/pdmodel/documentinterchange/markedcontent/pd_property_list.dart';
 import 'package:pdfbox_dart/src/pdfbox/pdmodel/graphics/color/pd_color_space.dart';
 
 import '../cos/cos_array.dart';
@@ -28,6 +30,7 @@ import '../pdmodel/graphics/state/pd_text_state.dart';
 import '../pdmodel/graphics/state/rendering_intent.dart';
 import '../pdmodel/graphics/state/rendering_mode.dart';
 import '../pdmodel/graphics/shading/pd_shading.dart';
+
 import '../pdmodel/interactive/annotation/pd_annotation.dart';
 import '../pdmodel/interactive/annotation/pd_appearance_stream.dart';
 import '../pdmodel/common/pd_rectangle.dart';
@@ -73,6 +76,7 @@ class PDFStreamEngine {
   final List<COSBase> _operands = <COSBase>[];
   final List<PDResources> _resourceStack = <PDResources>[];
   final List<PDGraphicsState> _graphicsStack = <PDGraphicsState>[];
+  final List<PDPropertyList?> _markedContentStack = <PDPropertyList?>[];
 
   PDPage? _currentPage;
   ResourceCache? _resourceCache;
@@ -544,19 +548,40 @@ class PDFStreamEngine {
     COSName tag,
     COSDictionary? properties,
   ) {
-    // TODO: Track marked content stack once higher-level consumers exist.
+    if (properties == null) {
+      _markedContentStack.add(null);
+      return;
+    }
+    _markedContentStack.add(PDPropertyList.create(properties));
   }
 
   /// Called when a marked-content sequence ends.
-  void endMarkedContentSequence() {}
+  void endMarkedContentSequence() {
+    if (_markedContentStack.isNotEmpty) {
+      _markedContentStack.removeLast();
+    }
+  }
 
   /// Called for marked-content point operators (MP/DP).
   void markedContentPoint(COSName tag, COSDictionary? properties) {}
 
+
+
+  math.Point<double>? _currentType3GlyphDisplacement;
+  
+  /// Returns the displacement of the current Type3 glyph being processed, or null.
+  math.Point<double>? get currentType3GlyphDisplacement => _currentType3GlyphDisplacement;
+
   /// Called when a Type 3 charproc specifies glyph width.
   void setType3GlyphWidth(double wx, double wy) {
-    // TODO: Wire glyph width to Type3 font infrastructure when available.
+    _currentType3GlyphDisplacement = math.Point<double>(wx, wy);
   }
+
+  /// Called when a Type 3 charproc specifies glyph width and bbox.
+  PDRectangle? _currentType3GlyphBBox;
+
+  /// Returns the bounding box of the current Type3 glyph (if set), or null.
+  PDRectangle? get currentType3GlyphBBox => _currentType3GlyphBBox;
 
   /// Called when a Type 3 charproc specifies glyph width and bbox.
   void setType3GlyphWidthAndBoundingBox(
@@ -568,7 +593,7 @@ class PDFStreamEngine {
     double ury,
   ) {
     setType3GlyphWidth(wx, wy);
-    // TODO: Persist Type3 glyph bounding box for future rendering.
+    _currentType3GlyphBBox = PDRectangle(llx, lly, urx - llx, ury - lly);
   }
 
   /// Resolves a shading resource and delegates rendering.
