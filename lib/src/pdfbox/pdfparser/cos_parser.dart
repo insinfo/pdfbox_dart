@@ -19,6 +19,12 @@ import '../cos/cos_object.dart';
 import '../cos/cos_object_key.dart';
 import '../cos/cos_stream.dart';
 import '../cos/cos_string.dart';
+import '../pdmodel/encryption/access_permission.dart';
+import '../pdmodel/encryption/decryption_material.dart';
+import '../pdmodel/encryption/pd_encryption.dart';
+import '../pdmodel/encryption/protection_policy.dart';
+import '../pdmodel/encryption/security_handler.dart';
+import '../pdmodel/encryption/standard_decryption_material.dart';
 import '../filter/decode_options.dart';
 import 'base_parser.dart';
 import 'parsed_stream.dart';
@@ -27,7 +33,7 @@ import 'pdf_object_stream_parser.dart';
 import 'xref_parser.dart';
 
 /// Incremental Dart port of PDFBox's COSParser focused on object/xref handling.
-///
+/// TODO concluir port
 /// Supports direct object parsing (scalars, arrays, dictionaries, streams),
 /// indirect object hydration, stream decoding, classical xref tables with
 /// trailer merging, and document loading into a [COSDocument].
@@ -41,6 +47,11 @@ class COSParser extends BaseParser {
 
   bool _lenient = true;
   bool _initialParseDone = false;
+  PDEncryption? _encryption;
+  SecurityHandler<ProtectionPolicy>? _securityHandler;
+  AccessPermission? _accessPermission;
+  DecryptionMaterial? _decryptionMaterial;
+  String _password = '';
 
   bool get isLenient => _lenient;
 
@@ -54,6 +65,20 @@ class COSParser extends BaseParser {
   bool get initialParseDone => _initialParseDone;
 
   set initialParseDone(bool value) => _initialParseDone = value;
+
+  PDEncryption? get encryption => _encryption;
+
+  SecurityHandler<ProtectionPolicy>? get securityHandler => _securityHandler;
+
+  AccessPermission? get accessPermission => _accessPermission;
+
+  void configureDecryption({
+    String? password,
+    DecryptionMaterial? decryptionMaterial,
+  }) {
+    _password = password ?? '';
+    _decryptionMaterial = decryptionMaterial;
+  }
 
   static const int _slash = 0x2f;
   static const int _leftBracket = 0x5b;
@@ -215,8 +240,23 @@ class COSParser extends BaseParser {
           "Expected 'obj' marker after object header but found '$marker'");
     }
 
-    final value = parseObject() ?? COSNull.instance;
+    var value = parseObject() ?? COSNull.instance;
     value.isDirect = false;
+
+    final handler = _securityHandler;
+    if (handler != null) {
+      if (value is COSStream) {
+        handler.decryptStream(value, objectNumber, generationNumber);
+      } else if (value is COSString ||
+          value is COSArray ||
+          value is COSDictionary) {
+        value = handler.decryptObject(
+          value,
+          objectNumber,
+          generationNumber,
+        );
+      }
+    }
 
     skipSpaces();
     final endMarker = readToken();
@@ -240,6 +280,14 @@ class COSParser extends BaseParser {
   COSObject? parseIndirectObjectAt(int offset, {COSDocument? document}) {
     source.seek(offset);
     return parseIndirectObject(document: document);
+  }
+
+  void decryptStreamIfNeeded(
+    COSStream stream,
+    int objectNumber,
+    int generationNumber,
+  ) {
+    _securityHandler?.decryptStream(stream, objectNumber, generationNumber);
   }
 
   COSArray parseCOSArray() {
@@ -303,6 +351,8 @@ class COSParser extends BaseParser {
       cosDocument.trailer.addAll(trailer);
     }
 
+    _prepareDecryption(cosDocument);
+
     _loadObjectsFromXref(cosDocument);
     _parseCompressedObjectsSafely(cosDocument);
   }
@@ -323,8 +373,38 @@ class COSParser extends BaseParser {
       }
     }
 
+    _prepareDecryption(cosDocument);
+
     _loadObjectsFromXref(cosDocument);
     _parseCompressedObjectsSafely(cosDocument);
+  }
+
+  void _prepareDecryption(COSDocument cosDocument) {
+    if (_encryption != null) {
+      return;
+    }
+    final encryptionDictionary =
+        cosDocument.trailer.getCOSDictionary(COSName.encrypt);
+    if (encryptionDictionary == null) {
+      _accessPermission = AccessPermission.ownerAccessPermission();
+      return;
+    }
+
+    _encryption = PDEncryption(encryptionDictionary);
+    final handler = _encryption?.securityHandler;
+    if (handler == null) {
+      return;
+    }
+
+    final material = _decryptionMaterial ??
+        StandardDecryptionMaterial(_password);
+    handler.prepareForDecryption(
+      _encryption!,
+      cosDocument.trailer.getCOSArray(COSName.id),
+      material,
+    );
+    _securityHandler = handler;
+    _accessPermission = handler.currentAccessPermission;
   }
 
   /// Exposes brute-force reconstruction for subclasses needing to retry parsing.

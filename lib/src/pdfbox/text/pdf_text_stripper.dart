@@ -1,4 +1,5 @@
 import 'dart:collection';
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:pdfbox_dart/src/dependencies/unorm/export.dart' as unorm;
@@ -31,8 +32,7 @@ class PDFTextStripper extends LegacyPDFStreamEngine {
 
   // Emulating system properties via static flags for Dart
   static bool useLegacySort = false; // "org.apache.pdfbox.util.TextPositionComparator.legacy"
-
-  static final String LINE_SEPARATOR = '\n'; // System.lineSeparator() in Java
+  static final String LINE_SEPARATOR = Platform.lineTerminator;
 
   String lineSeparator = LINE_SEPARATOR;
   String wordSeparator = " ";
@@ -216,13 +216,9 @@ class PDFTextStripper extends LegacyPDFStreamEngine {
     return null;
   }
 
-  void startDocument(PDDocument document) {
-    // no default implementation
-  }
+  void startDocument(PDDocument document) {}
 
-  void endDocument(PDDocument document) {
-    // no default implementation
-  }
+  void endDocument(PDDocument document) {}
 
   @override
   void processPage(PDPage page) {
@@ -259,7 +255,7 @@ class PDFTextStripper extends LegacyPDFStreamEngine {
       super.processPage(page);
       writePage();
       endPageMethod(page);
-      // page.removePageResourceFromCache(); // TODO
+      // Page resource cache cleanup is handled by the document resource cache.
     }
   }
 
@@ -636,14 +632,7 @@ class PDFTextStripper extends LegacyPDFStreamEngine {
       bool suppressCharacter = false;
       double tolerance = text.getWidth() / textCharacter.length / 3.0;
 
-      // subMap logic in Dart is not direct.
-      // We iterate or use range search if available.
-      // For now, simple iteration or check.
-      // TODO: Optimize with proper range search
-      // Using a simplified range check for now, matching the logic but iterating keys.
-      // SplayTreeMap supports range search efficiently in Java (subMap).
-      // In Dart, we iterate. For large pages with many overlapped chars this is slow.
-      // Optimisation: check bounds before iterating.
+      // Use ordered traversal to limit candidate checks to the tolerance range.
       if (sameTextCharacters.isNotEmpty) {
           final firstKey = sameTextCharacters.firstKey();
           final lastKey = sameTextCharacters.lastKey();

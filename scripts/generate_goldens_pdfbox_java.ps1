@@ -1,6 +1,7 @@
 Param(
   [string]$PdfDir = "test/tmp/pdfs",
   [string]$PngDir = "test/tmp/png",
+  [string]$TextDir = "test/tmp/text",
   [int]$Dpi = 96
 )
 
@@ -55,11 +56,14 @@ if (-not $jar) {
 
 $PdfDirAbs = Resolve-Path $PdfDir
 $PngDirAbs = Join-Path (Resolve-Path (Split-Path $PngDir -Parent)).Path (Split-Path $PngDir -Leaf)
+$TextDirAbs = Join-Path (Resolve-Path (Split-Path $TextDir -Parent)).Path (Split-Path $TextDir -Leaf)
 New-Item -ItemType Directory -Force -Path $PngDirAbs | Out-Null
+New-Item -ItemType Directory -Force -Path $TextDirAbs | Out-Null
 
 Write-Host "Using PDFBox jar: $jar" -ForegroundColor Green
 Write-Host "Rendering PDFs from: $PdfDirAbs" -ForegroundColor Green
 Write-Host "Writing PNGs to:   $PngDirAbs" -ForegroundColor Green
+Write-Host "Writing text to:   $TextDirAbs" -ForegroundColor Green
 
 Get-ChildItem -Path $PdfDirAbs -Filter "*.pdf" | ForEach-Object {
   $pdf = $_.FullName
@@ -74,4 +78,9 @@ Get-ChildItem -Path $PdfDirAbs -Filter "*.pdf" | ForEach-Object {
   # Subcommand "render" maps to PDFToImage.
   # Options are defined in tools/src/main/java/org/apache/pdfbox/tools/PDFToImage.java
   java -jar $jar render -dpi $Dpi -format png -outputPrefix $prefix -i $pdf
+
+  $textOut = Join-Path $TextDirAbs "$base.txt"
+  Write-Host "Extracting text for $base" -ForegroundColor Cyan
+  # Subcommand "export:text" maps to ExtractText.
+  java -jar $jar export:text -encoding UTF-8 -i $pdf -o $textOut
 }

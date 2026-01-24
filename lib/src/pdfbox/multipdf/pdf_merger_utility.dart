@@ -89,8 +89,7 @@ class PDFMergerUtility {
     if (_documentMergeMode == DocumentMergeMode.pdfboxLegacyMode) {
         _legacyMergeDocuments(lenient: lenient);
     } else {
-        // TODO: Implement optimized merge
-        _legacyMergeDocuments(lenient: lenient);
+        _optimizedMergeDocuments(lenient: lenient);
     }
   }
   
@@ -132,6 +131,64 @@ class PDFMergerUtility {
         }
     } finally {
         destination.close();
+    }
+  }
+
+  void _optimizedMergeDocuments({bool lenient = false}) {
+    final destination = PDDocument();
+    try {
+      final cloner = PDFCloneUtility(destination);
+      final destinationPages = destination.pages;
+      for (final source in _sources) {
+        PDDocument? sourceDoc;
+        if (source is File) {
+          sourceDoc = PDDocument.loadFromFile(source, lenient: lenient);
+        } else if (source is Stream<List<int>>) {
+          throw UnimplementedError('Merging from stream not fully supported yet');
+        }
+
+        if (sourceDoc != null) {
+          try {
+            for (final page in sourceDoc.pages) {
+              final clonedBase = cloner.cloneForNewDocument(page.cosObject);
+              if (clonedBase is! COSDictionary) {
+                throw StateError('Unexpected page dictionary clone type: ${clonedBase.runtimeType}');
+              }
+              final newPage = PDPage(clonedBase, destination.resourceCache);
+              newPage.cropBox = page.cropBox;
+              newPage.mediaBox = page.mediaBox;
+              newPage.rotation = page.rotation;
+
+              final resourcesDict = page.cosObject.getCOSDictionary(COSName.resources);
+              if (resourcesDict != null) {
+                final clonedResources = cloner.cloneForNewDocument(resourcesDict);
+                if (clonedResources is COSDictionary) {
+                  newPage.resources = PDResources(clonedResources, destination.resourceCache);
+                } else {
+                  newPage.resources = PDResources(null, destination.resourceCache);
+                }
+              } else {
+                newPage.resources = PDResources(null, destination.resourceCache);
+              }
+              destinationPages.addPage(newPage);
+            }
+          } finally {
+            sourceDoc.close();
+          }
+        }
+      }
+
+      if (_destinationFileName != null) {
+        final output = RandomAccessWriteFile(_destinationFileName!);
+        destination.save(output);
+        output.close();
+      } else if (_destinationStream != null) {
+        throw UnimplementedError('Saving to IOSink not directly supported by PDDocument.save yet');
+      } else {
+        // throw StateError('No destination set');
+      }
+    } finally {
+      destination.close();
     }
   }
 

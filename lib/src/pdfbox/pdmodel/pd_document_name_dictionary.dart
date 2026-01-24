@@ -6,10 +6,6 @@ import 'common/pd_embedded_files_name_tree_node.dart';
 import 'common/pd_javascript_name_tree_node.dart';
 
 /// Wraps the document level `/Names` dictionary, exposing common name trees.
-///
-/// The concrete PD wrappers (destinations, embedded files, JavaScript actions)
-/// are still TODO, so for now these accessors return nodes whose values are
-/// raw [COSDictionary] instances.
 class PDDocumentNameDictionary implements COSObjectable {
   PDDocumentNameDictionary(this._catalogDictionary, [COSDictionary? dictionary])
       : _dictionary =

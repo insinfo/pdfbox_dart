@@ -53,6 +53,12 @@ class PDFormXObject extends PDXObject implements PDContentStream {
     }
   }
 
+  /// Returns the StructParents value, or -1 if missing.
+  int get structParents => cosObject.getInt(COSName.structParents) ?? -1;
+
+  /// Sets the StructParents value.
+  set structParents(int value) => cosObject.setInt(COSName.structParents, value);
+
   /// Returns the transparency group attributes dictionary, if any.
   PDTransparencyGroupAttributes? get group {
     if (_group != null) {

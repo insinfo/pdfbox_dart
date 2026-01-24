@@ -359,6 +359,7 @@ class COSName extends COSBase implements Comparable<COSName> {
   static final COSName ps = COSName('PS');
   static final COSName dests = COSName('Dests');
   static final COSName embeddedFiles = COSName('EmbeddedFiles');
+  static final COSName embeddedFdfs = COSName('EmbeddedFDFs');
   static final COSName javaScript = COSName('JavaScript');
   static final COSName uf = COSName('UF');
   static final COSName dos = COSName('DOS');
@@ -414,6 +415,13 @@ class COSName extends COSBase implements Comparable<COSName> {
   static final COSName document = COSName('Document');
   static final COSName part = COSName('Part');
   static final COSName xfa = COSName('XFA');
+  static final COSName before = COSName('Before');
+  static final COSName after = COSName('After');
+  static final COSName doc = COSName('Doc');
+  static final COSName sw = COSName('SW');
+  static final COSName fb = COSName('FB');
+  static final COSName tref = COSName('TRef');
+  static final COSName rename = COSName('Rename');
 
   @override
   int compareTo(COSName other) => name.compareTo(other.name);

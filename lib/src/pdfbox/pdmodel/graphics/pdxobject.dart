@@ -104,5 +104,11 @@ class PDImageXObject extends PDXObject {
     }
     return null;
   }
+
+  /// Returns the StructParent value, or -1 if missing.
+  int get structParent => cosObject.getInt(COSName.structParent) ?? -1;
+
+  /// Sets the StructParent value.
+  set structParent(int value) => cosObject.setInt(COSName.structParent, value);
 }
 

@@ -614,7 +614,7 @@ class PDFStreamEngine {
 
   /// Hook invoked to process an actual shading resource.
   void processShading(PDShading shading) {
-    // TODO: Implement shading rendering once graphics engine is ported.
+    // Default no-op: PDFGraphicsStreamEngine implementations handle shading.
   }
 
   /// Sets the stroking colour space via `CS`.

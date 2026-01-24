@@ -2,20 +2,36 @@ import 'dart:math';
 
 import 'package:logging/logging.dart';
 
+import '../cos/cos_array.dart';
+import '../cos/cos_base.dart';
 import '../cos/cos_dictionary.dart';
+import '../cos/cos_integer.dart';
 import '../cos/cos_name.dart';
+import '../cos/cos_null.dart';
 
 import '../pdmodel/pd_document.dart';
 import '../pdmodel/pd_document_information.dart';
 import '../pdmodel/pd_page.dart';
+import '../pdmodel/pd_page_tree.dart';
+import '../pdmodel/pd_resources.dart';
+import '../pdmodel/common/pd_number_tree_node.dart';
 import '../pdmodel/interactive/annotation/pd_annotation.dart';
 import '../pdmodel/interactive/annotation/pd_annotation_factory.dart';
 import 'pdf_clone_utility.dart';
 import '../pdmodel/interactive/annotation/pd_annotation_link.dart';
+import '../pdmodel/interactive/annotation/pd_annotation_widget.dart';
 import '../pdmodel/interactive/action/pd_action_go_to.dart';
+import '../pdmodel/interactive/action/pd_action.dart';
+import '../pdmodel/interactive/action/pd_action_factory.dart';
 import '../pdmodel/common/pd_page_destination.dart';
 import '../pdmodel/common/pd_destination.dart';
 import '../cos/cos_object.dart';
+import '../pdmodel/documentinterchange/logicalstructure/pd_parent_tree_value.dart';
+import '../pdmodel/documentinterchange/logicalstructure/pd_structure_element.dart';
+import '../pdmodel/documentinterchange/logicalstructure/pd_structure_tree_root.dart';
+import '../pdmodel/graphics/form/pd_form_xobject.dart';
+import '../pdmodel/graphics/pdxobject.dart';
+import '../pdmodel/pd_structure_element_name_tree_node.dart';
 
 /// Split a document into several other documents.
 class Splitter {
@@ -32,6 +48,11 @@ class Splitter {
   List<Map<COSDictionary, COSDictionary>>? _pageDictMaps;
   Map<COSDictionary, COSDictionary>? _annotDictMap;
   List<Map<COSDictionary, COSDictionary>>? _annotDictMaps;
+  Map<PDPageDestination, COSDictionary>? _destToFixMap;
+  List<Map<PDPageDestination, COSDictionary>>? _destToFixMaps;
+  Map<COSDictionary, COSDictionary>? _structDictMap;
+  Set<String>? _idSet;
+  Set<COSName>? _roleSet;
 
   int _currentPageNumber = 0;
 
@@ -50,11 +71,18 @@ class Splitter {
     _sourceDocument = document;
     _pageDictMaps = <Map<COSDictionary, COSDictionary>>[];
     _annotDictMaps = <Map<COSDictionary, COSDictionary>>[];
+    _destToFixMaps = <Map<PDPageDestination, COSDictionary>>[];
 
     _processPages();
 
-    // TODO: cloneStructureTree and fixDestinations
-    _fixDestinations();
+    for (var i = 0; i < _destinationDocuments!.length; i++) {
+      final destinationDocument = _destinationDocuments![i];
+      _pageDictMap = _pageDictMaps![i];
+      _annotDictMap = _annotDictMaps![i];
+      _destToFixMap = _destToFixMaps![i];
+      _cloneStructureTree(destinationDocument);
+      _fixDestinations(destinationDocument);
+    }
 
     return _destinationDocuments!;
   }
@@ -97,12 +125,6 @@ class Splitter {
   }
 
   void _processPages() {
-    // TODO PDPageTree in Dart port seems to support index access and count, but not direct iteration easily if not implemented
-    // But PDPageTree usually implements Iterable or has a way to get all pages.
-    // Let's assume we can iterate or use index.
-    // In PDDocument.dart: int get numberOfPages => documentCatalog.pages.count;
-    // PDPage getPage(int pageIndex) => documentCatalog.pages[pageIndex];
-
     for (int i = 0; i < _sourceDocument!.numberOfPages; i++) {
       final page = _sourceDocument!.getPage(i);
       if (_currentPageNumber + 1 >= _startPage && _currentPageNumber + 1 <= _endPage) {
@@ -126,6 +148,8 @@ class Splitter {
       _pageDictMaps!.add(_pageDictMap!);
       _annotDictMap = <COSDictionary, COSDictionary>{};
       _annotDictMaps!.add(_annotDictMap!);
+      _destToFixMap = <PDPageDestination, COSDictionary>{};
+      _destToFixMaps!.add(_destToFixMap!);
     }
   }
 
@@ -225,98 +249,345 @@ class Splitter {
         if (annotationClone != null) {
             _annotDictMap![annotation.cosObject] = clonedDict;
             clonedAnnotations.add(annotationClone);
-            
-            // TODO: Handle PDAnnotationLink, PDAnnotationWidget, PDAnnotationMarkup, PDAnnotationPopup
-            // For now we just clone them shallowly
-            // Specific logic for maintaining invalid links or widgets could go here.
-            // For example, removing Actions that point nowhere.
-            
-            if (annotation.cosObject.containsKey(COSName.parent)) {
-                 // remove non-terminal field /Parent reference
-                 // annotationClone.cosObject.removeItem(COSName.parent);
+
+            if (annotationClone is PDAnnotationLink) {
+                final link = annotationClone;
+                PDDestination? srcDestination;
+                try {
+                    srcDestination = link.destination;
+                } catch (_) {
+                    link.destination = null;
+                    link.action = null;
+                }
+                PDAction? action;
+                if (srcDestination == null) {
+                    action = link.action;
+                    if (action is PDActionGoTo) {
+                        try {
+                            srcDestination = action.destination;
+                        } catch (_) {
+                            link.action = null;
+                            action = null;
+                        }
+                    }
+                }
+                if (srcDestination is PDNamedDestination) {
+                    srcDestination = _resolveNamedDestination(
+                        srcDestination, _sourceDocument!);
+                }
+                if (srcDestination is PDPageDestination) {
+                    final srcPageDict = _resolvePageDictionary(srcDestination.page);
+                    if (srcPageDict != null) {
+                        final srcArray = srcDestination.array;
+                        final clonedArray = COSArray();
+                        for (final entry in srcArray) {
+                            clonedArray.addObject(entry);
+                        }
+                        final clonedDest = PDDestination.fromCOS(clonedArray);
+                        if (clonedDest is PDPageDestination) {
+                            _destToFixMap?[clonedDest] = srcPageDict;
+                            if (action != null) {
+                                final clonedActionDict =
+                                    COSDictionary.fromDictionary(action.cosObject);
+                                final clonedAction =
+                                    PDActionFactory.instance.createFromDictionary(
+                                        clonedActionDict);
+                                if (clonedAction is PDActionGoTo) {
+                                    clonedAction.destination = clonedDest;
+                                    link.action = clonedAction;
+                                } else {
+                                    link.action = clonedAction;
+                                }
+                            } else {
+                                link.destination = clonedDest;
+                            }
+                        }
+                    }
+                }
             }
+
+            if (annotationClone is PDAnnotationWidget &&
+                annotationClone.cosObject.containsKey(COSName.parent)) {
+                // remove non-terminal field /Parent reference
+                annotationClone.cosObject.removeItem(COSName.parent);
+            }
+
+            annotationClone.cosObject.setItem(COSName.p, imported.cosObject);
         }
     }
     imported.annotations = clonedAnnotations;
   }
   
-  void _fixDestinations() {
-      if (_destinationDocuments == null || _pageDictMaps == null) return;
-      
-      for (int i = 0; i < _destinationDocuments!.length; i++) {
-          final destination = _destinationDocuments![i];
-          final pageDictMap = _pageDictMaps![i];
-          
-          for (final page in destination.pages) {
-              for (final annotation in page.annotations) {
-                  if (annotation is PDAnnotationLink) {
-                      final link = annotation;
-                      final action = link.action;
-                      PDDestination? dest = link.destination;
-                      
-                      if (action is PDActionGoTo) {
-                          dest = action.destination;
-                      }
-                      
-                      bool destinationInCurrentDocument = false;
-                      
-                      if (dest is PDPageDestination) {
-                         // checking if page is in the current document
-                         destinationInCurrentDocument = _isPageInCurrentDocument(dest, pageDictMap);
-                      } else if (dest is PDNamedDestination) {
-                          // Handle named destinations
-                          dest = _resolveNamedDestination(dest, destination);
-                          if (dest is PDPageDestination) {
-                              destinationInCurrentDocument = _isPageInCurrentDocument(dest, pageDictMap);
-                          }
-                      }
-                      
-                      if (!destinationInCurrentDocument) {
-                           // Link points outside the document, remove action/dest
-                           if (link.action != null) {
-                               link.action = null;
-                           }
-                           link.destination = null;
-                      } else {
-                          // Link is valid, but we need to update the PDPage object or page number if needed
-                          // PDPageDestination stores page reference or number.
-                          // If it's a page object, it might be the OLD page object from source doc.
-                          // We should ensure it points to the NEW page object in the split doc.
-                          // But PDPageDestination often lazily resolves.
-                          // If pageDictMap maps SourcePage -> SplitPage, we can update it.
-                          // However, simpler is just keeping it if valid.
-                          // The issue is if the page object is from source, it won't reside in destination's tree?
-                          // The `_isPageInCurrentDocument` check handles the mapping.
-                      }
-                  }
-              }
+  void _fixDestinations(PDDocument destinationDocument) {
+    if (_destToFixMap == null || _pageDictMap == null) {
+      return;
+    }
+    final pageTree = destinationDocument.documentCatalog.pages;
+    for (final entry in _destToFixMap!.entries) {
+      final dest = entry.key;
+      final srcPageDict = entry.value;
+      final mapped = _pageDictMap![srcPageDict];
+      if (mapped == null) {
+        dest.page = null;
+        continue;
+      }
+      final dstPage = PDPage(mapped);
+      if (pageTree.indexOf(dstPage) >= 0) {
+        dest.page = mapped;
+      } else {
+        dest.page = null;
+      }
+    }
+  }
+
+  void _cloneStructureTree(PDDocument destinationDocument) {
+    final srcStructureTreeRoot =
+        _sourceDocument!.documentCatalog.structureTreeRoot;
+    if (srcStructureTreeRoot == null) {
+      return;
+    }
+
+    _structDictMap = <COSDictionary, COSDictionary>{};
+    _idSet = <String>{};
+    _roleSet = <COSName>{};
+
+    final dstStructureTreeRoot = PDStructureTreeRoot();
+    final dstPageTree = destinationDocument.documentCatalog.pages;
+
+    final k1 = srcStructureTreeRoot.k;
+    final k2 = _KCloner(
+      dstPageTree,
+      _structDictMap!,
+      _pageDictMap!,
+      _annotDictMap!,
+      _idSet!,
+      _roleSet!,
+      _logger,
+    ).createClone(k1, dstStructureTreeRoot.cosObject, null);
+    dstStructureTreeRoot.k = k2;
+
+    final srcParentTree = srcStructureTreeRoot.getParentTree();
+    final srcNumberTreeAsMap =
+        _getNumberTreeAsMap(srcParentTree);
+    final dstNumberTreeAsMap = <int, PDParentTreeValue>{};
+
+    for (var p = 0; p < dstPageTree.count; p++) {
+      final page = dstPageTree[p];
+      final sp1 = page.structParents;
+      if (sp1 != -1) {
+        _cloneTreeElement(srcNumberTreeAsMap, dstNumberTreeAsMap, sp1);
+      }
+      for (final ann in page.annotations) {
+        final sp2 = ann.structParent;
+        if (sp2 != -1) {
+          _cloneTreeElement(srcNumberTreeAsMap, dstNumberTreeAsMap, sp2);
+        }
+        final appearance = ann.getNormalAppearanceStream();
+        if (appearance != null) {
+          _processResources(
+              appearance.resources,
+              srcNumberTreeAsMap,
+              dstNumberTreeAsMap,
+              <COSDictionary>{});
+        }
+      }
+      _processResources(
+          page.resources,
+          srcNumberTreeAsMap,
+          dstNumberTreeAsMap,
+          <COSDictionary>{});
+    }
+
+    final dstNumberTreeNode = PDNumberTreeNode<PDParentTreeValue>(
+        valueFactory: (base) => PDParentTreeValue(base));
+    dstNumberTreeNode.setNumbers(dstNumberTreeAsMap);
+    dstStructureTreeRoot.setParentTree(dstNumberTreeNode);
+    final upperLimit = dstNumberTreeNode.getUpperLimit();
+    if (upperLimit != null) {
+      dstStructureTreeRoot.setParentTreeNextKey(upperLimit + 1);
+    }
+
+    final classMap =
+        srcStructureTreeRoot.cosObject.getDictionaryObject(COSName.classMap);
+    if (classMap != null) {
+      dstStructureTreeRoot.cosObject[COSName.classMap] = classMap;
+    }
+
+    _cloneRoleMap(srcStructureTreeRoot, dstStructureTreeRoot);
+    _cloneIDTree(srcStructureTreeRoot, dstStructureTreeRoot);
+
+    destinationDocument.documentCatalog.structureTreeRoot =
+        dstStructureTreeRoot;
+  }
+
+  void _cloneRoleMap(
+      PDStructureTreeRoot srcStructTree,
+      PDStructureTreeRoot destStructTree) {
+    final srcDict =
+        srcStructTree.cosObject.getCOSDictionary(COSName.roleMap);
+    if (srcDict == null) {
+      return;
+    }
+    final dstDict = COSDictionary();
+    for (final entry in srcDict.entries) {
+      if (_roleSet!.contains(entry.key)) {
+        dstDict.setItem(entry.key, entry.value);
+      }
+    }
+    destStructTree.cosObject.setItem(COSName.roleMap, dstDict);
+  }
+
+  void _cloneIDTree(
+      PDStructureTreeRoot srcStructTree,
+      PDStructureTreeRoot destStructTree) {
+    final srcIDTree = srcStructTree.getIDTree();
+    if (srcIDTree == null) {
+      return;
+    }
+    final srcIDTreeAsMap = _getIDTreeAsMap(srcIDTree);
+    final destNames = <String, PDStructureElement?>{};
+    for (final entry in srcIDTreeAsMap.entries) {
+      if (!_idSet!.contains(entry.key)) {
+        continue;
+      }
+      final dstDict = _structDictMap![entry.value.cosObject];
+      if (dstDict != null) {
+        destNames[entry.key] = PDStructureElement(dstDict);
+      }
+    }
+    final destIDTree = PDStructureElementNameTreeNode();
+    destIDTree.setNames(destNames);
+    destStructTree.setIDTree(destIDTree);
+  }
+
+  Map<int, PDParentTreeValue> _getNumberTreeAsMap(
+      PDNumberTreeNode<PDParentTreeValue>? tree) {
+    final result = <int, PDParentTreeValue>{};
+    if (tree == null) {
+      return result;
+    }
+    final numbers = tree.numbers;
+    if (numbers != null) {
+      for (final entry in numbers.entries) {
+        if (entry.value != null) {
+          result[entry.key] = entry.value!;
+        }
+      }
+    }
+    final kids = tree.kids;
+    if (kids != null) {
+      for (final kid in kids) {
+        result.addAll(_getNumberTreeAsMap(kid));
+      }
+    }
+    return result;
+  }
+
+  Map<String, PDStructureElement> _getIDTreeAsMap(
+      PDStructureElementNameTreeNode tree) {
+    final result = <String, PDStructureElement>{};
+    final names = tree.getNames();
+    if (names != null) {
+      for (final entry in names.entries) {
+        if (entry.value != null) {
+          result[entry.key] = entry.value!;
+        }
+      }
+    }
+    final kids = tree.kids;
+    if (kids != null) {
+      for (final kid in kids) {
+        if (kid is PDStructureElementNameTreeNode) {
+          result.addAll(_getIDTreeAsMap(kid));
+        }
+      }
+    }
+    return result;
+  }
+
+  void _cloneTreeElement(
+    Map<int, PDParentTreeValue> srcNumberTreeAsMap,
+    Map<int, PDParentTreeValue> dstNumberTreeAsMap,
+    int sp,
+  ) {
+    final srcObj = srcNumberTreeAsMap[sp];
+    if (srcObj == null) {
+      return;
+    }
+    final actualSrcObj = srcObj.cosObject;
+    PDParentTreeValue? dstObj;
+    if (actualSrcObj is COSArray) {
+      final dstArray = COSArray();
+      for (var i = 0; i < actualSrcObj.length; i++) {
+        final srcElement = actualSrcObj.getObject(i);
+        final resolved = _resolveCOSBase(srcElement);
+        if (resolved is COSDictionary) {
+          final mapped = _structDictMap![resolved];
+          if (mapped != null) {
+            dstArray.addObject(mapped);
+          } else {
+            dstArray.addObject(COSNull.instance);
           }
+        } else {
+          dstArray.addObject(COSNull.instance);
+        }
       }
+      dstObj = PDParentTreeValue.fromArray(dstArray);
+    } else if (actualSrcObj is COSDictionary) {
+      final mapped = _structDictMap![actualSrcObj];
+      if (mapped != null) {
+        dstObj = PDParentTreeValue.fromDictionary(mapped);
+      } else {
+        _logger.warning('ParentTree index $sp dictionary not found in /K');
+      }
+    } else {
+      _logger.warning(
+          'tree element neither dictionary nor array, but ${actualSrcObj.runtimeType}');
+    }
+    if (dstObj != null) {
+      dstNumberTreeAsMap[sp] = dstObj;
+    }
   }
-  
-  bool _isPageInCurrentDocument(PDPageDestination dest, Map<COSDictionary, COSDictionary> pageDictMap) {
-      final pageNumber = dest.pageNumber;
-      if (pageNumber != -1) {
-          // It's a page number (0-based or 1-based? API usually 0-based for internal, 1-based usage)
-          // PDPageDestination uses 0-based.
-          // If accessing by index:
-          // But split document has fewer pages.
-          // If it was by page number, it likely breaks unless re-calculated.
-          // PDFBox Java converts numbers to objects before split if possible.
-          return false; // Page numbers difficult to validate without context
+
+  void _processResources(
+      PDResources? res,
+      Map<int, PDParentTreeValue> srcNumberTreeAsMap,
+      Map<int, PDParentTreeValue> dstNumberTreeAsMap,
+      Set<COSDictionary> visited) {
+    if (res == null) {
+      return;
+    }
+    if (visited.contains(res.cosObject)) {
+      return;
+    }
+    visited.add(res.cosObject);
+
+    for (final name in res.xObjectNames) {
+      final xObject = res.getXObject(name);
+      var sp2 = -1;
+      if (xObject is PDFormXObject) {
+        sp2 = xObject.structParents;
+        _processResources(xObject.resources, srcNumberTreeAsMap,
+            dstNumberTreeAsMap, visited);
+      } else if (xObject is PDImageXObject) {
+        sp2 = xObject.structParent;
       }
-      final page = dest.page;
-      if (page is COSObject) {
-         // It's an indirect reference
-         // Check if this source page (COSObject) is in our map key set (which are source pages)
-         // Actually map keys are source page dicts.
-         return pageDictMap.containsKey(page.object);
-      } else if (page is COSDictionary) {
-         return pageDictMap.containsKey(page);
+      if (sp2 != -1) {
+        _cloneTreeElement(srcNumberTreeAsMap, dstNumberTreeAsMap, sp2);
       }
-      return false;
+    }
   }
-  
+
+  COSDictionary? _resolvePageDictionary(COSBase? base) {
+      if (base is COSObject) {
+          return base.object is COSDictionary ? base.object as COSDictionary : null;
+      }
+      if (base is COSDictionary) {
+          return base;
+      }
+      return null;
+  }
+
   PDDestination? _resolveNamedDestination(PDNamedDestination dest, PDDocument doc) {
       final name = dest.name;
       // Look up in names or Dests
@@ -341,4 +612,193 @@ class Splitter {
       }
       return null;
   }
+}
+
+class _KCloner {
+  _KCloner(
+    this._dstPageTree,
+    this._structDictMap,
+    this._pageDictMap,
+    this._annotDictMap,
+    this._idSet,
+    this._roleSet,
+    this._logger,
+  );
+
+  final PDPageTree _dstPageTree;
+  final Map<COSDictionary, COSDictionary> _structDictMap;
+  final Map<COSDictionary, COSDictionary> _pageDictMap;
+  final Map<COSDictionary, COSDictionary> _annotDictMap;
+  final Set<String> _idSet;
+  final Set<COSName> _roleSet;
+  final Logger _logger;
+
+  COSBase? createClone(
+      COSBase? src, COSBase? dstParent, COSDictionary? currentPageDict) {
+    if (src == null) {
+      return null;
+    }
+    if (src is COSObject) {
+      return createClone(src.object, dstParent, currentPageDict);
+    }
+    if (src is COSArray) {
+      return _createArrayClone(src, dstParent, currentPageDict);
+    }
+    if (src is COSDictionary) {
+      return _createDictionaryClone(src, dstParent, currentPageDict);
+    }
+    return src;
+  }
+
+  COSBase? _createArrayClone(
+      COSArray src, COSBase? dstParent, COSDictionary? currentPageDict) {
+    final dst = COSArray();
+    for (final base in src) {
+      final rc = createClone(base, dstParent, currentPageDict);
+      if (rc != null) {
+        dst.addObject(rc);
+      }
+    }
+    return dst.isEmpty ? null : dst;
+  }
+
+  COSBase? _createDictionaryClone(
+      COSDictionary srcDict, COSBase? dstParent, COSDictionary? currentPageDict) {
+    final existing = _structDictMap[srcDict];
+    if (existing != null) {
+      return existing;
+    }
+    final srcPageDict = srcDict.getCOSDictionary(COSName.pg);
+    COSDictionary? dstPageDict;
+    final kid = srcDict.getDictionaryObject(COSName.k);
+    final type = srcDict.getCOSName(COSName.type);
+    if (srcPageDict != null) {
+      dstPageDict = _pageDictMap[srcPageDict];
+      if (dstPageDict != null) {
+        final dstPage = PDPage(dstPageDict);
+        if (_dstPageTree.indexOf(dstPage) == -1) {
+          return null;
+        }
+      } else {
+        final isMcr = type == COSName.get('MCR');
+        final isObjr = type == COSName.get('OBJR');
+        if (isMcr || isObjr || _hasMCIDs(kid)) {
+          return null;
+        }
+      }
+    }
+
+    if (type == COSName.get('MCR') &&
+        dstPageDict == null &&
+        dstParent is COSDictionary &&
+        dstParent.getCOSDictionary(COSName.pg) == null) {
+      return null;
+    }
+
+    final dstDict = COSDictionary();
+    _structDictMap[srcDict] = dstDict;
+    for (final entry in srcDict.entries) {
+      final key = entry.key;
+      if (key != COSName.k && key != COSName.pg && key != COSName.p) {
+        dstDict.setItem(key, entry.value);
+      }
+    }
+
+    if (type == COSName.get('OBJR')) {
+      final srcObj = srcDict.getCOSDictionary(COSName.obj);
+      final dstObj = srcObj == null ? null : _annotDictMap[srcObj];
+      if (dstObj != null) {
+        dstDict.setItem(COSName.obj, dstObj);
+      } else if (srcObj != null) {
+        _removePossibleOrphanAnnotation(
+            srcObj, srcDict, currentPageDict, dstDict);
+      }
+      if (dstDict.entries.length == 1) {
+        return null;
+      }
+      if (dstPageDict == null &&
+          dstParent is COSDictionary &&
+          dstParent.getCOSDictionary(COSName.pg) == null) {
+        return null;
+      }
+    }
+
+    if (type != COSName.get('OBJR') && type != COSName.get('MCR')) {
+      dstDict.setItem(COSName.p, dstParent);
+    }
+    dstDict.setItem(COSName.pg, dstPageDict);
+
+    final cloneKid =
+        createClone(kid, dstDict, dstPageDict ?? currentPageDict);
+    if (cloneKid == null && kid != null) {
+      return null;
+    }
+    if (dstPageDict == null &&
+        cloneKid == null &&
+        currentPageDict == null) {
+      return null;
+    }
+    dstDict.setItem(COSName.k, cloneKid);
+
+    final id = dstDict.getString(COSName.id);
+    if (id != null) {
+      _idSet.add(id);
+    }
+    final s = dstDict.getCOSName(COSName.s);
+    if (s != null) {
+      _roleSet.add(s);
+    }
+    return dstDict;
+  }
+
+  bool _hasMCIDs(COSBase? kid) {
+    if (kid is COSInteger) {
+      return true;
+    }
+    if (kid is COSArray) {
+      for (var i = 0; i < kid.length; i++) {
+        if (kid.getObject(i) is COSInteger) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  void _removePossibleOrphanAnnotation(COSDictionary srcObj,
+      COSDictionary srcDict, COSDictionary? currentPageDict, COSDictionary dstDict) {
+    final objType = srcObj.getDictionaryObject(COSName.type);
+    final objSubtype = srcObj.getDictionaryObject(COSName.subtype);
+    if (objType == COSName.get('Annot') ||
+        objSubtype == COSName.get('Link')) {
+      var srcPageDict = srcDict.getCOSDictionary(COSName.pg);
+      srcPageDict ??= currentPageDict;
+      if (srcPageDict != null) {
+        final annotationArray = srcPageDict.getCOSArray(COSName.annots);
+        if (annotationArray == null ||
+            !_arrayContainsObject(annotationArray, srcObj)) {
+          _logger.warning(
+              "An annotation OBJ that isn't in the page has been removed from the structure tree");
+          dstDict.removeItem(COSName.obj);
+        }
+      }
+    }
+  }
+
+  bool _arrayContainsObject(COSArray array, COSDictionary target) {
+    for (final entry in array) {
+      final resolved = entry is COSObject ? entry.object : entry;
+      if (identical(resolved, target)) {
+        return true;
+      }
+    }
+    return false;
+  }
+}
+
+COSBase? _resolveCOSBase(COSBase? base) {
+  if (base is COSObject) {
+    return base.object;
+  }
+  return base;
 }

@@ -6,6 +6,7 @@ import 'package:crypto/crypto.dart' as crypto;
 import 'package:pdfbox_dart/src/dependencies/x509_plus/x509.dart';
 import 'package:pdfbox_dart/src/pdfbox/cos/cos_dictionary.dart';
 import 'package:pdfbox_dart/src/pdfbox/cos/cos_name.dart';
+import 'package:pdfbox_dart/src/pdfbox/cos/cos_stream.dart';
 import 'package:pdfbox_dart/src/pdfbox/cos/cos_string.dart';
 import 'package:pdfbox_dart/src/pdfbox/pdmodel/encryption/access_permission.dart';
 import 'package:pdfbox_dart/src/pdfbox/pdmodel/encryption/invalid_password_exception.dart';
@@ -229,6 +230,49 @@ void main() {
       handler.setEncryptionKey(baseKey);
       final decrypted = handler.applyRC4ToBytes(ciphertext, 1, 0);
       expect(decrypted, orderedEquals(plaintext));
+    });
+
+    test('encryptString/decryptObject round-trips with RC4', () {
+      final handler = StandardSecurityHandler();
+      handler.setEncryptionKey(Uint8List.fromList(<int>[1, 2, 3, 4, 5]));
+      final input = COSString('Hello');
+      final encrypted = handler.encryptString(input, 7, 0) as COSString;
+      final decrypted =
+          handler.decryptObject(encrypted, 7, 0) as COSString;
+      expect(decrypted.bytes, orderedEquals(input.bytes));
+    });
+
+    test('encryptString/decryptObject round-trips with AES-128', () {
+      final handler = StandardSecurityHandler()
+        ..isAES = true
+        ..setEncryptionKey(Uint8List.fromList(List<int>.generate(16, (i) => i)));
+      final input = COSString('AES-128');
+      final encrypted = handler.encryptString(input, 12, 0) as COSString;
+      final decrypted =
+          handler.decryptObject(encrypted, 12, 0) as COSString;
+      expect(decrypted.bytes, orderedEquals(input.bytes));
+    });
+
+    test('encryptString/decryptObject round-trips with AES-256', () {
+      final handler = StandardSecurityHandler()
+        ..isAES = true
+        ..setEncryptionKey(Uint8List.fromList(List<int>.generate(32, (i) => i)));
+      final input = COSString('AES-256');
+      final encrypted = handler.encryptString(input, 3, 0) as COSString;
+      final decrypted =
+          handler.decryptObject(encrypted, 3, 0) as COSString;
+      expect(decrypted.bytes, orderedEquals(input.bytes));
+    });
+
+    test('encryptStream/decryptStream round-trips data', () {
+      final handler = StandardSecurityHandler()
+        ..isAES = true
+        ..setEncryptionKey(Uint8List.fromList(List<int>.generate(16, (i) => i)));
+      final stream = COSStream()..data = Uint8List.fromList('data'.codeUnits);
+      handler.encryptStream(stream, 42, 0);
+      expect(stream.data, isNotNull);
+      handler.decryptStream(stream, 42, 0);
+      expect(stream.data, orderedEquals(Uint8List.fromList('data'.codeUnits)));
     });
 
     test('factory resolves standard handlers by filter and policy', () {

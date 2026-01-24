@@ -2,6 +2,12 @@
 fonte C:\MyDartProjects\pdfbox_dart\referencias\pdfbox-java
 C:\MyDartProjects\pdfbox_dart\referencias\pdfbox-java\pdfbox\src\main\java\org\apache\pdfbox\rendering
 
+antes de implementar e portar tem que ler o codigo java original C:\MyDartProjects\pdfbox_dart\referencias\pdfbox-java para ver como é
+
+não remova os TODOS se a implementação não estiver 100% completa enquanto estiver minimal ou stub não pode tirar os TODOs
+
+nunca rode testes sem antes executar o dart analyze nas pasta e arquivos criados ou modificados
+
 utilize o dart_graphics C:\MyDartProjects\dart_graphics C:\MyDartProjects\dart_graphics\lib\src\dart_graphics\graphics2D.dart C:\MyDartProjects\dart_graphics\lib\dart_graphics.dart para ir portando o que falta de C:\MyDartProjects\pdfbox_dart\referencias\pdfbox-java na parte de renderização de PDF
 
 siga portando a risca o pdfbox mantenha a mesma logica e nome de classes e metodos para evitar bugs de renderização de PDF
@@ -12,6 +18,24 @@ se precisar que implemente algo na lib dart_graphics implemente
 e va atualizando este roteiro com o que for sendo implementado
 
 dart analyze só na pasta onde aplicou modificações para ser mais rapido
+
+Arquivos FDF portados (10 total):
+
+FDFCatalog ✓
+FDFDictionary ✓
+FDFDocument ✓
+FDFJavaScript ✓
+FDFOptionElement ✓
+FDFNamedPageReference ✓
+FDFIconFit ✓
+FDFPageInfo ✓
+FDFTemplate ✓
+FDFField ✓ (versão simplificada)
+Ainda faltam (19 arquivos):
+
+FDFPage
+FDFAnnotation (base)
+17 subclasses FDFAnnotation* (Caret, Circle, FileAttachment, FreeText, Highlight, Ink, Line, Link, Polygon, Polyline, Sound, Square, Squiggly, Stamp, StrikeOut, Text, Underline)
 
 ## implementado (marcos)
 - PageDrawer: clipping real `W/W*` (mask em device-space), com stack sincronizado com `q/Q`.
@@ -47,12 +71,26 @@ dart analyze só na pasta onde aplicou modificações para ser mais rapido
 - Shading: ShadingType6 (Coons patch mesh) portado com `PDShadingType6`, `PDMeshBasedShadingType`, `Patch`, `CoonsPatch`, `CubicBezierCurve`, `CoordinateColorPair` - reutiliza `_renderTriangleMeshShading`.
 - Shading: ShadingType7 (tensor-product patch mesh) portado com `PDShadingType7`, `TensorPatch` - reutiliza infraestrutura de mesh shading.
 - Shading Tests: 17 testes unitários cobrindo todas as classes de suporte: ShadingVertex, ShadingLine, ShadedTriangle, BitInputStream, PDRange, CubicBezierCurve, CoonsPatch, TensorPatch.
+- FDF (Forms Data Format): Port completo de `FDFCatalog`, `FDFDictionary`, `FDFDocument` com getters/setters para version, signature, file, ID, fields, pages, annotations, embeddedFDFs, javaScript, status, encoding, target, differences + métodos writeXML, save, saveXFDF + testes unitários (11 passed).
+- COSString: Adicionado método `toHexString()` para conversão de bytes para string hexadecimal.
+- COSName: Adicionado `embeddedFdfs` para suporte a FDF.
+- COSParser: Port completo de decryption support com password/decryptionMaterial parameters, _prepareDecryption(), automatic stream/object decryption + testes (5 passed).
 
 ## implementado (marcos)
 - GroupGraphics.java: suporte completo a grupos de transparência não-isolados (backdrop removal).
 - SoftMask.java: helper class para aplicação de soft masks.
 - Otimização de Fallback de Fontes: Remoção de hacks de render-time no `PageDrawer`, delegando para `FontMapper` e classes de fonte (`PDType1Font`/`PDTrueTypeFont`) que usam `EmbeddedFonts` automaticamente.
 - Soft masks: corrigido buffer de alpha no `GroupGraphics` (agora escreve em `groupAlphaImage`) e composição normal com "source over" em premultiplied para evitar double‑alpha; `SMask` de imagens permanece com modulação só no alpha; composição RGB mantém premultiplied-aware.
+- Goldens: adicionadas fixtures para `soft_mask_alpha.pdf`, `soft_mask_luminosity.pdf` e `image_soft_mask.pdf` via `scripts/generate_golden_fixtures.dart`.
+- Patterns: `PDTilingPattern` com setters completos (paint/tiling/bbox/xStep/yStep/matrix/resources) + teste unitario.
+- Splitter: port de `processAnnotations` (link/widget) com remapeamento de destinos via mapa e teste para remover links fora do split.
+- Splitter: cloneStructureTree (`/K`, ParentTree, IDTree, RoleMap) com suporte a StructParents em Form/Image XObject.
+- PDFTextStripper: `LINE_SEPARATOR` usando `Platform.lineTerminator` e range search otimizado no `suppressDuplicateOverlappingText`.
+- Goldens (texto): fixture `text_stripper_basic.pdf` + extracao de texto via PDFBox Java + teste golden em `golden_text_test.dart`.
+- PDFStreamEngine: `processShading` base agora e no-op (shading fica a cargo do renderizador).
+- FDFDocument: construtor `create` com catalogo inicial + wrappers minimos `FDFCatalog`/`FDFDictionary`.
+- PDFMergerUtility: merge otimizado (OptimizeResourcesMode) com teste basico.
+- SecurityHandler: encrypt/decrypt RC4/AES para strings/streams + filtros de criptografia e testes.
 
 ## pendente (observado)
 - TaggedPDF: ParentTree com entrada do tipo dicionario (nao array) para objetos individuais (ex.: annotation/XObject) via `/StructParent` ou `/StructParents` [IMPLEMENTADO].

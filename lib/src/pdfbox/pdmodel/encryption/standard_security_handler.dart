@@ -170,6 +170,8 @@ class StandardSecurityHandler
     isAES = false;
 
     if (version >= _revision4) {
+      setStreamFilterName(encryption.streamFilter);
+      setStringFilterName(encryption.stringFilter);
       final cfDictionary = encryption.cfDictionary;
       if (cfDictionary != null) {
         final stdDict = cfDictionary.getCOSDictionary(COSName.stdCF);

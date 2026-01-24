@@ -47,5 +47,35 @@ void main() {
       expect(mergedDoc.numberOfPages, 2);
       mergedDoc.close();
     });
+
+    test('merge two documents with optimize mode', () {
+      final doc1 = PDDocument();
+      doc1.addPage(PDPage()..mediaBox = PDRectangle.a4);
+      final file1 = File('${tempDir.path}/doc1_opt.pdf');
+      final output1 = RandomAccessWriteFile(file1.path);
+      doc1.save(output1);
+      output1.close();
+      doc1.close();
+
+      final doc2 = PDDocument();
+      doc2.addPage(PDPage()..mediaBox = PDRectangle.a4);
+      final file2 = File('${tempDir.path}/doc2_opt.pdf');
+      final output2 = RandomAccessWriteFile(file2.path);
+      doc2.save(output2);
+      output2.close();
+      doc2.close();
+
+      final merger = PDFMergerUtility();
+      merger.addSource(file1);
+      merger.addSource(file2);
+      merger.setDocumentMergeMode(DocumentMergeMode.optimizeResourcesMode);
+      final destFile = File('${tempDir.path}/merged_opt.pdf');
+      merger.setDestinationFileName(destFile.path);
+      merger.mergeDocuments();
+
+      final mergedDoc = PDDocument.loadFile(destFile.path);
+      expect(mergedDoc.numberOfPages, 2);
+      mergedDoc.close();
+    });
   });
 }

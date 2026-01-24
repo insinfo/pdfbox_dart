@@ -109,6 +109,7 @@ class BruteForceParser {
       try {
         final dict = parser.parseCOSDictionary(false);
         stream = parser.parseCOSStream(dict);
+        parser.decryptStreamIfNeeded(stream, stmObjNumber, 0);
 
         final objStreamParser = PDFObjectStreamParser(stream, document);
         final objectNumbers = objStreamParser.readObjectNumbers();

@@ -58,6 +58,15 @@ class PDResources {
     return extGStates.entries.map((entry) => entry.key);
   }
 
+  /// Returns the names of all XObjects in this resource dictionary.
+  Iterable<COSName> get xObjectNames {
+    final xObjects = _dictionary.getCOSDictionary(COSName.xObject);
+    if (xObjects == null) {
+      return const <COSName>[];
+    }
+    return xObjects.entries.map((entry) => entry.key);
+  }
+
   COSDictionary? getFont(COSName name) {
     final fonts = _dictionary.getCOSDictionary(COSName.font);
     return fonts?.getCOSDictionary(name);

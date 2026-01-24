@@ -28,6 +28,15 @@ class COSString extends COSBase {
 
   COSString copy() => COSString.fromBytes(_bytes, isHex: isHex);
 
+  /// Converts the bytes to a hexadecimal string representation.
+  String toHexString() {
+    final buffer = StringBuffer();
+    for (final byte in _bytes) {
+      buffer.write(byte.toRadixString(16).padLeft(2, '0').toUpperCase());
+    }
+    return buffer.toString();
+  }
+
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) {

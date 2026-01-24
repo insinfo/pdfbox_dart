@@ -21,6 +21,7 @@ import '../pdmodel/interactive/digitalsignature/external_signing_support.dart';
 import '../pdmodel/interactive/digitalsignature/signing_support.dart';
 import '../pdmodel/interactive/documentnavigation/pd_outline_node.dart';
 import '../pdfparser/pdf_parser.dart';
+import 'encryption/decryption_material.dart';
 import 'pd_document_information.dart';
 import 'pd_document_catalog.dart';
 import 'pd_page.dart';
@@ -78,32 +79,70 @@ class PDDocument {
   /// Loads a PDF document from a [RandomAccessRead] source using [PDFParser].
   ///
   /// The [source] is always closed after parsing, regardless of success.
-  static PDDocument loadRandomAccess(RandomAccessRead source,
-      {bool lenient = true}) {
+  static PDDocument loadRandomAccess(
+    RandomAccessRead source, {
+    bool lenient = true,
+    String? password,
+    DecryptionMaterial? decryptionMaterial,
+  }) {
     try {
       final parser = PDFParser(source);
-      return parser.parse(lenient: lenient);
+      return parser.parse(
+        lenient: lenient,
+        password: password,
+        decryptionMaterial: decryptionMaterial,
+      );
     } finally {
       source.close();
     }
   }
 
   /// Loads a PDF document from raw [bytes].
-  static PDDocument loadFromBytes(Uint8List bytes, {bool lenient = true}) {
+  static PDDocument loadFromBytes(
+    Uint8List bytes, {
+    bool lenient = true,
+    String? password,
+    DecryptionMaterial? decryptionMaterial,
+  }) {
     final buffer = RandomAccessReadBuffer.fromBytes(bytes);
-    return loadRandomAccess(buffer, lenient: lenient);
+    return loadRandomAccess(
+      buffer,
+      lenient: lenient,
+      password: password,
+      decryptionMaterial: decryptionMaterial,
+    );
   }
 
   /// Loads a PDF document from a file at [path].
-  static PDDocument loadFile(String path, {bool lenient = true}) {
+  static PDDocument loadFile(
+    String path, {
+    bool lenient = true,
+    String? password,
+    DecryptionMaterial? decryptionMaterial,
+  }) {
     final reader = RandomAccessReadBufferedFile(path);
-    return loadRandomAccess(reader, lenient: lenient);
+    return loadRandomAccess(
+      reader,
+      lenient: lenient,
+      password: password,
+      decryptionMaterial: decryptionMaterial,
+    );
   }
 
   /// Loads a PDF document from an open [file].
-  static PDDocument loadFromFile(File file, {bool lenient = true}) {
+  static PDDocument loadFromFile(
+    File file, {
+    bool lenient = true,
+    String? password,
+    DecryptionMaterial? decryptionMaterial,
+  }) {
     final reader = RandomAccessReadBufferedFile.fromFile(file);
-    return loadRandomAccess(reader, lenient: lenient);
+    return loadRandomAccess(
+      reader,
+      lenient: lenient,
+      password: password,
+      decryptionMaterial: decryptionMaterial,
+    );
   }
 
   final COSDocument _document;
@@ -309,4 +348,8 @@ class PDDocument {
 
   /// Permissions granted to the caller for the current encrypted document.
   AccessPermission get currentAccessPermission => _accessPermission;
+
+  void setCurrentAccessPermission(AccessPermission permission) {
+    _accessPermission = permission;
+  }
 }

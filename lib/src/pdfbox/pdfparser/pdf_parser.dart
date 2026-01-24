@@ -8,6 +8,7 @@ import '../cos/cos_name.dart';
 import '../cos/cos_document.dart';
 import '../cos/cos_object.dart';
 import '../pdmodel/pd_document.dart';
+import '../pdmodel/encryption/decryption_material.dart';
 import 'cos_parser.dart';
 
 class PDFParser extends COSParser {
@@ -20,8 +21,16 @@ class PDFParser extends COSParser {
 
   String? get documentVersion => _documentVersion;
 
-  PDDocument parse({bool lenient = true}) {
+  PDDocument parse({
+    bool lenient = true,
+    String? password,
+    DecryptionMaterial? decryptionMaterial,
+  }) {
     setLenient(lenient);
+    configureDecryption(
+      password: password,
+      decryptionMaterial: decryptionMaterial,
+    );
     final headerOk = _parsePDFHeader() || _parseFDFHeader();
     if (!headerOk) {
       const message = "Error: Header doesn't contain versioninfo";
@@ -50,6 +59,14 @@ class PDFParser extends COSParser {
     _checkPages(catalogDict);
 
     final document = createDocument(cosDocument);
+    final parsedEncryption = encryption;
+    if (parsedEncryption != null) {
+      document.setEncryptionDictionary(parsedEncryption);
+    }
+    final permission = accessPermission;
+    if (permission != null) {
+      document.setCurrentAccessPermission(permission);
+    }
     initialParseDone = true;
     return document;
   }
