@@ -9,7 +9,7 @@ Fase 1: Análise e Estratégia
 A primeira etapa é entender as principais dependências do código Java e encontrar seus equivalentes no ecossistema Dart.
 Manipulação de XML (DOM):
 Java: org.w3c.dom, javax.xml.parsers, javax.xml.transform.
-Dart: O pacote package:xml é o padrão ouro. Ele oferece funcionalidades para parse, travessia (query) e construção (build) de documentos XML de forma muito eficiente.
+Dart: O pacote import 'package:pdfbox_dart/src/dependencies/xml/xml.dart'; é o padrão ouro. Ele oferece funcionalidades para parse, travessia (query) e construção (build) de documentos XML de forma muito eficiente.
 Manipulação de Datas:
 Java: java.util.Calendar, java.text.SimpleDateFormat, java.time.*.
 Dart: A classe DateTime nativa do Dart e o pacote package:intl para formatação de datas complexas (como a toISO8601 usada no DateConverter).
@@ -50,7 +50,7 @@ Esta classe orquestra tudo.
 xmp_metadata.dart: Porte a classe XMPMetadata. Ela conterá a lista de esquemas (List<XMPSchema>) e os métodos de fábrica (createAndAddDublinCoreSchema, etc.).
 type_mapping.dart: Esta classe é crucial e complexa. Em Java, ela usa reflection para descobrir e instanciar tipos. Em Dart, você a transformará em uma fábrica mais explícita, usando mapas para associar namespaces e nomes de tipos às suas respectivas classes e construtores.
 Passo 6: O Parser XML (A Parte Mais Desafiadora)
-Aqui você substituirá o org.w3c.dom pelo package:xml.
+Aqui você substituirá o org.w3c.dom pelo import 'package:pdfbox_dart/src/dependencies/xml/xml.dart'.
 dom_xmp_parser.dart: Crie a classe. A lógica geral de percorrer a árvore de nós será a mesma, mas a API é diferente.
 Parse do Documento: XmlDocument.parse(stringContent).
 Encontrar Elementos: element.findElements('prefix:name').
@@ -265,5 +265,5 @@ Leem um arquivo XMP de exemplo (você pode pegar os do projeto Java).
 Fazem o parse para o seu modelo de objetos XMPMetadata.
 Serializam esse objeto de volta para uma string XML.
 Comparam a string gerada com o conteúdo original (ou uma versão "normalizada" dele). Isso garante que o ciclo de leitura e escrita funciona corretamente.
-Este roteiro deve fornecer um caminho claro e estruturado. O maior desafio será a substituição da reflection do Java e o mapeamento da API de parsing de XML, mas com o package:xml, você tem uma ferramenta poderosa para isso.
+Este roteiro deve fornecer um caminho claro e estruturado. O maior desafio será a substituição da reflection do Java e o mapeamento da API de parsing de XML, mas com o import 'package:pdfbox_dart/src/dependencies/xml/xml.dart', você tem uma ferramenta poderosa para isso.
 Boa sorte com o projeto! É um trabalho desafiador, mas muito recompensador.

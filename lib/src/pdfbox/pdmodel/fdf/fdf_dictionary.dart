@@ -51,12 +51,12 @@ class FDFDictionary implements COSObjectable {
 
   /// This will get the status string to be displayed as the result of an action.
   /// Returns the status.
-  String? get status => _dictionary.getString(COSName.get('Status'));
+  String? get status => _dictionary.getString(COSName.status);
 
   /// This will set the status string.
   /// [status] The new status string.
   set status(String? status) {
-    _dictionary.setString(COSName.get('Status'), status);
+    _dictionary.setString(COSName.status, status);
   }
 
   /// The encoding to be used for a FDF field. The default is PDFDocEncoding
@@ -89,12 +89,12 @@ class FDFDictionary implements COSObjectable {
 
   /// This will get the target frame in the browser to open this document.
   /// Returns the target frame.
-  String? get target => _dictionary.getString(COSName.get('Target'));
+  String? get target => _dictionary.getString(COSName.target);
 
   /// This will set the target frame in the browser to open this document.
   /// [target] The new target frame.
   set target(String? target) {
-    _dictionary.setString(COSName.get('Target'), target);
+    _dictionary.setString(COSName.target, target);
   }
 
   /// This will get the list of FDF Fields.

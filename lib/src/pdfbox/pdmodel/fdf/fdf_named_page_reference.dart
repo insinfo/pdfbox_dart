@@ -17,12 +17,12 @@ class FDFNamedPageReference implements COSObjectable {
 
   /// This will get the name of the referenced page. A required parameter.
   /// Returns the name of the referenced page.
-  String? get name => _dictionary.getString(COSName.get('NAME'));
+  String? get name => _dictionary.getString(COSName.nameKey);
 
   /// This will set the name of the referenced page.
   /// [name] The referenced page name.
   set name(String? name) {
-    _dictionary.setString(COSName.get('NAME'), name);
+    _dictionary.setString(COSName.nameKey, name);
   }
 
   /// This will get the file specification of this reference. An optional parameter.

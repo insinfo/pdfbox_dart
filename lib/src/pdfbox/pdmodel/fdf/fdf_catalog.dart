@@ -18,22 +18,22 @@ class FDFCatalog implements COSObjectable {
 
   /// This will get the version that was specified in the catalog dictionary.
   /// Returns the FDF version.
-  String? get version => _dictionary.getNameAsString(COSName.get('Version'));
+  String? get version => _dictionary.getNameAsString(COSName.version);
 
   /// This will set the version of the FDF document.
   /// [version] The new version for the FDF document.
   set version(String? value) {
     if (value == null) {
-      _dictionary.removeItem(COSName.get('Version'));
+      _dictionary.removeItem(COSName.version);
     } else {
-      _dictionary.setName(COSName.get('Version'), value);
+      _dictionary.setName(COSName.version, value);
     }
   }
 
   /// This will get the FDF dictionary.
   /// Returns the FDF dictionary.
   FDFDictionary get fdf {
-    final existing = _dictionary.getCOSDictionary(COSName.get('FDF'));
+    final existing = _dictionary.getCOSDictionary(COSName.fdf);
     if (existing != null) {
       return FDFDictionary(existing);
     }
@@ -45,20 +45,20 @@ class FDFCatalog implements COSObjectable {
   /// This will set the FDF document.
   /// [fdf] The new FDF dictionary.
   void setFdf(FDFDictionary fdf) {
-    _dictionary.setItem(COSName.get('FDF'), fdf);
+    _dictionary.setItem(COSName.fdf, fdf);
   }
 
   /// This will get the signature or null if there is none.
   /// Returns the signature.
   PDSignature? get signature {
-    final sig = _dictionary.getCOSDictionary(COSName.get('Sig'));
+    final sig = _dictionary.getCOSDictionary(COSName.sig);
     return sig != null ? PDSignature(sig) : null;
   }
 
   /// This will set the signature that is associated with this catalog.
   /// [sig] The new signature.
   set signature(PDSignature? sig) {
-    _dictionary.setItem(COSName.get('Sig'), sig);
+    _dictionary.setItem(COSName.sig, sig);
   }
 
   /// This will write this element as an XML document.

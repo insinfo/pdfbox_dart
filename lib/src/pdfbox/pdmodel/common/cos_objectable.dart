@@ -1,5 +1,1 @@
-import '../../cos/cos_base.dart';
-
-abstract class COSObjectable {
-  COSBase get cosObject;
-}
+export '../../cos/cos_base.dart' show COSObjectable;

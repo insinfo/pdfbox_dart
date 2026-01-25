@@ -422,6 +422,30 @@ class COSName extends COSBase implements Comparable<COSName> {
   static final COSName fb = COSName('FB');
   static final COSName tref = COSName('TRef');
   static final COSName rename = COSName('Rename');
+  static final COSName annot = COSName('Annot');
+  static final COSName nm = COSName('NM');
+  static final COSName subj = COSName('Subj');
+  static final COSName it = COSName('IT');
+  static final COSName be = COSName('BE');
+  static final COSName ic = COSName('IC');
+  static final COSName rd = COSName('RD');
+  static final COSName sy = COSName('Sy');
+  static final COSName cl = COSName('CL');
+  static final COSName le = COSName('LE');
+  static final COSName l = COSName('L');
+  static final COSName cap = COSName('Cap');
+  static final COSName ll = COSName('LL');
+  static final COSName lle = COSName('LLE');
+  static final COSName llo = COSName('LLO');
+  static final COSName cp = COSName('CP');
+  static final COSName co = COSName('CO');
+  static final COSName vertices = COSName('Vertices');
+  static final COSName inkList = COSName('InkList');
+  static final COSName fdf = COSName('FDF');
+  static final COSName version = COSName('Version');
+  static final COSName target = COSName('Target');
+  static final COSName status = COSName('Status');
+  static final COSName templates = COSName('Templates');
 
   @override
   int compareTo(COSName other) => name.compareTo(other.name);
