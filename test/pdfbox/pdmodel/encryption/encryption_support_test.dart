@@ -3,7 +3,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart' as crypto;
-import 'package:pdfbox_dart/src/dependencies/x509_plus/x509.dart';
+import 'package:pdfbox_dart/src/crypto/x509/x509.dart';
 import 'package:pdfbox_dart/src/pdfbox/cos/cos_dictionary.dart';
 import 'package:pdfbox_dart/src/pdfbox/cos/cos_name.dart';
 import 'package:pdfbox_dart/src/pdfbox/cos/cos_stream.dart';

@@ -1,0 +1,22 @@
+import 'package:test/test.dart';
+import 'package:pdfbox_dart/src/utils/xml/core/xpath/exceptions/evaluation_exception.dart';
+import 'package:pdfbox_dart/src/utils/xml/core/xpath/types/map.dart';
+import 'package:pdfbox_dart/src/utils/xml/core/xpath/types/sequence.dart';
+
+void main() {
+  test('cast from map', () {
+    final map = {'a': 1};
+    expect(map.toXPathMap(), map);
+  });
+  test('cast from sequence', () {
+    final map = {'a': 1};
+    expect(XPathSequence.single(map).toXPathMap(), map);
+    expect(
+      () => XPathSequence.empty.toXPathMap(),
+      throwsA(isA<XPathEvaluationException>()),
+    );
+  });
+  test('cast from other', () {
+    expect(() => 123.toXPathMap(), throwsA(isA<XPathEvaluationException>()));
+  });
+}

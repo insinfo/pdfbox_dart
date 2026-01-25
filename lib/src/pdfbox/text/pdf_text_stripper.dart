@@ -2,7 +2,7 @@ import 'dart:collection';
 import 'dart:io';
 import 'dart:math' as math;
 
-import 'package:pdfbox_dart/src/dependencies/unorm/export.dart' as unorm;
+import 'package:pdfbox_dart/src/utils/unorm/export.dart' as unorm;
 
 import 'package:pdfbox_dart/src/pdfbox/cos/cos_dictionary.dart';
 import 'package:pdfbox_dart/src/pdfbox/cos/cos_name.dart';

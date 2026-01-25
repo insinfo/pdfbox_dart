@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import '../../dependencies/lzw/lzw.dart';
+import '../../utils/lzw/lzw.dart';
 import '../../io/exceptions.dart';
 import '../cos/cos_dictionary.dart';
 import '../cos/cos_name.dart';

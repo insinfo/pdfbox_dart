@@ -1,5 +1,5 @@
 import 'package:logging/logging.dart';
-import 'package:pdfbox_dart/src/dependencies/unorm/export.dart' as unorm;
+import 'package:pdfbox_dart/src/utils/unorm/export.dart' as unorm;
 
 import '../pdmodel/font/pdfont.dart';
 import '../util/matrix.dart';

@@ -1,0 +1,56 @@
+import 'package:test/test.dart';
+import 'package:pdfbox_dart/src/utils/xml/core/xpath/evaluation/context.dart';
+import 'package:pdfbox_dart/src/utils/xml/core/xpath/functions/accessor.dart';
+import 'package:pdfbox_dart/src/utils/xml/xml.dart';
+import 'package:pdfbox_dart/src/utils/xml/xpath.dart';
+
+final document = XmlDocument.parse('<r><a>1</a><b>2</b></r>');
+final context = XPathContext(document);
+
+void main() {
+  test('fn:node-name', () {
+    final a = document.findAllElements('a').first;
+    expect(fnNodeName(XPathContext(a), []), [a.name]);
+    expect(fnNodeName(context, [XPathSequence.single(a)]), [a.name]);
+    expect(fnNodeName(context, [XPathSequence.empty]), isEmpty);
+  });
+  test('fn:node-name (processing-instruction)', () {
+    final pi = XmlProcessing('target', 'value');
+    expect(
+      fnNodeName(context, [XPathSequence.single(pi)]).first.toString(),
+      'target',
+    );
+  });
+  test('fn:nilled', () {
+    expect(fnNilled(context, [XPathSequence.single(document)]), isEmpty);
+    expect(fnNilled(context, [XPathSequence.single(document.rootElement)]), [
+      false,
+    ]);
+    expect(fnNilled(context, [XPathSequence.empty]), isEmpty);
+  });
+  test('fn:string', () {
+    expect(fnString(context, [const XPathSequence.single('foo')]), ['foo']);
+    expect(fnString(context, [XPathSequence.empty]), ['']);
+    expect(fnString(XPathContext(document.findAllElements('a').first), []), [
+      '1',
+    ]);
+  });
+  test('fn:data', () {
+    expect(fnData(context, [XPathSequence.empty]), isEmpty);
+    expect(fnData(context, [const XPathSequence.single(123)]), [123]);
+    expect(
+      fnData(context, [
+        const XPathSequence.single([1, 2, 3]),
+      ]),
+      [1, 2, 3],
+    );
+  });
+  test('fn:base-uri', () {
+    expect(fnBaseUri(context, const <XPathSequence>[]), isEmpty);
+    expect(fnBaseUri(context, [XPathSequence.single(document)]), isEmpty);
+  });
+  test('fn:document-uri', () {
+    expect(fnDocumentUri(context, const <XPathSequence>[]), isEmpty);
+    expect(fnDocumentUri(context, [XPathSequence.single(document)]), isEmpty);
+  });
+}

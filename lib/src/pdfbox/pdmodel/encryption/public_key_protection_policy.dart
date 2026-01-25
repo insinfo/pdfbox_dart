@@ -1,4 +1,4 @@
-import 'package:pdfbox_dart/src/dependencies/x509_plus/x509.dart';
+import 'package:pdfbox_dart/src/crypto/x509/x509.dart';
 
 import 'protection_policy.dart';
 import 'public_key_recipient.dart';

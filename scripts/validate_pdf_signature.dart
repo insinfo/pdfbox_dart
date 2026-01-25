@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'package:pdfbox_dart/src/utils/pdf_signature_validation.dart';
+import 'package:pdfbox_dart/src/pdfbox/extra/pdf_signature_validation.dart';
 import 'package:pdfbox_dart/basic_utils.dart';
 
 /// Utilitário puro Dart para validar uma assinatura digital PDF (CMS/PKCS#7)
