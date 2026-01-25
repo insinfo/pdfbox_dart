@@ -52,3 +52,4 @@ class XmlDescendantsIterator implements Iterator<XmlNode> {
     }
   }
 }
+

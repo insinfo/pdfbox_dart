@@ -80,3 +80,4 @@ class PDDocumentInformation implements COSObjectable {
     _info.setString(COSName(fieldName), value);
   }
 }
+

@@ -67,3 +67,4 @@ class LZWFilter extends Filter {
     }
   }
 }
+

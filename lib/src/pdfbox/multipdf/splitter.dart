@@ -802,3 +802,4 @@ COSBase? _resolveCOSBase(COSBase? base) {
   }
   return base;
 }
+

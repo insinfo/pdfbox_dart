@@ -8,3 +8,4 @@ class SymbolEncoding extends Encoding {
 
   static final SymbolEncoding instance = SymbolEncoding._();
 }
+

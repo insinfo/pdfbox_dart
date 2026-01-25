@@ -15,3 +15,4 @@ class OCSPResponseData {
 
   OCSPResponseData(this.singleResponse);
 }
+

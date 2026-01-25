@@ -13,3 +13,4 @@ class EofException extends IOException {
   @override
   String toString() => 'EofException: $message';
 }
+

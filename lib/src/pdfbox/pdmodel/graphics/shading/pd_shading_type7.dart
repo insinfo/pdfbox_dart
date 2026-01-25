@@ -11,3 +11,4 @@ class PDShadingType7 extends PDMeshBasedShadingType {
     return TensorPatch(points, color);
   }
 }
+

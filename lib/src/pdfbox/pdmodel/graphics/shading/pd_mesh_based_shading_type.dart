@@ -189,3 +189,4 @@ abstract class PDMeshBasedShadingType extends PDShadingType4 {
     return triangles;
   }
 }
+

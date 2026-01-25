@@ -66,3 +66,4 @@ class MsbWriter extends LzwWriter {
     }
   }
 }
+

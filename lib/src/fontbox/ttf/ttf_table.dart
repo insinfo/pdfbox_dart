@@ -28,3 +28,4 @@ class TtfTable {
 
   void readHeaders(dynamic ttf, TtfDataStream data, FontHeaders outHeaders) {}
 }
+

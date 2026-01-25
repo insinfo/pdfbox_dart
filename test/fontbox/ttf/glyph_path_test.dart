@@ -19,3 +19,4 @@ void main() {
     expect(cubic.y, equals(60));
   });
 }
+

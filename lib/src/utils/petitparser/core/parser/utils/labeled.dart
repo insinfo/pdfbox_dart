@@ -5,3 +5,4 @@ abstract class LabeledParser<R> implements Parser<R> {
   /// Debug label of the parser object.
   String get label;
 }
+

@@ -9,3 +9,4 @@ class RandomAccessStreamCacheImpl implements RandomAccessStreamCache {
   @override
   RandomAccess createBuffer() => RandomAccessReadWriteBuffer();
 }
+

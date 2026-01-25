@@ -15,3 +15,4 @@ abstract class CFFEncoding extends Encoding {
     addCharacterEncoding(code, CFFStandardString.getName(sid));
   }
 }
+

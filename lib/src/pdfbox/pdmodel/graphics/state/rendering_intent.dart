@@ -23,3 +23,4 @@ enum RenderingIntent {
   /// Returns the PDF literal associated with this intent.
   String get stringValue => value;
 }
+

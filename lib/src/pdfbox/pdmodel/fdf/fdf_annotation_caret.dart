@@ -1,4 +1,5 @@
 import '../../cos/cos_array.dart';
+import 'package:pdfbox_dart/src/utils/xml/xml.dart';
 import '../../cos/cos_dictionary.dart';
 import '../../cos/cos_name.dart';
 import '../common/pd_rectangle.dart';
@@ -11,13 +12,32 @@ class FDFAnnotationCaret extends FDFAnnotation {
 
   /// Default constructor.
   FDFAnnotationCaret() : super() {
-    annot.setName(COSName.subtype, SUBTYPE);
+    annot.setItem(COSName.subtype, COSName.caret);
   }
 
   /// Constructor.
   ///
   /// [a] An existing FDF Annotation.
   FDFAnnotationCaret.fromDictionary(COSDictionary a) : super.fromDictionary(a);
+
+  /// Constructor from XML Element.
+  FDFAnnotationCaret.fromXml(XmlElement element) : super.fromXml(element) {
+    annot.setItem(COSName.subtype, COSName.caret);
+    String? symbol = element.getAttribute('symbol');
+    if (symbol != null) {
+      setSymbol(symbol);
+    }
+    String? fringe = element.getAttribute('fringe');
+    if (fringe != null && fringe.isNotEmpty) {
+      List<double> fringes = [];
+      for (String s in fringe.split(',')) {
+        fringes.add(double.parse(s));
+      }
+      if (fringes.length == 4) {
+        setFringe(PDRectangle(fringes[0], fringes[1], fringes[2], fringes[3]));
+      }
+    }
+  }
 
   /// This will set the fringe rectangle. Giving the difference between the annotations rectangle and where the drawing
   /// occurs.
@@ -54,3 +74,4 @@ class FDFAnnotationCaret extends FDFAnnotation {
     return annot.getString(COSName.sy);
   }
 }
+

@@ -67,3 +67,4 @@ mixin XmlHasWriter implements XmlHasVisitor {
   @override
   String toString() => toXmlString();
 }
+

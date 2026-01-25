@@ -37,3 +37,4 @@ class GlyphList {
   /// Returns `true` when the glyph [name] is present in the list.
   bool contains(String name) => _delegate.contains(name);
 }
+

@@ -82,3 +82,4 @@ Parser<List<RangeCharPredicate>> _createParser({required bool unicode}) {
 
 final _patternParser = _createParser(unicode: false);
 final _patternUnicodeParser = _createParser(unicode: true);
+

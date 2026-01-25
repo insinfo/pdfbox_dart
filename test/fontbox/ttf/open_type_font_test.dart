@@ -70,3 +70,4 @@ OpenTypeFont _buildFont() {
   final data = RandomAccessReadDataStream.fromData(Uint8List(0));
   return OpenTypeFont(data);
 }
+

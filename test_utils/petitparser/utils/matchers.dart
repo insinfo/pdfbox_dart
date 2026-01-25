@@ -236,3 +236,4 @@ Matcher isTraceEvent({
     .having((frame) => frame.result, 'result', result)
     .having((frame) => frame.level, 'level', level)
     .having((frame) => frame.toString(), 'toString', toString);
+

@@ -17,3 +17,4 @@ class LookupTable {
   String toString() =>
       'LookupTable[lookupType=$lookupType,lookupFlag=$lookupFlag,markFilteringSet=$markFilteringSet]';
 }
+

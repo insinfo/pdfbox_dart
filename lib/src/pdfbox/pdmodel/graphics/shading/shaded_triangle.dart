@@ -286,3 +286,4 @@ class ShadedTriangle {
   @override
   String toString() => '${corner[0]} ${corner[1]} ${corner[2]}';
 }
+

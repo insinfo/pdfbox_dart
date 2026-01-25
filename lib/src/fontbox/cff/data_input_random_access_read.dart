@@ -85,3 +85,4 @@ class DataInputRandomAccessRead implements DataInput {
   @override
   int length() => _source.length;
 }
+

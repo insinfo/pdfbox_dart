@@ -99,3 +99,4 @@ class FDFDocument {
     _closed = true;
   }
 }
+

@@ -137,3 +137,4 @@ class NamespaceUriNodeTest extends NameNodeTest {
   @override
   bool matchesName(XmlHasName node) => node.namespaceUri == namespaceUri;
 }
+

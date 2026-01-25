@@ -43,3 +43,4 @@ class FDFParser extends COSParser {
     return FDFDocument(cosDocument, source);
   }
 }
+

@@ -107,3 +107,4 @@ class PDRectangle {
   int get hashCode =>
       Object.hash(lowerLeftX, lowerLeftY, upperRightX, upperRightY);
 }
+

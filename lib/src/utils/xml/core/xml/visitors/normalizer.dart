@@ -113,3 +113,4 @@ class XmlNormalizer with XmlVisitor {
 
 final _whitespace = RegExp(r'\s+');
 final _newline = RegExp(r'\r\n|\r\u0085|\r|\u0085|\u2028');
+

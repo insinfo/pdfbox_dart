@@ -51,3 +51,4 @@ class PermuteParser<R> extends DelegateParser<List<R>, List<R>> {
   bool hasEqualProperties(PermuteParser<R> other) =>
       super.hasEqualProperties(other) && indexes == other.indexes;
 }
+

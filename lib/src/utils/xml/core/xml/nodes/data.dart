@@ -17,3 +17,4 @@ abstract class XmlData extends XmlNode with XmlHasParent<XmlNode> {
   @Deprecated('Use `XmlData.value` setter instead')
   set text(String text) => value = text;
 }
+

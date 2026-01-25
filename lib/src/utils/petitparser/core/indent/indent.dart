@@ -53,3 +53,4 @@ class Indent {
       .where((_) => stack.isNotEmpty)
       .map((_) => current = stack.removeLast(), hasSideEffects: true);
 }
+

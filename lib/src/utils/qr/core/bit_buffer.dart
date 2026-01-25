@@ -44,3 +44,4 @@ class QrBitBuffer extends Object with ListMixin<bool> {
     _length++;
   }
 }
+

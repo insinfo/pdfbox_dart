@@ -1,5 +1,13 @@
 import 'dart:io';
-import 'package:dart_pdf/pdf.dart' as pdf;
+import 'dart:typed_data';
+
+import 'package:pdfbox_dart/src/pdfbox/cos/cos_name.dart';
+import 'package:pdfbox_dart/src/pdfbox/extra/external_pdf_signature.dart';
+import 'package:pdfbox_dart/src/pdfbox/pdmodel/common/pd_rectangle.dart';
+import 'package:pdfbox_dart/src/pdfbox/pdmodel/interactive/digitalsignature/pd_signature.dart';
+import 'package:pdfbox_dart/src/pdfbox/pdmodel/pd_document.dart';
+import 'package:pdfbox_dart/src/pdfbox/pdmodel/pd_page.dart';
+import 'package:pdfbox_dart/src/pdfbox/pdmodel/pd_page_content_stream.dart';
 
 Future<void> main() async {
   print('=== GERAÇÃO MELHORADA DE CERTIFICADOS ===\n');
@@ -137,45 +145,37 @@ subjectAltName = email:isaque.santana@pmro.gov.br
     File('${workDir.path}/user.crt').copySync('isaque_santana.crt');
     File('${workDir.path}/isaque_completo.p12').copySync('isaque_santana.p12');
 
-    // PASSO 4: Assinar PDF
+    // PASSO 4: Assinar PDF (pdfbox_dart + OpenSSL)
     print('[7/7] Assinando documento PDF...');
-    final doc = pdf.PdfDocument();
-    final page = doc.pages.add();
-    
-    page.graphics.drawString(
-      'PREFEITURA MUNICIPAL DE RIO DAS OSTRAS\n\n'
-      'Documento Oficial Assinado Digitalmente\n\n'
-      'Assinante: Isaque Neves Sant Ana\n'
-      'Cargo: Servidor Público\n'
-      'Data: ${DateTime.now().toString().substring(0, 19)}',
-      pdf.PdfStandardFont(pdf.PdfFontFamily.helvetica, 11),
-      bounds: pdf.Rect.fromLTWH(50, 50, 500, 150),
-    );
+    final Uint8List basePdf = _createSimplePdf();
 
-    final p12Bytes = File('isaque_santana.p12').readAsBytesSync();
-    final certificate = pdf.PdfCertificate(p12Bytes, senha);
+    final PDSignature signature = PDSignature()
+      ..setFilter(PDSignature.filterAdobePpklite)
+      ..setSubFilter(PDSignature.subFilterAdbePkcs7Detached)
+      ..setReason('Documento oficial da PMRO')
+      ..setLocation('Rio das Ostras, RJ, Brasil')
+      ..setContactInfo('isaque.santana@pmro.gov.br')
+      ..setName('Isaque Neves Sant Ana')
+      ..setSignDate(DateTime.now().toUtc());
 
-    final signature = pdf.PdfSignature(
-      certificate: certificate,
-      digestAlgorithm: pdf.DigestAlgorithm.sha256,
-      cryptographicStandard: pdf.CryptographicStandard.cms,
-      reason: 'Documento oficial da PMRO',
-      locationInfo: 'Rio das Ostras, RJ, Brasil',
-      contactInfo: 'isaque.santana@pmro.gov.br',
-      signedName: 'Isaque Neves Sant Ana',
-    );
-
-    doc.form.fields.add(pdf.PdfSignatureField(
-      page,
-      'AssinaturaIsaque',
-      bounds: pdf.Rect.fromLTWH(50, 250, 250, 80),
+    final PdfExternalSigningResult prepared =
+        await PdfExternalSigning.preparePdf(
+      inputBytes: basePdf,
+      pageNumber: 1,
+      bounds: PDRectangle(50, 250, 250, 80),
+      fieldName: 'AssinaturaIsaque',
       signature: signature,
-    ));
+    );
 
-    final pdfBytes = await doc.save();
-    doc.dispose();
+    final Uint8List signedPdf = await _signWithOpenSsl(
+      preparedPdfBytes: prepared.preparedPdfBytes,
+      fieldName: 'AssinaturaIsaque',
+      keyPath: '${workDir.path}/user.key',
+      certPath: '${workDir.path}/user.crt',
+      chainPath: '${workDir.path}/root_ca.crt',
+    );
 
-    File('documento_assinado_pmro.pdf').writeAsBytesSync(pdfBytes);
+    File('documento_assinado_pmro.pdf').writeAsBytesSync(signedPdf);
 
     // Verificação
     print('\n=== VERIFICAÇÃO ===');
@@ -222,3 +222,97 @@ Future<void> _runCmd(List<String> args) async {
     print('  → ${result.stdout.toString().trim()}');
   }
 }
+
+Uint8List _createSimplePdf() {
+  final PDDocument document = PDDocument();
+  final PDPage page = PDPage();
+  document.addPage(page);
+
+  final PDPageContentStream stream = PDPageContentStream(document, page);
+  final COSName fontResource = COSName.get('F1');
+  stream.resources.registerStandard14Font(fontResource, 'Helvetica');
+
+  stream.beginText();
+  stream.setNonStrokingColorRgb(0, 0, 0);
+  stream.setFont(fontResource, 11);
+  stream.setAutoLeading(13);
+  stream.newLineAtOffset(50, 200);
+  stream.showParagraph(
+    'PREFEITURA MUNICIPAL DE RIO DAS OSTRAS\n\n'
+    'Documento Oficial Assinado Digitalmente\n\n'
+    'Assinante: Isaque Neves Sant Ana\n'
+    'Cargo: Servidor Público\n'
+    'Data: ${DateTime.now().toString().substring(0, 19)}',
+    trailingLineBreaks: 0,
+  );
+  stream.endText();
+
+  stream.close();
+  final Uint8List out = document.saveToBytes();
+  document.close();
+  return out;
+}
+
+Future<Uint8List> _signWithOpenSsl({
+  required Uint8List preparedPdfBytes,
+  required String fieldName,
+  required String keyPath,
+  required String certPath,
+  String? chainPath,
+}) async {
+  final Directory tempDir =
+      await Directory.systemTemp.createTemp('pdfbox_dart_external_sign_');
+  try {
+    final List<int> ranges =
+        PdfExternalSigning.extractByteRange(preparedPdfBytes);
+    final int start1 = ranges[0];
+    final int len1 = ranges[1];
+    final int start2 = ranges[2];
+    final int len2 = ranges[3];
+
+    final List<int> part1 = preparedPdfBytes.sublist(start1, start1 + len1);
+    final List<int> part2 = preparedPdfBytes.sublist(start2, start2 + len2);
+
+    final String dataToSignPath =
+        '${tempDir.path}/data_to_sign_$fieldName.bin';
+    final IOSink sink = File(dataToSignPath).openWrite();
+    sink.add(part1);
+    sink.add(part2);
+    await sink.close();
+
+    final String sigPath = '${tempDir.path}/signature_$fieldName.p7s';
+    final List<String> args = <String>[
+      'smime',
+      '-sign',
+      '-binary',
+      '-in',
+      dataToSignPath.replaceAll('/', Platform.pathSeparator),
+      '-signer',
+      certPath.replaceAll('/', Platform.pathSeparator),
+      '-inkey',
+      keyPath.replaceAll('/', Platform.pathSeparator),
+      '-out',
+      sigPath.replaceAll('/', Platform.pathSeparator),
+      '-outform',
+      'DER',
+    ];
+    if (chainPath != null) {
+      args.addAll(<String>[
+        '-certfile',
+        chainPath.replaceAll('/', Platform.pathSeparator),
+      ]);
+    }
+
+    await _runCmd(['openssl', ...args]);
+
+    final Uint8List sigBytes =
+        Uint8List.fromList(File(sigPath).readAsBytesSync());
+    return PdfExternalSigning.embedSignature(
+      preparedPdfBytes: preparedPdfBytes,
+      pkcs7Bytes: sigBytes,
+    );
+  } finally {
+    await tempDir.delete(recursive: true);
+  }
+}
+

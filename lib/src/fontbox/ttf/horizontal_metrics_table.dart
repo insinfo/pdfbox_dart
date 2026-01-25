@@ -94,3 +94,4 @@ abstract class HorizontalHeaderTableProvider {
   HorizontalHeaderTable? getHorizontalHeaderTable();
   int get numberOfGlyphs;
 }
+

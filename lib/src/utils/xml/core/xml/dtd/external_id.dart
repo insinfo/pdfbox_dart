@@ -54,3 +54,4 @@ class DtdExternalId {
       other.publicId == other.publicId &&
       other.systemId == other.systemId;
 }
+

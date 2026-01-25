@@ -13,3 +13,4 @@ class MacFontDirFinder extends NativeFontDirFinder {
     ];
   }
 }
+

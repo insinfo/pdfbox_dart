@@ -312,3 +312,4 @@ abstract class PDCIDFont implements PDFontLike, PDVectorFont {
     }
   }
 }
+

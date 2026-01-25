@@ -198,3 +198,4 @@ class COSWriterObjectStream {
     builder.add(latin1.encode('null '));
   }
 }
+

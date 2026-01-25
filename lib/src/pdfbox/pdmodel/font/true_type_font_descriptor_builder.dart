@@ -243,3 +243,4 @@ class TrueTypeFontDescriptorBuilder {
     return 1000 / unitsPerEm;
   }
 }
+

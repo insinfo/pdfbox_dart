@@ -191,3 +191,4 @@ class _StubNamingTable extends NamingTable {
   @override
   String? getPostScriptName() => _postScriptName;
 }
+

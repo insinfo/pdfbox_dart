@@ -63,3 +63,4 @@ class PredicateParser extends Parser<String> {
       predicate == other.predicate &&
       message == other.message;
 }
+

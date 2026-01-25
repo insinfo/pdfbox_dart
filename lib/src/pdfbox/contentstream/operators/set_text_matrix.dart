@@ -29,3 +29,4 @@ class ConcatMatrixOperator extends OperatorProcessor {
     context.concatenateMatrix(a, b, c, d, e, f);
   }
 }
+

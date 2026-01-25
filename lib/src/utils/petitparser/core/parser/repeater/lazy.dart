@@ -117,3 +117,4 @@ class LazyRepeatingParser<R> extends LimitedRepeatingParser<R> {
   LazyRepeatingParser<R> copy() =>
       LazyRepeatingParser<R>(delegate, limit, min, max);
 }
+

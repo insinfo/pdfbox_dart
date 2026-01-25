@@ -594,3 +594,4 @@ class TextPosition {
 
 // Helper for boolean type which doesn't exist in Dart
 typedef boolean = bool;
+

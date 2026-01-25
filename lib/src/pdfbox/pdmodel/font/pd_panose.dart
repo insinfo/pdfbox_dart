@@ -25,3 +25,4 @@ class PDPanose {
   /// Returns the raw Panose bytes.
   List<int> get bytes => _bytes;
 }
+

@@ -60,3 +60,4 @@ class LZW {
     return output.toString();
   }
 }
+

@@ -134,3 +134,4 @@ const _highlyDiscouragedCharClass =
 String _asNumericCharacterReferences(String toEscape) => toEscape.runes
     .map((rune) => '&#x${rune.toRadixString(16).toUpperCase()};')
     .join();
+

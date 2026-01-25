@@ -25,3 +25,4 @@ class FreeXReference extends AbstractXReference {
   String toString() =>
       'FreeReference{key=$key, nextFreeObject=$nextFreeObject, type=${type.numericValue}}';
 }
+

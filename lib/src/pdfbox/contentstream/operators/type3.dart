@@ -50,3 +50,4 @@ class Type3SetCharWidthAndBoundingBoxOperator extends OperatorProcessor {
     );
   }
 }
+

@@ -76,3 +76,4 @@ abstract class RandomAccessRead implements Closeable {
     }
   }
 }
+

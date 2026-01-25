@@ -25,3 +25,4 @@ Parser<String> noneOf(
       '${ignoreCase ? ' (case-insensitive)' : ''} expected';
   return CharacterParser(predicate, message, unicode: unicode);
 }
+

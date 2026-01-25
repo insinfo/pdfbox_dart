@@ -20,3 +20,4 @@ class XmlSimpleName extends XmlName {
   @override
   XmlSimpleName copy() => XmlSimpleName(local);
 }
+

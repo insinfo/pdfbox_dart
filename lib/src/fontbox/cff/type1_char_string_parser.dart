@@ -173,3 +173,4 @@ class Type1CharStringParser {
     throw IOException('Invalid number byte $b0 in glyph "$_currentGlyph" of font $_fontName');
   }
 }
+

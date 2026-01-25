@@ -33,3 +33,4 @@ class NextLineOperator extends OperatorProcessor {
     context.nextLine();
   }
 }
+

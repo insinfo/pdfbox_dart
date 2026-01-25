@@ -8,3 +8,4 @@ class PDActionUnknown extends PDAction {
   /// Returns the subtype recorded in the wrapped dictionary, if any.
   String? get recordedSubtype => subtype;
 }
+

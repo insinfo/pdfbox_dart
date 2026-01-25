@@ -102,3 +102,4 @@ class _XmlNodeEncoderSink
       )
       .toList(growable: false);
 }
+

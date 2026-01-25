@@ -9,3 +9,4 @@ enum FontFormat {
   /// Type 1 binary font file (.pfb).
   pfb,
 }
+

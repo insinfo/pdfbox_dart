@@ -60,3 +60,4 @@ class QrPolynomial {
     return QrPolynomial(value, 0).mod(e);
   }
 }
+

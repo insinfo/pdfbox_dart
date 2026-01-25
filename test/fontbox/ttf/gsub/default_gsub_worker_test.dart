@@ -12,3 +12,4 @@ void main() {
     expect(() => result[0] = 99, throwsUnsupportedError);
   });
 }
+

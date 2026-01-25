@@ -16,3 +16,4 @@ extension XPathMapExtension on Object {
     XPathEvaluationException.unsupportedCast(self, 'map');
   }
 }
+

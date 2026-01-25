@@ -17,3 +17,4 @@ class Vector {
   @override
   String toString() => '($x, $y)';
 }
+

@@ -34,3 +34,4 @@ class PDFontSetting implements COSObjectable {
     return 1.0;
   }
 }
+

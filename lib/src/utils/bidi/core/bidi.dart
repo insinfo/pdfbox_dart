@@ -110,3 +110,4 @@ List<Paragraph> splitStringToParagraphs(String logicalString) {
   }
   return paragraphs;
 }
+

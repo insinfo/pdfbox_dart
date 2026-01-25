@@ -397,3 +397,4 @@ void _writeU32(List<int> buffer, int offset, int value) {
   buffer[offset + 2] = (value >> 8) & 0xFF;
   buffer[offset + 3] = value & 0xFF;
 }
+

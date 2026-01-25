@@ -285,3 +285,4 @@ class _RandomAccessFileInputSource implements _SyncInputSource {
     _file.closeSync();
   }
 }
+

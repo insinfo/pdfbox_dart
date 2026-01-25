@@ -17,3 +17,4 @@ class RestoreGraphicsStateOperator extends OperatorProcessor {
     context.popGraphicsState();
   }
 }
+

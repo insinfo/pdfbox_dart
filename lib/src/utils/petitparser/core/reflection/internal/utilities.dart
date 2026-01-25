@@ -47,3 +47,4 @@ bool isParserIterableEqual(Iterable<Parser> first, Iterable<Parser> second) {
   }
   return true;
 }
+

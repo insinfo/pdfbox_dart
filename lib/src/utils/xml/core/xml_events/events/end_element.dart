@@ -23,3 +23,4 @@ class XmlEndElementEvent extends XmlEvent with XmlNamed {
   bool operator ==(Object other) =>
       other is XmlEndElementEvent && other.name == name;
 }
+

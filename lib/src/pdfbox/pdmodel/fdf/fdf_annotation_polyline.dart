@@ -1,9 +1,10 @@
+import 'package:pdfbox_dart/src/utils/xml/xml.dart';
 import '../../cos/cos_array.dart';
 import '../../cos/cos_dictionary.dart';
 import '../../cos/cos_float.dart';
 import '../../cos/cos_name.dart';
 import 'fdf_annotation.dart';
-import 'fdf_annotation_line.dart'; // for constants like LE_NONE
+import 'fdf_annotation_line.dart';
 
 /// This represents a Polyline FDF annotation.
 class FDFAnnotationPolyline extends FDFAnnotation {
@@ -12,13 +13,44 @@ class FDFAnnotationPolyline extends FDFAnnotation {
 
   /// Default constructor.
   FDFAnnotationPolyline() : super() {
-    annot.setName(COSName.subtype, SUBTYPE);
+    annot.setItem(COSName.subtype, COSName.polyline);
   }
 
   /// Constructor.
   ///
   /// [a] An existing FDF Annotation.
   FDFAnnotationPolyline.fromDictionary(COSDictionary a) : super.fromDictionary(a);
+
+  /// Constructor from XML Element.
+  FDFAnnotationPolyline.fromXml(XmlElement element) : super.fromXml(element) {
+    annot.setItem(COSName.subtype, COSName.polyline);
+    String? vertices = element.getAttribute('vertices');
+    if (vertices != null) {
+      if (vertices.isNotEmpty) {
+        List<double> values = [];
+        for (String s in vertices.split(',')) {
+          values.add(double.parse(s));
+        }
+        setVertices(values);
+      }
+    }
+    String? head = element.getAttribute('head');
+    String? tail = element.getAttribute('tail');
+    if (head != null || tail != null) {
+        setStartPointEndingStyle(head ?? FDFAnnotationLine.LE_NONE);
+        setEndPointEndingStyle(tail ?? FDFAnnotationLine.LE_NONE);
+    }
+    String? intervalColor = element.getAttribute('interior-color');
+    if (intervalColor != null) {
+      if (intervalColor.isNotEmpty) {
+        List<double> color = [];
+        for (String s in intervalColor.split(',')) {
+          color.add(double.parse(s));
+        }
+        setInteriorColor(color);
+      }
+    }
+  }
 
   /// This will set the coordinates of the the vertices.
   ///
@@ -114,3 +146,4 @@ class FDFAnnotationPolyline extends FDFAnnotation {
     return array?.toDoubleList();
   }
 }
+

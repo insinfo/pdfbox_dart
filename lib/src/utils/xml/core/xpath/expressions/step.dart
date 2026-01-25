@@ -65,3 +65,4 @@ class ExpressionStep implements Step {
   @override
   Iterable<Object> call(XPathContext context) => expression(context);
 }
+

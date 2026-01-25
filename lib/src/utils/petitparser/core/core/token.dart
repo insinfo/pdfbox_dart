@@ -126,3 +126,4 @@ class Token<R> {
     return '${lineAndColumn[0]}:${lineAndColumn[1]}';
   }
 }
+

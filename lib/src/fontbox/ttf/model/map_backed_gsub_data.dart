@@ -40,3 +40,4 @@ class MapBackedGsubData implements GsubData {
   Set<String> getSupportedFeatures() =>
       Set<String>.unmodifiable(_features.keys);
 }
+

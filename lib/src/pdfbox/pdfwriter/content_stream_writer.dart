@@ -206,3 +206,4 @@ class ContentStreamWriter {
     return buffer.toString().toUpperCase();
   }
 }
+

@@ -6,3 +6,4 @@ const int pattern100 = 4;
 const int pattern101 = 5;
 const int pattern110 = 6;
 const int pattern111 = 7;
+

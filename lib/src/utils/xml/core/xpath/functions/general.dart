@@ -112,3 +112,4 @@ XPathSequence _compareGeneral(
   }
   return XPathSequence.falseSequence;
 }
+

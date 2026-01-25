@@ -1,7 +1,15 @@
 import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:crypto/crypto.dart' as crypto;
 import 'package:pdfbox_dart/qr.dart' as qr;
-import 'package:dart_pdf/pdf.dart' as pdf;
+import 'package:pdfbox_dart/src/pdfbox/cos/cos_name.dart';
+import 'package:pdfbox_dart/src/pdfbox/extra/external_pdf_signature.dart';
+import 'package:pdfbox_dart/src/pdfbox/pdmodel/common/pd_rectangle.dart';
+import 'package:pdfbox_dart/src/pdfbox/pdmodel/interactive/digitalsignature/pd_signature.dart';
+import 'package:pdfbox_dart/src/pdfbox/pdmodel/pd_document.dart';
+import 'package:pdfbox_dart/src/pdfbox/pdmodel/pd_page.dart';
+import 'package:pdfbox_dart/src/pdfbox/pdmodel/pd_page_content_stream.dart';
 
 String _toHex(List<int> bytes) =>
     bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
@@ -223,171 +231,39 @@ subjectAltName = email:isaque.santana@pmro.gov.br
     }
 
     print('[10/10] Assinando documento PDF de teste...');
-  final doc = pdf.PdfDocument();
-  final page = doc.pages.add(); // página de conteúdo
-  final graphics = page.graphics;
 
-    // Cabeçalho
-    graphics.drawRectangle(
-      bounds: pdf.Rect.fromLTWH(40, 40, 515, 220),
-      pen: pdf.PdfPen(pdf.PdfColor(0, 51, 153), width: 2.5),
-      brush: pdf.PdfSolidBrush(pdf.PdfColor(240, 248, 255)),
-    );
+    final Uint8List basePdf = _createBasePdf();
+    final String pdfHashHex =
+        _toHex(crypto.sha256.convert(basePdf).bytes);
+    final Uint8List pdfWithQr = _appendQrAndHash(basePdf, pdfHashHex);
 
-    graphics.drawString(
-      'PREFEITURA MUNICIPAL DE RIO DAS OSTRAS\n'
-      'Estado do Rio de Janeiro\n\n'
-      '═══════════════════════════════════════════════\n\n'
-      'DOCUMENTO OFICIALMENTE ASSINADO\n\n'
-      'Servidor: Isaque Neves Sant Ana\n'
-      'Matrícula: [informar]\n'
-      'E-mail: isaque.santana@pmro.gov.br\n'
-      'Setor: Tecnologia da Informação\n\n'
-      'Data/Hora: ${DateTime.now().toString().substring(0, 19)}\n'
-      'Localização: Rio das Ostras, RJ, Brasil\n\n'
-      'Este documento possui validade jurídica conforme\n'
-      'MP 2.200-2/2001 e Lei 14.063/2020',
-      pdf.PdfStandardFont(pdf.PdfFontFamily.helvetica, 10),
-      brush: pdf.PdfSolidBrush(pdf.PdfColor(0, 0, 0)),
-      bounds: pdf.Rect.fromLTWH(50, 50, 495, 200),
-    );
+    final PDSignature signature = PDSignature()
+      ..setFilter(PDSignature.filterAdobePpklite)
+      ..setSubFilter(PDSignature.subFilterAdbePkcs7Detached)
+      ..setReason('Aprovacao de documento oficial da PMRO')
+      ..setLocation('Rio das Ostras, RJ, Brasil')
+      ..setContactInfo('isaque.santana@pmro.gov.br')
+      ..setName('Isaque Neves Sant Ana')
+      ..setSignDate(DateTime.now().toUtc());
 
-    // Calcula o hash SHA-256 do PDF ANTES da assinatura (somente conteúdo)
-    final preSignBytes = await doc.save();
-    final pdfHash = crypto.sha256.convert(preSignBytes).bytes;
-    final pdfHashHex = _toHex(pdfHash);
-
-    // Reabre o documento a partir do bytes para continuar (evita apagar conteúdo da página 1)
-    final docSigned = pdf.PdfDocument(inputBytes: preSignBytes);
-    // Cria a ÚLTIMA página dedicada à assinatura
-    final lastPage = docSigned.pages.add();
-
-    // Desenha um QR Code com o hash ao lado da área da assinatura
-    void drawQr(
-        pdf.PdfGraphics g, double x, double y, double size, String data) {
-      // 1. Crie o objeto de dados do QrCode usando a fábrica
-      // Isso substitui o loop try...catch
-      final qrCode = qr.QrCode.fromData(
-        data: data,
-        errorCorrectLevel: qr.QrErrorCorrectLevel.M,
-      );
-
-      // 2. Crie um objeto QrImage para renderização
-      final qrImage = qr.QrImage(qrCode);
-
-      // 3. Desenhe os módulos com base no qrImage
-      final int count = qrImage.moduleCount;
-      final double cell = size / count;
-      for (int r = 0; r < count; r++) {
-        for (int c = 0; c < count; c++) {
-          // Use qrImage.isDark() em vez de code.isDark()
-          if (qrImage.isDark(r, c)) {
-            g.drawRectangle(
-              bounds: pdf.Rect.fromLTWH(x + c * cell, y + r * cell, cell, cell),
-              brush: pdf.PdfSolidBrush(pdf.PdfColor(0, 0, 0)),
-            );
-          }
-        }
-      }
-
-      // 4. Desenhe a borda
-      g.drawRectangle(
-        bounds: pdf.Rect.fromLTWH(x, y, size, size),
-        pen: pdf.PdfPen(pdf.PdfColor(0, 0, 0), width: 1),
-      );
-    }
-    // Posição da assinatura e QR na última página
-    final sigBounds = pdf.Rect.fromLTWH(50, 120, 320, 95);
-    final qrSize = 95.0;
-    final qrX = sigBounds.left + sigBounds.width + 20;
-    final qrY = sigBounds.top;
-
-    // QR com hash do PDF (pré-assinatura)
-  final lastG = lastPage.graphics;
-    drawQr(lastG, qrX, qrY, qrSize, 'SHA256:$pdfHashHex');
-    // Rótulo com hash abreviado
-    lastG.drawString(
-      'Hash (SHA-256): ${pdfHashHex.substring(0, 16)}…',
-      pdf.PdfStandardFont(pdf.PdfFontFamily.helvetica, 9),
-      bounds: pdf.Rect.fromLTWH(qrX, qrY + qrSize + 6, 260, 12),
-    );
-
-    // Assinar
-  final p12Bytes = File('isaque_pmro.p12').readAsBytesSync();
-    final cert = pdf.PdfCertificate(p12Bytes, senha);
-
-    final signature = pdf.PdfSignature(
-      certificate: cert,
-      digestAlgorithm: pdf.DigestAlgorithm.sha256,
-      cryptographicStandard: pdf.CryptographicStandard.cms,
-      reason: 'Aprovacao de documento oficial da PMRO',
-      locationInfo: 'Rio das Ostras, RJ, Brasil',
-      contactInfo: 'isaque.santana@pmro.gov.br',
-      signedName: 'Isaque Neves Sant Ana',
-    );
-
-    // Campo de assinatura VISÍVEL (com aparência personalizada)
-    final field = pdf.PdfSignatureField(
-      lastPage,
-      'AssinaturaDigitalPMRO',
-      bounds: sigBounds,
+    final PdfExternalSigningResult prepared =
+        await PdfExternalSigning.preparePdf(
+      inputBytes: pdfWithQr,
+      pageNumber: 1,
+      bounds: PDRectangle(50, 120, 320, 95),
+      fieldName: 'AssinaturaDigitalPMRO',
       signature: signature,
-      borderWidth: 1,
-      borderStyle: pdf.PdfBorderStyle.solid,
-      borderColor: pdf.PdfColor(0, 51, 153),
-      backColor: pdf.PdfColor(255, 255, 255),
-    );
-  docSigned.form.fields.add(field);
-
-    // Desenha a aparência (AP/N) com informações úteis dentro do retângulo
-  final normalAp = field.appearance.normal; // cria o template /AP se necessário
-    final apG = normalAp.graphics!;
-
-    // Fundo e borda
-    apG.drawRectangle(
-      bounds: pdf.Rect.fromLTWH(0, 0, normalAp.size.width, normalAp.size.height),
-      pen: pdf.PdfPen(pdf.PdfColor(0, 51, 153), width: 1),
-      brush: pdf.PdfSolidBrush(pdf.PdfColor(255, 255, 255)),
     );
 
-    // Título e detalhes
-    final titleFont = pdf.PdfStandardFont(
-      pdf.PdfFontFamily.helvetica,
-      10,
-      style: pdf.PdfFontStyle.bold,
-    );
-    final textFont = pdf.PdfStandardFont(pdf.PdfFontFamily.helvetica, 9);
-
-    const double padX = 8;
-    const double padY = 6;
-    final double innerWidth = normalAp.size.width - (padX * 2);
-
-    apG.drawString(
-      'ASSINADO DIGITALMENTE',
-      titleFont,
-      bounds: pdf.Rect.fromLTWH(padX, padY, innerWidth, 14),
+    final Uint8List signedPdf = await _signWithOpenSsl(
+      preparedPdfBytes: prepared.preparedPdfBytes,
+      fieldName: 'AssinaturaDigitalPMRO',
+      keyPath: '${workDir.path}/user.key',
+      certPath: '${workDir.path}/user.pem',
+      chainPath: '${workDir.path}/ca_root.pem',
     );
 
-    final nowStr = DateTime.now().toString().substring(0, 19);
-    apG.drawString(
-      'Por: ${signature.signedName ?? 'Usuário'}',
-      textFont,
-      bounds: pdf.Rect.fromLTWH(padX, padY + 18, innerWidth, 12),
-    );
-    apG.drawString(
-      'E-mail: isaque.santana@pmro.gov.br',
-      textFont,
-      bounds: pdf.Rect.fromLTWH(padX, padY + 33, innerWidth, 12),
-    );
-    apG.drawString(
-      'Data/Hora: $nowStr',
-      textFont,
-      bounds: pdf.Rect.fromLTWH(padX, padY + 48, innerWidth, 12),
-    );
-
-    final pdfBytes = await docSigned.save();
-    docSigned.dispose();
-    File('documento_assinado_pmro.pdf').writeAsBytesSync(pdfBytes);
+    File('documento_assinado_pmro.pdf').writeAsBytesSync(signedPdf);
 
 
 
@@ -643,3 +519,191 @@ Future<void> _exec(List<String> cmd) async {
     print('  → $output');
   }
 }
+
+Uint8List _createBasePdf() {
+  final PDDocument document = PDDocument();
+  final PDPage page = PDPage();
+  document.addPage(page);
+
+  final PDPageContentStream stream = PDPageContentStream(document, page);
+  stream.saveGraphicsState();
+  stream.setLineWidth(2.5);
+  stream.setStrokingColorRgb(0.0, 0.2, 0.6);
+  stream.setNonStrokingColorRgb(0.941, 0.973, 1.0);
+  stream.rectangle(40, 40, 515, 220);
+  stream.fill();
+  stream.rectangle(40, 40, 515, 220);
+  stream.stroke();
+  stream.restoreGraphicsState();
+
+  final COSName fontResource = COSName.get('F1');
+  stream.resources.registerStandard14Font(fontResource, 'Helvetica');
+
+  stream.beginText();
+  stream.setNonStrokingColorRgb(0, 0, 0);
+  stream.setFont(fontResource, 10);
+  stream.setAutoLeading(12);
+  stream.newLineAtOffset(50, 240);
+  stream.showParagraph(
+    'PREFEITURA MUNICIPAL DE RIO DAS OSTRAS\n'
+    'Estado do Rio de Janeiro\n\n'
+    '═══════════════════════════════════════════════\n\n'
+    'DOCUMENTO OFICIALMENTE ASSINADO\n\n'
+    'Servidor: Isaque Neves Sant Ana\n'
+    'Matrícula: [informar]\n'
+    'E-mail: isaque.santana@pmro.gov.br\n'
+    'Setor: Tecnologia da Informação\n\n'
+    'Data/Hora: ${DateTime.now().toString().substring(0, 19)}\n'
+    'Localização: Rio das Ostras, RJ, Brasil\n\n'
+    'Este documento possui validade jurídica conforme\n'
+    'MP 2.200-2/2001 e Lei 14.063/2020',
+    trailingLineBreaks: 0,
+  );
+  stream.endText();
+
+  // Moldura visual da área de assinatura.
+  stream.setStrokingColorRgb(0.0, 0.2, 0.6);
+  stream.setLineWidth(1);
+  stream.rectangle(50, 120, 320, 95);
+  stream.stroke();
+
+  stream.close();
+
+  final Uint8List out = document.saveToBytes();
+  document.close();
+  return out;
+}
+
+Uint8List _appendQrAndHash(Uint8List basePdf, String pdfHashHex) {
+  final PDDocument document = PDDocument.loadFromBytes(basePdf);
+  try {
+    final PDPage page = document.getPage(0);
+    final PDPageContentStream stream = PDPageContentStream(
+      document,
+      page,
+      mode: PDPageContentMode.append,
+    );
+
+    final double sigX = 50;
+    final double sigY = 120;
+    final double sigW = 320;
+    const double qrSize = 95.0;
+    final double qrX = sigX + sigW + 20;
+    final double qrY = sigY;
+
+    _drawQr(stream, qrX, qrY, qrSize, 'SHA256:$pdfHashHex');
+
+    final COSName fontResource = COSName.get('F1');
+    stream.resources.registerStandard14Font(fontResource, 'Helvetica');
+    stream.beginText();
+    stream.setNonStrokingColorRgb(0, 0, 0);
+    stream.setFont(fontResource, 9);
+    stream.newLineAtOffset(qrX, qrY - 12);
+    stream.showText('Hash (SHA-256): ${pdfHashHex.substring(0, 16)}…');
+    stream.endText();
+    stream.close();
+
+    final Uint8List out = document.saveToBytes();
+    return out;
+  } finally {
+    document.close();
+  }
+}
+
+void _drawQr(
+  PDPageContentStream stream,
+  double x,
+  double y,
+  double size,
+  String data,
+) {
+  final qrCode = qr.QrCode.fromData(
+    data: data,
+    errorCorrectLevel: qr.QrErrorCorrectLevel.M,
+  );
+  final qrImage = qr.QrImage(qrCode);
+
+  final int count = qrImage.moduleCount;
+  final double cell = size / count;
+
+  stream.saveGraphicsState();
+  stream.setNonStrokingColorRgb(0, 0, 0);
+  for (int r = 0; r < count; r++) {
+    for (int c = 0; c < count; c++) {
+      if (qrImage.isDark(r, c)) {
+        stream.rectangle(x + c * cell, y + r * cell, cell, cell);
+        stream.fill();
+      }
+    }
+  }
+  stream.setStrokingColorRgb(0, 0, 0);
+  stream.setLineWidth(1);
+  stream.rectangle(x, y, size, size);
+  stream.stroke();
+  stream.restoreGraphicsState();
+}
+
+Future<Uint8List> _signWithOpenSsl({
+  required Uint8List preparedPdfBytes,
+  required String fieldName,
+  required String keyPath,
+  required String certPath,
+  String? chainPath,
+}) async {
+  final Directory tempDir =
+      await Directory.systemTemp.createTemp('pdfbox_dart_external_sign_');
+  try {
+    final List<int> ranges =
+        PdfExternalSigning.extractByteRange(preparedPdfBytes);
+    final int start1 = ranges[0];
+    final int len1 = ranges[1];
+    final int start2 = ranges[2];
+    final int len2 = ranges[3];
+
+    final List<int> part1 = preparedPdfBytes.sublist(start1, start1 + len1);
+    final List<int> part2 = preparedPdfBytes.sublist(start2, start2 + len2);
+
+    final String dataToSignPath =
+        '${tempDir.path}/data_to_sign_$fieldName.bin';
+    final IOSink sink = File(dataToSignPath).openWrite();
+    sink.add(part1);
+    sink.add(part2);
+    await sink.close();
+
+    final String sigPath = '${tempDir.path}/signature_$fieldName.p7s';
+    final List<String> args = <String>[
+      'openssl',
+      'smime',
+      '-sign',
+      '-binary',
+      '-in',
+      dataToSignPath.replaceAll('/', Platform.pathSeparator),
+      '-signer',
+      certPath.replaceAll('/', Platform.pathSeparator),
+      '-inkey',
+      keyPath.replaceAll('/', Platform.pathSeparator),
+      '-out',
+      sigPath.replaceAll('/', Platform.pathSeparator),
+      '-outform',
+      'DER',
+    ];
+    if (chainPath != null) {
+      args.addAll(<String>[
+        '-certfile',
+        chainPath.replaceAll('/', Platform.pathSeparator),
+      ]);
+    }
+
+    await _exec(args);
+
+    final Uint8List sigBytes =
+        Uint8List.fromList(File(sigPath).readAsBytesSync());
+    return PdfExternalSigning.embedSignature(
+      preparedPdfBytes: preparedPdfBytes,
+      pkcs7Bytes: sigBytes,
+    );
+  } finally {
+    await tempDir.delete(recursive: true);
+  }
+}
+

@@ -145,3 +145,4 @@ XPathSequence _opBooleanGreaterThan(
   XPathBoolean value1,
   XPathBoolean value2,
 ) => XPathSequence.single((value1 ? 1 : 0).compareTo(value2 ? 1 : 0) > 0);
+

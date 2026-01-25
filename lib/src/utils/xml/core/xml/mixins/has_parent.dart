@@ -46,3 +46,4 @@ mixin XmlHasParent<T extends XmlNode> implements XmlParentBase {
     _parent = null;
   }
 }
+

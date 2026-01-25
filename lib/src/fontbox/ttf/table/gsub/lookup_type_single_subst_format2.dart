@@ -21,3 +21,4 @@ class LookupTypeSingleSubstFormat2 extends LookupSubTable {
   String toString() =>
       'LookupTypeSingleSubstFormat2[substFormat=$substFormat,substituteGlyphIDs=$substituteGlyphIds]';
 }
+

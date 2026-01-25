@@ -1,4 +1,7 @@
 import 'package:logging/logging.dart';
+import 'package:pdfbox_dart/src/io/export.dart';
+import 'package:pdfbox_dart/src/pdfbox/util/pdf_date.dart';
+import 'package:pdfbox_dart/src/utils/xml/xml.dart';
 import '../../cos/cos_array.dart';
 import '../../cos/cos_base.dart';
 import '../../cos/cos_dictionary.dart';
@@ -66,7 +69,171 @@ abstract class FDFAnnotation implements COSObjectable {
   /// [a] The FDF annotation.
   FDFAnnotation.fromDictionary(this.annot);
 
-  // XML Element constructor skipped for now - XML dependency not ready.
+  /// Constructor from XML Element.
+  FDFAnnotation.fromXml(XmlElement element) : annot = COSDictionary() {
+    annot.setItem(COSName.type, COSName.annot);
+
+    String? page = element.getAttribute('page');
+    if (page == null || page.isEmpty) {
+      throw IOException("Error: missing required attribute 'page'");
+    }
+    setPage(int.parse(page));
+
+    String? color = element.getAttribute('color');
+    if (color != null && color.length == 7 && color.startsWith('#')) {
+      int colorValue = int.parse(color.substring(1), radix: 16);
+      setColor(_colorFromInt(colorValue));
+    }
+
+    setDate(element.getAttribute('date'));
+
+    String? flags = element.getAttribute('flags');
+    if (flags != null) {
+      List<String> flagTokens = flags.split(',');
+      for (String flagToken in flagTokens) {
+        switch (flagToken) {
+          case 'invisible':
+            setInvisible(true);
+            break;
+          case 'hidden':
+            setHidden(true);
+            break;
+          case 'print':
+            setPrinted(true);
+            break;
+          case 'nozoom':
+            setNoZoom(true);
+            break;
+          case 'norotate':
+            setNoRotate(true);
+            break;
+          case 'noview':
+            setNoView(true);
+            break;
+          case 'readonly':
+            setReadOnly(true);
+            break;
+          case 'locked':
+            setLocked(true);
+            break;
+          case 'togglenoview':
+            setToggleNoView(true);
+            break;
+        }
+      }
+    }
+
+    setName(element.getAttribute('name') ?? '');
+
+    String? rect = element.getAttribute('rect');
+    if (rect == null) {
+      throw IOException("Error: missing attribute 'rect'");
+    }
+    List<double> values = _parseRectangleAttributes(rect, "Error: wrong amount of numbers in attribute 'rect'");
+    setRectangle(PDRectangle(values[0], values[1], values[2] - values[0], values[3] - values[1]));
+    
+    setTitle(element.getAttribute('title') ?? '');
+
+    setCreationDate(PdfDate.parse(element.getAttribute('creationdate')) ?? DateTime.now());
+    
+    String? opac = element.getAttribute('opacity');
+    if (opac != null && opac.isNotEmpty) {
+      setOpacity(double.parse(opac));
+    }
+    
+    setSubject(element.getAttribute('subject') ?? '');
+
+    String? intent = element.getAttribute('intent');
+    if (intent == null || intent.isEmpty) {
+      intent = element.getAttribute('IT');
+    }
+    if (intent != null && intent.isNotEmpty) {
+      setIntent(intent);
+    }
+
+    // Contents
+    var contents = element.findElements('contents').firstOrNull;
+    if (contents != null) {
+      setContents(contents.innerText);
+    }
+
+    // Rich Contents
+    var richContents = element.findElements('contents-richtext').firstOrNull;
+    if (richContents != null) {
+      setRichContents(_richContentsToString(richContents, true));
+      setContents(richContents.innerText.trim());
+    }
+
+    PDBorderStyleDictionary borderStyle = PDBorderStyleDictionary(COSDictionary());
+    String? width = element.getAttribute('width');
+    if (width != null && width.isNotEmpty) {
+      borderStyle.width = double.parse(width);
+    }
+    
+    if (borderStyle.width > 0) {
+      String? style = element.getAttribute('style');
+      if (style != null && style.isNotEmpty) {
+        switch (style) {
+          case 'dash':
+            borderStyle.style = PDBorderStyleDictionary.styleDashed;
+            break;
+          case 'bevelled':
+            borderStyle.style = PDBorderStyleDictionary.styleBeveled;
+            break;
+          case 'inset':
+            borderStyle.style = PDBorderStyleDictionary.styleInset;
+            break;
+          case 'underline':
+            borderStyle.style = PDBorderStyleDictionary.styleUnderline;
+            break;
+          case 'cloudy':
+            borderStyle.style = PDBorderStyleDictionary.styleSolid;
+            PDBorderEffectDictionary borderEffect = PDBorderEffectDictionary(COSDictionary());
+            borderEffect.setStyle(PDBorderEffectDictionary.STYLE_CLOUDY);
+            String? intensity = element.getAttribute('intensity');
+            if (intensity != null && intensity.isNotEmpty) {
+              borderEffect.setIntensity(double.parse(intensity));
+            }
+            setBorderEffect(borderEffect);
+            break;
+          default:
+            borderStyle.style = PDBorderStyleDictionary.styleSolid;
+            break;
+        }
+      }
+      
+      String? dashes = element.getAttribute('dashes');
+      if (dashes != null && dashes.isNotEmpty) {
+        List<String> dashesValues = dashes.split(',');
+        List<double> dashPattern = [];
+        for (String dashesValue in dashesValues) {
+          dashPattern.add(double.parse(dashesValue));
+        }
+        borderStyle.dashPattern = dashPattern;
+      }
+      setBorderStyle(borderStyle);
+    }
+  }
+
+  List<double> _parseRectangleAttributes(String rect, String errorMessage) {
+    List<String> rectValues = rect.split(',');
+    if (rectValues.length != 4) {
+      throw IOException(errorMessage);
+    }
+    return rectValues.map((e) => double.parse(e)).toList();
+  }
+
+  List<double> _colorFromInt(int colorValue) {
+    int r = (colorValue >> 16) & 0xFF;
+    int g = (colorValue >> 8) & 0xFF;
+    int b = (colorValue >> 0) & 0xFF;
+    return [r / 255.0, g / 255.0, b / 255.0];
+  }
+  
+  String _richContentsToString(XmlNode node, bool root) {
+    return node.toXmlString();
+  }
+
 
   /// Create the correct FDFAnnotation.
   ///
@@ -77,43 +244,43 @@ abstract class FDFAnnotation implements COSObjectable {
     if (fdfDic == null) {
       return null;
     }
-    String? fdfDicName = fdfDic.getNameAsString(COSName.subtype);
-    if (FDFAnnotationText.SUBTYPE == fdfDicName) {
+    COSName? type = fdfDic.getCOSName(COSName.subtype);
+    if (COSName.text == type) {
       return FDFAnnotationText.fromDictionary(fdfDic);
-    } else if (FDFAnnotationCaret.SUBTYPE == fdfDicName) {
+    } else if (COSName.caret == type) {
       return FDFAnnotationCaret.fromDictionary(fdfDic);
-    } else if (FDFAnnotationFreeText.SUBTYPE == fdfDicName) {
+    } else if (COSName.freeText == type) {
       return FDFAnnotationFreeText.fromDictionary(fdfDic);
-    } else if (FDFAnnotationFileAttachment.SUBTYPE == fdfDicName) {
+    } else if (COSName.fileAttachment == type) {
       return FDFAnnotationFileAttachment.fromDictionary(fdfDic);
-    } else if (FDFAnnotationHighlight.SUBTYPE == fdfDicName) {
+    } else if (COSName.highlight == type) {
       return FDFAnnotationHighlight.fromDictionary(fdfDic);
-    } else if (FDFAnnotationInk.SUBTYPE == fdfDicName) {
+    } else if (COSName.ink == type) {
       return FDFAnnotationInk.fromDictionary(fdfDic);
-    } else if (FDFAnnotationLine.SUBTYPE == fdfDicName) {
+    } else if (COSName.line == type) {
       return FDFAnnotationLine.fromDictionary(fdfDic);
-    } else if (FDFAnnotationLink.SUBTYPE == fdfDicName) {
+    } else if (COSName.link == type) {
       return FDFAnnotationLink.fromDictionary(fdfDic);
-    } else if (FDFAnnotationCircle.SUBTYPE == fdfDicName) {
+    } else if (COSName.circle == type) {
       return FDFAnnotationCircle.fromDictionary(fdfDic);
-    } else if (FDFAnnotationSquare.SUBTYPE == fdfDicName) {
+    } else if (COSName.square == type) {
       return FDFAnnotationSquare.fromDictionary(fdfDic);
-    } else if (FDFAnnotationPolygon.SUBTYPE == fdfDicName) {
+    } else if (COSName.polygon == type) {
       return FDFAnnotationPolygon.fromDictionary(fdfDic);
-    } else if (FDFAnnotationPolyline.SUBTYPE == fdfDicName) {
+    } else if (COSName.polyline == type) {
       return FDFAnnotationPolyline.fromDictionary(fdfDic);
-    } else if (FDFAnnotationSound.SUBTYPE == fdfDicName) {
+    } else if (COSName.sound == type) {
       return FDFAnnotationSound.fromDictionary(fdfDic);
-    } else if (FDFAnnotationSquiggly.SUBTYPE == fdfDicName) {
+    } else if (COSName.squiggly == type) {
       return FDFAnnotationSquiggly.fromDictionary(fdfDic);
-    } else if (FDFAnnotationStamp.SUBTYPE == fdfDicName) {
+    } else if (COSName.stamp == type) {
       return FDFAnnotationStamp.fromDictionary(fdfDic);
-    } else if (FDFAnnotationStrikeOut.SUBTYPE == fdfDicName) {
+    } else if (COSName.strikeOut == type) {
       return FDFAnnotationStrikeOut.fromDictionary(fdfDic);
-    } else if (FDFAnnotationUnderline.SUBTYPE == fdfDicName) {
+    } else if (COSName.underline == type) {
       return FDFAnnotationUnderline.fromDictionary(fdfDic);
     } else {
-      _log.warning("Unknown or unsupported annotation type '$fdfDicName'");
+      _log.warning("Unknown or unsupported annotation type '${type?.name}'");
       return null;
     }
   }
@@ -456,3 +623,4 @@ abstract class FDFAnnotation implements COSObjectable {
 
   // richContentsToString omitted as it uses XML Node/Element.
 }
+

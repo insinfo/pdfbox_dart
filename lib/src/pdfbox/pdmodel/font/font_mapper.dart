@@ -26,3 +26,4 @@ abstract class FontMapper {
     PDCIDSystemInfo? cidSystemInfo,
   );
 }
+

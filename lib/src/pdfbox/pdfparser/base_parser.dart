@@ -476,3 +476,4 @@ class _NumericToken {
   final int length;
   final int digitCount;
 }
+

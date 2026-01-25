@@ -362,3 +362,4 @@ class COSDictionary extends COSBase {
     return false;
   }
 }
+

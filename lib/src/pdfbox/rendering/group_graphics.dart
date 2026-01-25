@@ -530,3 +530,4 @@ class GroupGraphics implements Graphics2D {
     return c.clamp(0, 255);
   }
 }
+

@@ -252,3 +252,4 @@ List<int> _rgbBytes(List<double> rgb) {
   final b = (rgb[2].clamp(0.0, 1.0) * 255).round();
   return <int>[r, g, b];
 }
+

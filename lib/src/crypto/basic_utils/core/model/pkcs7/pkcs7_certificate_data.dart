@@ -44,3 +44,4 @@ class Pkcs7CertificateData {
     return val;
   }
 }
+

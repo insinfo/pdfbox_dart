@@ -20,3 +20,4 @@ class XmlPrefixName extends XmlName {
   @override
   XmlPrefixName copy() => XmlPrefixName(prefix, local, qualified);
 }
+

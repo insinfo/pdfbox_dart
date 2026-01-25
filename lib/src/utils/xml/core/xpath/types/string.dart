@@ -65,3 +65,4 @@ void _stringForNodeOn(XmlNode node, StringBuffer buffer) {
     buffer.write(node.value ?? '');
   }
 }
+

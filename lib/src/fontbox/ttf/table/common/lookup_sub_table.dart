@@ -8,3 +8,4 @@ abstract class LookupSubTable {
 
   int doSubstitution(int glyphId, int coverageIndex);
 }
+

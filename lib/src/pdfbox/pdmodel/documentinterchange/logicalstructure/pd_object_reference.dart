@@ -18,3 +18,4 @@ class PDObjectReference implements COSObjectable {
   @override
   COSDictionary get cosObject => _dictionary;
 }
+

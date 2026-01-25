@@ -21,3 +21,4 @@ class PDComboBox extends PDChoice {
   /// Set the Edit bit.
   set isEdit(bool edit) => cosObject.setFlag(COSName.ff, FLAG_EDIT, edit);
 }
+

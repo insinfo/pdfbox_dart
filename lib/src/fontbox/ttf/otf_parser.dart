@@ -33,3 +33,4 @@ class OtfParser extends TtfParser {
   @override
   bool allowCff() => true;
 }
+

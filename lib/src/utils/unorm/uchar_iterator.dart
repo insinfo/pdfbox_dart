@@ -25,3 +25,4 @@ class UCharIterator implements UnormIterator {
     }
   }
 }
+

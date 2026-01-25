@@ -245,3 +245,4 @@ class X509Certificate {
   int version;
   int serial;
 }
+

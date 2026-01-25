@@ -37,3 +37,4 @@ mixin XmlEventVisitor {
   /// Visit an [XmlCommentEvent] event.
   void visitTextEvent(XmlTextEvent event) {}
 }
+

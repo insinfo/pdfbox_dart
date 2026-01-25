@@ -162,3 +162,4 @@ class PDType1Font extends PDSimpleFont implements PDVectorFont {
     }
   }
 }
+

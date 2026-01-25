@@ -252,3 +252,4 @@ const List<_CharEntry> _entries = <_CharEntry>[
   _CharEntry(227, 'ydieresis'),
   _CharEntry(228, 'zcaron'),
 ];
+

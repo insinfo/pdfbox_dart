@@ -84,3 +84,4 @@ class RectangleOperator extends OperatorProcessor {
     context.appendRectangle(x, y, width, height);
   }
 }
+

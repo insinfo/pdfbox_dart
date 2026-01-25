@@ -54,3 +54,4 @@ class LzwSink extends ByteConversionSink {
     _sink.close();
   }
 }
+

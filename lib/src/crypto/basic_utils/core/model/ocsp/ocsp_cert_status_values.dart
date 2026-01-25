@@ -7,3 +7,4 @@
 ///```
 ///
 enum OCSPCertStatusValues { GOOD, REVOKED, UNKNOWN }
+

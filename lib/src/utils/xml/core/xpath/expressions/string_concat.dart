@@ -17,3 +17,4 @@ class StringConcatExpression implements XPathExpression {
     return XPathSequence.single(buffer.toString());
   }
 }
+

@@ -20,3 +20,4 @@ class XmlCache<K, V> {
     return _values[key]!;
   }
 }
+

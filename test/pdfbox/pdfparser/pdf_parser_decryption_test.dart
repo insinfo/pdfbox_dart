@@ -218,3 +218,4 @@ List<String> _idHexes(dynamic idArray) {
   final secondHex = second is COSString ? _toHex(second.bytes) : '00';
   return <String>['<$firstHex>', '<$secondHex>'];
 }
+

@@ -41,3 +41,4 @@ class XmlStartElementEvent extends XmlEvent with XmlNamed {
         attributes,
       );
 }
+

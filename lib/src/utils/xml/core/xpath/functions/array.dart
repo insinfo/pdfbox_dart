@@ -496,3 +496,4 @@ XPathSequence _arrayFlatten(XPathContext context, XPathSequence input) {
   }
   return XPathSequence(result);
 }
+

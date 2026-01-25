@@ -13,3 +13,4 @@ class SequenceTable {
   String toString() =>
       'SequenceTable{glyphCount=$glyphCount, substituteGlyphIDs=$substituteGlyphIds}';
 }
+

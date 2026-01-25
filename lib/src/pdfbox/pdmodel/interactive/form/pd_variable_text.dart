@@ -136,3 +136,4 @@ abstract class PDVariableText extends PDTerminalField {
     return String.fromCharCodes(codeUnits);
   }
 }
+

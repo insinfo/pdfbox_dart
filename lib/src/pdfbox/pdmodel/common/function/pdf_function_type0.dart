@@ -329,3 +329,4 @@ class _BitReader {
     return value;
   }
 }
+

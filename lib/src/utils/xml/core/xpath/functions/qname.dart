@@ -206,3 +206,4 @@ const fnInScopePrefixes = XPathFunctionDefinition(
 
 XPathSequence _fnInScopePrefixes(XPathContext context, XPathSequence element) =>
     throw UnimplementedError('fn:in-scope-prefixes');
+

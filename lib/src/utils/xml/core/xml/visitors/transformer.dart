@@ -73,3 +73,4 @@ class XmlTransformer {
   XmlHasVisitor visitOther(XmlHasVisitor node) =>
       throw StateError('Unknown node type: ${node.runtimeType}');
 }
+

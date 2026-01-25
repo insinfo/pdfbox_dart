@@ -59,3 +59,4 @@ Map<String, List<int>> _parseGlyphList(File file) {
   }
   return result;
 }
+

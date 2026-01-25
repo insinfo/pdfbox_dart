@@ -301,3 +301,4 @@ class _VariationCoordinatesStub implements VariationCoordinateProvider {
   @override
   List<double> get normalizedVariationCoordinates => coordinates;
 }
+

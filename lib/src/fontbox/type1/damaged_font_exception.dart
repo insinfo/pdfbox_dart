@@ -4,3 +4,4 @@ import '../../io/exceptions.dart';
 class DamagedFontException extends IOException {
   DamagedFontException(String message) : super(message);
 }
+

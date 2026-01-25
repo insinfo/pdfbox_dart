@@ -41,3 +41,4 @@ class XmlAncestorsIterator implements Iterator<XmlNode> {
     return _current != null;
   }
 }
+

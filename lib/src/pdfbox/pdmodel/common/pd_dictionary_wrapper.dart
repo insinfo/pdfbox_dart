@@ -20,3 +20,4 @@ class PDDictionaryWrapper implements COSObjectable {
   @override
   int get hashCode => _dictionary.hashCode;
 }
+

@@ -103,3 +103,4 @@ class StandardStructureTypes {
 
   StandardStructureTypes._();
 }
+

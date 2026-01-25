@@ -8,3 +8,4 @@ abstract class ResolvableParser<R> implements Parser<R> {
   @useResult
   Parser<R> resolve();
 }
+

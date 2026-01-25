@@ -739,3 +739,4 @@ int _getCharacterMirror(int char) {
       return char;
   }
 }
+

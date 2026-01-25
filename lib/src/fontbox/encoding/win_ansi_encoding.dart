@@ -237,3 +237,4 @@ const List<List<String>> _winAnsiEncodingTable = <List<String>>[
   ['0240', 'nbspace'],
   ['0255', 'sfthyphen'],
 ];
+

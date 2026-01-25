@@ -28,3 +28,4 @@ extension XPathBooleanExtension on Object {
     XPathEvaluationException.unsupportedCast(self, 'boolean');
   }
 }
+

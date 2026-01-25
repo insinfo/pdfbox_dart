@@ -195,3 +195,4 @@ class GsubWorkerForGujarati implements GsubWorker {
     return List<int>.unmodifiable(glyphIds);
   }
 }
+

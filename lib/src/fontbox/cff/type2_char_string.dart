@@ -301,3 +301,4 @@ class Type2CharString extends Type1CharString {
     return result;
   }
 }
+

@@ -45,3 +45,4 @@ abstract class CharacterParser extends Parser<String> {
       predicate.isEqualTo(other.predicate) &&
       message == other.message;
 }
+

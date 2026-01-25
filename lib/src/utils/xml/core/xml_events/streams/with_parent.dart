@@ -117,3 +117,4 @@ class _XmlWithParentEventsSink
   @override
   void visitTextEvent(XmlTextEvent event) => event.attachParent(currentParent);
 }
+

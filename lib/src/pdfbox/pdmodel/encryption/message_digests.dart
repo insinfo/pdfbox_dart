@@ -42,3 +42,4 @@ class MessageDigests {
 
   static MessageDigest getSHA256() => MessageDigest._(crypto.sha256);
 }
+

@@ -94,3 +94,4 @@ class _StreamObjectHeader {
   final int offset;
   final int generationNumber = 0;
 }
+

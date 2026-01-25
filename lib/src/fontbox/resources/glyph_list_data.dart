@@ -4489,3 +4489,4 @@ const Map<String, List<int>> kZapfDingbatsGlyphListHex = <String, List<int>>{
   'a9': <int>[0x2720],
   'space': <int>[0x20],
 };
+

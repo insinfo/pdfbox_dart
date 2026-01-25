@@ -14,3 +14,4 @@ class FDFPageInfo implements COSObjectable {
   @override
   COSDictionary get cosObject => _pageInfo;
 }
+

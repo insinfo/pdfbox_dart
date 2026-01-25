@@ -25,3 +25,4 @@ void main() {
         equals(PDDeviceGray.instance.getInitialColor().components));
   });
 }
+

@@ -306,3 +306,4 @@ XPathSequence _nodeSetOperation(
   result.sort((a, b) => a.compareNodePosition(b));
   return XPathSequence(result);
 }
+

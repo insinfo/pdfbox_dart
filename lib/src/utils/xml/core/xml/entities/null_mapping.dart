@@ -22,3 +22,4 @@ class XmlNullEntityMapping extends XmlEntityMapping {
   @override
   String encodeAttributeValue(String input, XmlAttributeType type) => input;
 }
+

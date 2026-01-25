@@ -10,3 +10,4 @@ class RevokedCertificate {
   /// The extensions
   CrlEntryExtensionsData? extensions;
 }
+

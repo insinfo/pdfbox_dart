@@ -119,3 +119,4 @@ class X509CertificatePublicKeyData {
     exponent = info.exponent;
   }
 }
+

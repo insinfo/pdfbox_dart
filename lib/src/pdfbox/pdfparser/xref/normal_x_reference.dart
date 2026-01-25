@@ -44,3 +44,4 @@ class NormalXReference extends AbstractXReference {
     return '$prefix{ key=$key, type=${type.numericValue}, byteOffset=$byteOffset }';
   }
 }
+

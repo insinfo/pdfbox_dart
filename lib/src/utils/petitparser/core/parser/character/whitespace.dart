@@ -10,3 +10,4 @@ import 'predicate/whitespace.dart';
 @useResult
 Parser<String> whitespace({String message = 'whitespace expected'}) =>
     CharacterParser(const WhitespaceCharPredicate(), message);
+

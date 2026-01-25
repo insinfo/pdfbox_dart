@@ -114,3 +114,4 @@ class CidGlyphMapping {
 
   bool get isNotdef => cid == 0 || gid == 0;
 }
+

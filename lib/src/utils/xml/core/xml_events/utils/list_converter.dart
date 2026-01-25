@@ -18,3 +18,4 @@ abstract class XmlListConverter<S, T> extends Converter<List<S>, List<T>> {
     return list;
   }
 }
+

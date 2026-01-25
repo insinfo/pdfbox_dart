@@ -6,6 +6,26 @@ import '../../cos/cos_name.dart';
 import '../../cos/cos_stream.dart';
 import '../../cos/cos_string.dart';
 import '../common/pd_file_specification.dart';
+import 'fdf_field.dart';
+import 'fdf_annotation_text.dart';
+import 'fdf_annotation_caret.dart';
+import 'fdf_annotation_free_text.dart';
+import 'fdf_annotation_file_attachment.dart';
+import 'fdf_annotation_highlight.dart';
+import 'fdf_annotation_ink.dart';
+import 'fdf_annotation_line.dart';
+import 'fdf_annotation_link.dart';
+import 'fdf_annotation_circle.dart';
+import 'fdf_annotation_square.dart';
+import 'fdf_annotation_polygon.dart';
+import 'fdf_annotation_polyline.dart';
+import 'fdf_annotation_sound.dart';
+import 'fdf_annotation_squiggly.dart';
+import 'fdf_annotation_stamp.dart';
+import 'fdf_annotation_strike_out.dart';
+import 'fdf_annotation_underline.dart';
+import 'package:pdfbox_dart/src/utils/xml/xml.dart';
+
 
 /// FDF dictionary that is part of the FDF document.
 /// Ported from org.apache.pdfbox.pdmodel.fdf.FDFDictionary
@@ -239,6 +259,120 @@ class FDFDictionary implements COSObjectable {
     _dictionary.setItem(COSName.javaScript, js);
   }
 
+  /// Constructor from XML Element.
+  FDFDictionary.fromXml(XmlElement fdfXML) : _dictionary = COSDictionary() {
+    for (var child in fdfXML.children) {
+      if (child is XmlElement) {
+        switch (child.name.local) {
+          case 'f':
+            PDSimpleFileSpecification fs = PDSimpleFileSpecification(COSString(''));
+            fs.file = child.getAttribute('href');
+            setFile(fs);
+            break;
+          case 'ids':
+            COSArray ids = COSArray();
+            String? original = child.getAttribute('original');
+            String? modified = child.getAttribute('modified');
+            if (original != null) {
+              try {
+                ids.add(COSString.fromHex(original));
+              } catch (e) {
+                // Log warning ignored
+              }
+            }
+            if (modified != null) {
+              try {
+                ids.add(COSString.fromHex(modified));
+              } catch (e) {
+                // Log warning ignored
+              }
+            }
+            id = ids;
+            break;
+          case 'fields':
+            List<COSDictionary> fieldList = [];
+            for (var fieldNode in child.children) {
+              if (fieldNode is XmlElement && fieldNode.name.local == 'field') {
+                 try {
+                   fieldList.add(FDFField.fromXml(fieldNode).cosObject);
+                 } catch(e) {
+                   // Log warning ignored
+                 }
+              }
+            }
+            setFields(fieldList);
+            break;
+          case 'annots':
+            List<COSDictionary> annotList = [];
+            for (var annotNode in child.children) {
+              if (annotNode is XmlElement) {
+                String annotationName = annotNode.name.local;
+                try {
+                   switch (annotationName) {
+                    case "text":
+                      annotList.add(FDFAnnotationText.fromXml(annotNode).cosObject);
+                      break;
+                    case "caret":
+                      annotList.add(FDFAnnotationCaret.fromXml(annotNode).cosObject);
+                      break;
+                    case "freetext":
+                      annotList.add(FDFAnnotationFreeText.fromXml(annotNode).cosObject);
+                      break;
+                    case "fileattachment":
+                      annotList.add(FDFAnnotationFileAttachment.fromXml(annotNode).cosObject);
+                      break;
+                    case "highlight":
+                      annotList.add(FDFAnnotationHighlight.fromXml(annotNode).cosObject);
+                      break;
+                    case "ink":
+                      annotList.add(FDFAnnotationInk.fromXml(annotNode).cosObject);
+                      break;
+                    case "line":
+                      annotList.add(FDFAnnotationLine.fromXml(annotNode).cosObject);
+                      break;
+                    case "link":
+                      annotList.add(FDFAnnotationLink.fromXml(annotNode).cosObject);
+                      break;
+                    case "circle":
+                      annotList.add(FDFAnnotationCircle.fromXml(annotNode).cosObject);
+                      break;
+                    case "square":
+                      annotList.add(FDFAnnotationSquare.fromXml(annotNode).cosObject);
+                      break;
+                    case "polygon":
+                      annotList.add(FDFAnnotationPolygon.fromXml(annotNode).cosObject);
+                      break;
+                    case "polyline":
+                      annotList.add(FDFAnnotationPolyline.fromXml(annotNode).cosObject);
+                      break;
+                    case "sound":
+                      annotList.add(FDFAnnotationSound.fromXml(annotNode).cosObject);
+                      break;
+                    case "squiggly":
+                      annotList.add(FDFAnnotationSquiggly.fromXml(annotNode).cosObject);
+                      break;
+                    case "stamp":
+                      annotList.add(FDFAnnotationStamp.fromXml(annotNode).cosObject);
+                      break;
+                    case "strikeout":
+                      annotList.add(FDFAnnotationStrikeOut.fromXml(annotNode).cosObject);
+                      break;
+                    case "underline":
+                      annotList.add(FDFAnnotationUnderline.fromXml(annotNode).cosObject);
+                      break;
+                   }
+                } catch (e) {
+                  // Log warning
+                }
+              }
+            }
+            setAnnotations(annotList);
+            break;
+        }
+      }
+    }
+  }
+
   /// This will write this element as an XML document.
   /// [output] The stream to write the xml to.
   /// Throws IOException if there is an error writing the XML.
@@ -246,7 +380,7 @@ class FDFDictionary implements COSObjectable {
     try {
       final fs = getFile();
       if (fs != null) {
-        output.write('<f href="${fs.file}" />\n');
+        output.write('<f href="${_escapeXML(fs.file ?? '')}" />\n');
       }
       
       final ids = id;
@@ -262,11 +396,22 @@ class FDFDictionary implements COSObjectable {
       final fields = getFields();
       if (fields != null && fields.isNotEmpty) {
         output.write('<fields>\n');
-        // TODO: Write field XML when FDFField is ported
+        for (final fieldDict in fields) {
+            FDFField.fromDictionary(fieldDict).writeXML(output);
+        }
         output.write('</fields>\n');
       }
     } catch (e) {
       throw IOException('Error writing FDF dictionary XML: $e');
     }
   }
+  
+  String _escapeXML(String input) {
+    return input.replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&apos;');
+  }
 }
+

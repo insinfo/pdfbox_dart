@@ -169,3 +169,4 @@ class PDSignature implements COSObjectable {
     throw StateError('Expected number in ByteRange but found ${base.runtimeType}');
   }
 }
+

@@ -92,3 +92,4 @@ class VerticalMetricsTable extends TtfTable {
         : _additionalTopSideBearing.last;
   }
 }
+

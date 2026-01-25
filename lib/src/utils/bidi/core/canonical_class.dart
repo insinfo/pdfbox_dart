@@ -1499,3 +1499,4 @@ const Map<int, _CanonicalClass> _canonicalClass = {
   0xFE2C: _CanonicalClass.below,
   0xFE2D: _CanonicalClass.below,
 };
+

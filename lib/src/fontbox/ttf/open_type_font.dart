@@ -132,3 +132,4 @@ class OpenTypeFont extends TrueTypeFont {
     return super.getGlyphTable();
   }
 }
+

@@ -12,3 +12,4 @@ import 'predicate/word.dart';
 @useResult
 Parser<String> word({String message = 'letter or digit expected'}) =>
     CharacterParser(const WordCharPredicate(), message);
+

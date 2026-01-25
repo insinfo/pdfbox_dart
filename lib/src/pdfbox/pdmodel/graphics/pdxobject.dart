@@ -112,3 +112,4 @@ class PDImageXObject extends PDXObject {
   set structParent(int value) => cosObject.setInt(COSName.structParent, value);
 }
 
+

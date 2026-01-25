@@ -7,3 +7,4 @@ enum XReferenceType {
 
   final int numericValue;
 }
+

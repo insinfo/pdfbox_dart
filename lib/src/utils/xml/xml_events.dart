@@ -96,3 +96,4 @@ Iterable<XmlEvent> parseEvents(
   withLocation: withLocation,
   withParent: withParent,
 );
+

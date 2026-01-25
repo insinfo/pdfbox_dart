@@ -27,3 +27,4 @@ class PublicKeyRecipient {
   /// Java compatibility helper retained for future ports.
   void setPermission(AccessPermission? value) => permission = value;
 }
+

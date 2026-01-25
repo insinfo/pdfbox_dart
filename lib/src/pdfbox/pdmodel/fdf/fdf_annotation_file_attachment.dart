@@ -1,3 +1,4 @@
+import '../../../utils/xml/xml.dart';
 import '../../cos/cos_dictionary.dart';
 import '../../cos/cos_name.dart';
 import 'fdf_annotation.dart';
@@ -9,11 +10,17 @@ class FDFAnnotationFileAttachment extends FDFAnnotation {
 
   /// Default constructor.
   FDFAnnotationFileAttachment() : super() {
-    annot.setName(COSName.subtype, SUBTYPE);
+    annot.setItem(COSName.subtype, COSName.fileAttachment);
   }
 
   /// Constructor.
   ///
   /// [a] An existing FDF Annotation.
   FDFAnnotationFileAttachment.fromDictionary(COSDictionary a) : super.fromDictionary(a);
+
+  /// Constructor from XML Element.
+  FDFAnnotationFileAttachment.fromXml(XmlElement element) : super.fromXml(element) {
+    annot.setItem(COSName.subtype, COSName.fileAttachment);
+  }
 }
+

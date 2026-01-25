@@ -14,3 +14,4 @@ class _Stack<T> {
     return lastElement;
   }
 }
+

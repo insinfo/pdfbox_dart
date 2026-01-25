@@ -176,3 +176,4 @@ class XmlEventHandler with XmlEventVisitor {
   @override
   void visitTextEvent(XmlTextEvent event) => onText?.call(event);
 }
+

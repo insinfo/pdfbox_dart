@@ -176,3 +176,4 @@ class EncryptionResultImpl implements EncryptionResult {
       const ListEquality().equals(
           other.additionalAuthenticatedData, additionalAuthenticatedData);
 }
+

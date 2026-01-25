@@ -45,3 +45,4 @@ CFFCIDFont createSimpleCidFont() {
 
   return font;
 }
+

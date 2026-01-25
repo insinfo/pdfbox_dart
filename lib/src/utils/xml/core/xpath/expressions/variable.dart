@@ -28,3 +28,4 @@ class LiteralExpression implements XPathExpression {
   @override
   XPathSequence call(XPathContext context) => value;
 }
+

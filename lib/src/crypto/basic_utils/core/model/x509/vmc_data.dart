@@ -62,3 +62,4 @@ class VmcData {
     return 'data:$type;base64,$base64Logo';
   }
 }
+

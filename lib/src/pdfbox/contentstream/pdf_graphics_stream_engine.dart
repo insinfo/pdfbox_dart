@@ -116,3 +116,4 @@ class PDFGraphicsStreamEngine extends PDFStreamEngine {
     _hasCurrentPoint = true;
   }
 }
+

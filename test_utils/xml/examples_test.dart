@@ -8,3 +8,4 @@ void main() {
     test(entry.key, () => assertDocumentParseInvariants(entry.value));
   }
 }
+

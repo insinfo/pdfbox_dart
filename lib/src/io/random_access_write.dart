@@ -11,4 +11,11 @@ abstract class RandomAccessWrite implements Closeable {
 
   /// Clears all accumulated data.
   void clear();
+
+  /// Sets the current position in the stream.
+  void setPosition(int position);
+
+  /// Returns the current position in the stream.
+  int get position;
 }
+

@@ -175,3 +175,4 @@ class LzwDecoder extends LzwConverter {
     if (_options.earlyChange) _maxCode --;
   }
 }
+

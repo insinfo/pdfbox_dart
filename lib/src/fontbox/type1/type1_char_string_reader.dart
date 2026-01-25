@@ -5,3 +5,4 @@ abstract class Type1CharStringReader {
   /// Returns the Type 1 CharString associated with [name].
   Type1CharString getType1CharString(String name);
 }
+

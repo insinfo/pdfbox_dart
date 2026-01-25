@@ -59,3 +59,4 @@ class PDFunctionType4 extends PDFunction {
     throw StateError('Type 4 function must be backed by a stream');
   }
 }
+

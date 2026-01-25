@@ -11,20 +11,19 @@ import 'package:pdfbox_dart/basic_utils.dart';
 Future<void> main(List<String> args) async {
   if (args.isEmpty) {
     print(
-        'Uso: dart scripts/validate_pdf_signature.dart <arquivo.pdf> [--verbose]');
+        'Uso: dart scripts/validate_pdf_signature.dart <arquivo.pdf>');
     exit(64);
   }
   final filePath = args.first;
-  final verbose = args.contains('--verbose');
   final pdfBytes = await File(filePath).readAsBytes();
 
-  String? userCrtPem;
+  String? userCertificatePem;
   if (File('user.crt').existsSync()) {
-    userCrtPem = File('user.crt').readAsStringSync();
+    userCertificatePem = File('user.crt').readAsStringSync();
   }
 
   final result = PdfSignatureValidation()
-      .validatePdfSignature(pdfBytes, verbose: verbose, userCrtPem: userCrtPem);
+      .validatePdfSignature(pdfBytes, userCertificatePem: userCertificatePem);
 
   print('\n=== Resultado da Validação (puro Dart) ===');
   print('Arquivo: $filePath');
@@ -51,3 +50,4 @@ Future<void> main(List<String> args) async {
     print('Cadeia: apenas certificado do assinante presente no CMS.');
   }
 }
+

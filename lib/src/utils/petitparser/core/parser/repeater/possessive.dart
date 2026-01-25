@@ -111,3 +111,4 @@ class PossessiveRepeatingParser<R> extends RepeatingParser<R, List<R>> {
   PossessiveRepeatingParser<R> copy() =>
       PossessiveRepeatingParser<R>(delegate, min, max);
 }
+

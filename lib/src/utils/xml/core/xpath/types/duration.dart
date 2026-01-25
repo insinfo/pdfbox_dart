@@ -18,3 +18,4 @@ extension XPathDurationExtension on Object {
     XPathEvaluationException.unsupportedCast(self, 'duration');
   }
 }
+

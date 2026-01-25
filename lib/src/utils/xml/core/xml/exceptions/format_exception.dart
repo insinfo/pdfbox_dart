@@ -33,3 +33,4 @@ mixin XmlFormatException implements FormatException {
   @override
   int? get offset => position;
 }
+

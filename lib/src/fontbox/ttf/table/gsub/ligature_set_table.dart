@@ -14,3 +14,4 @@ class LigatureSetTable {
   @override
   String toString() => 'LigatureSetTable[ligatureCount=$ligatureCount]';
 }
+

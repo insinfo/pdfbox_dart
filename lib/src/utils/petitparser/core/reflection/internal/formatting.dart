@@ -12,3 +12,4 @@ String formatIterable<T>(Iterable<T> objects, {int? offset}) {
   }
   return buffer.toString();
 }
+

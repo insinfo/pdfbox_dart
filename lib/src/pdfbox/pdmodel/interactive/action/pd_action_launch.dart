@@ -42,3 +42,4 @@ class PDActionLaunch extends PDAction {
 
   set windowsLaunchParams(COSDictionary? value) => setItem(COSName.win, value);
 }
+

@@ -13,3 +13,4 @@ class FontMapping<T> {
   /// Returns `true` when a concrete font instance is available.
   bool get hasFont => font != null;
 }
+

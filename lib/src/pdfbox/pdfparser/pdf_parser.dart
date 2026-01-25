@@ -180,3 +180,4 @@ class PDFParser extends COSParser {
     return null;
   }
 }
+

@@ -38,3 +38,4 @@ void main() {
     expect(pattern.patternResources, isNotNull);
   });
 }
+

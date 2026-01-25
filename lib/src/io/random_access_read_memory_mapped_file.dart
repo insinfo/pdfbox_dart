@@ -50,3 +50,4 @@ class RandomAccessReadMemoryMappedFile extends RandomAccessRead {
     return _delegate.createView(startPosition, streamLength);
   }
 }
+

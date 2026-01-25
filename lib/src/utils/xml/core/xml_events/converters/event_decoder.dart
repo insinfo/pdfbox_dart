@@ -137,3 +137,4 @@ class _XmlEventDecoderSink extends StringConversionSinkBase {
     sink.close();
   }
 }
+

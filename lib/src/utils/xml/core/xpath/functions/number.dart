@@ -684,3 +684,4 @@ XPathSequence _fnRandomNumberGenerator(
       XPathSequence(args[0].shuffled(random));
   return XPathSequence.single(generator);
 }
+

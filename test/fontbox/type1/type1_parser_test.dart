@@ -233,3 +233,4 @@ currentfile eexec
     expect(notdef.getPath().commands.length, equals(0));
   });
 }
+

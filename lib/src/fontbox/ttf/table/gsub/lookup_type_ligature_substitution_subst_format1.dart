@@ -23,3 +23,4 @@ class LookupTypeLigatureSubstitutionSubstFormat1 extends LookupSubTable {
   String toString() =>
       'LookupTypeLigatureSubstitutionSubstFormat1[substFormat=$substFormat]';
 }
+

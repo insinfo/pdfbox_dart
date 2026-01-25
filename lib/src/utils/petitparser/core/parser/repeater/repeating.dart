@@ -22,3 +22,4 @@ abstract class RepeatingParser<T, R> extends DelegateParser<T, R> {
   bool hasEqualProperties(RepeatingParser<T, R> other) =>
       super.hasEqualProperties(other) && min == other.min && max == other.max;
 }
+

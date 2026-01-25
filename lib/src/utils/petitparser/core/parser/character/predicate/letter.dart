@@ -10,3 +10,4 @@ class LetterCharPredicate extends CharacterPredicate {
   @override
   bool isEqualTo(CharacterPredicate other) => other is LetterCharPredicate;
 }
+

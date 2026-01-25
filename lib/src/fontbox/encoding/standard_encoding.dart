@@ -163,3 +163,4 @@ const List<List<String>> _standardEncodingTable = [
   ['0172', 'z'],
   ['0060', 'zero'],
 ];
+

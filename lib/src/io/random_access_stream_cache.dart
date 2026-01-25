@@ -6,3 +6,4 @@ typedef StreamCacheCreateFunction = RandomAccessStreamCache Function();
 abstract class RandomAccessStreamCache implements Closeable {
   RandomAccess createBuffer();
 }
+

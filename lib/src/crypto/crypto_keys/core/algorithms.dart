@@ -435,3 +435,4 @@ class DefaultSecureRandom implements pc.SecureRandom {
     throw UnsupportedError('Seed not supported for this SecureRandom');
   }
 }
+

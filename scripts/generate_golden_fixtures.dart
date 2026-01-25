@@ -243,3 +243,4 @@ void _writeTextStripperBasicPdf(File outFile) {
     doc.close();
   }
 }
+

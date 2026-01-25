@@ -27,3 +27,4 @@ abstract class GlyphDescription {
   /// Resolves composite references. No-op for simple glyphs.
   void resolve();
 }
+

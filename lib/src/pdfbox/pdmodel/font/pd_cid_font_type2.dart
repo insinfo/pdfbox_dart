@@ -375,3 +375,4 @@ class PDCIDFontType2 extends PDCIDFont {
 		return scaled;
 	}
 }
+

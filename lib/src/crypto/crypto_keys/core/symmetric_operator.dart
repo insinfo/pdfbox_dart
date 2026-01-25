@@ -93,3 +93,4 @@ class _SymmetricEncrypter extends Encrypter<SymmetricKey> {
         authenticationTag: tag);
   }
 }
+

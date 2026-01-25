@@ -156,3 +156,4 @@ class PfbParser {
         (bytes[offset + 3] << 24);
   }
 }
+

@@ -11,3 +11,4 @@ class SequenceExpression implements XPathExpression {
   XPathSequence call(XPathContext context) =>
       XPathSequence(expressions.expand((expression) => expression(context)));
 }
+

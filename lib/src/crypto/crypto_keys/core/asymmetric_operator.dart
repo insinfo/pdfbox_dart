@@ -171,3 +171,4 @@ Iterable<int> _bigIntToBytes(BigInt v, int length) sync* {
 BigInt _bigIntFromBytes(Iterable<int> bytes) {
   return bytes.fold(BigInt.zero, (a, b) => a * _b256 + BigInt.from(b));
 }
+

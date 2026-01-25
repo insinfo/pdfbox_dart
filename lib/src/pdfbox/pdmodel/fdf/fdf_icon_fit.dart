@@ -102,3 +102,4 @@ class FDFIconFit implements COSObjectable {
     _dictionary.setBoolean(COSName.fb, value);
   }
 }
+

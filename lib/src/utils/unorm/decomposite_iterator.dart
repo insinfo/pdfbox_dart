@@ -36,3 +36,4 @@ class DecompositeIterator implements UnormIterator {
     return _resultBuffer.isEmpty ? null : _resultBuffer.removeAt(0);
   }
 }
+

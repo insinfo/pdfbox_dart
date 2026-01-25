@@ -50,3 +50,4 @@ class RangesCharPredicate extends CharacterPredicate {
 }
 
 const _listEquality = ListEquality<int>();
+

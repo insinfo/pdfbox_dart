@@ -35,3 +35,4 @@ class PDGamma implements COSObjectable {
 
   set b(double value) => _values[2] = COSFloat(value);
 }
+

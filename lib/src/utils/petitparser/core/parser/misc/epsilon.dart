@@ -38,3 +38,4 @@ class EpsilonParser<R> extends Parser<R> {
   bool hasEqualProperties(EpsilonParser<R> other) =>
       super.hasEqualProperties(other) && result == other.result;
 }
+

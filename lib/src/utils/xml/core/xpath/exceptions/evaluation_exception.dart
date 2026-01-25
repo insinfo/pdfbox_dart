@@ -98,3 +98,4 @@ class XPathEvaluationException extends XmlException {
   @override
   String toString() => 'XPathEvaluationException: $message';
 }
+

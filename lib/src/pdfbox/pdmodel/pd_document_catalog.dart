@@ -316,3 +316,4 @@ class PDDocumentCatalog {
     return dict;
   }
 }
+

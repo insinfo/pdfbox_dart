@@ -24,3 +24,4 @@ Uint8List _createLogTable() {
   }
   return list;
 }
+

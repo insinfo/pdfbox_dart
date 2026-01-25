@@ -33,3 +33,4 @@ class CastListParser<R, S> extends DelegateParser<R, List<S>> {
   @override
   CastListParser<R, S> copy() => CastListParser<R, S>(delegate);
 }
+

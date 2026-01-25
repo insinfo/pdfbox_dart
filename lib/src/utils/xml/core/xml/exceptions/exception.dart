@@ -6,3 +6,4 @@ abstract class XmlException implements Exception {
   /// A message describing the XML error.
   final String message;
 }
+

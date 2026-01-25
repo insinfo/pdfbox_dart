@@ -47,3 +47,4 @@ mixin XmlNamed implements XmlHasParent {
     return index > 0 ? name.substring(index + 1) : name;
   }
 }
+

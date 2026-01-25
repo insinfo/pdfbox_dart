@@ -189,3 +189,4 @@ const List<_ExpertCharEntry> _entries = <_ExpertCharEntry>[
   _ExpertCharEntry(377, 'Thornsmall'),
   _ExpertCharEntry(378, 'Ydieresissmall'),
 ];
+

@@ -343,3 +343,4 @@ class UnusedResult extends LinterRule {
       parser is TokenParser ||
       parser is WhereParser;
 }
+

@@ -25,3 +25,4 @@ class DecodeOptions {
 
   bool get honored => true;
 }
+

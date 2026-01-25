@@ -324,3 +324,4 @@ const Map<String, Object> standardFunctions = {
   'iri-to-uri': uri.fnIriToUri,
   'escape-html-uri': uri.fnEscapeHtmlUri,
 };
+

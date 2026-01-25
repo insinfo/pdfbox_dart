@@ -8,3 +8,4 @@ class FilterDecodeResult {
   final Uint8List data;
   final DecodeResult decodeResult;
 }
+

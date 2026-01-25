@@ -82,3 +82,4 @@ class SubjectPublicKeyInfo {
     return val;
   }
 }
+

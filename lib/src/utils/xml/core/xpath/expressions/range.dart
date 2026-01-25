@@ -28,3 +28,4 @@ class RangeExpression implements XPathExpression {
     return XPathSequence.range(start, end);
   }
 }
+

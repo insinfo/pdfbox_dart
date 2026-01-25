@@ -8,3 +8,4 @@ class OCSPResponse {
 
   OCSPResponse(this.responseStatus, {this.basicOCSPResponse});
 }
+

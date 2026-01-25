@@ -71,3 +71,4 @@ class FDFTemplate implements COSObjectable {
     _template.setBoolean(COSName.rename, value);
   }
 }
+

@@ -191,3 +191,4 @@ class BitInputStream {
 
   bool get isEof => _byteOffset >= _data.length;
 }
+

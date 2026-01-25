@@ -125,3 +125,4 @@ class SelfAxis implements Axis {
   @override
   Iterable<XPathNode> find(XPathNode node) => [node];
 }
+

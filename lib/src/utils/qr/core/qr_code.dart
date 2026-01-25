@@ -284,3 +284,4 @@ QrPolynomial _errorCorrectPolynomial(int errorCorrectLength) {
 
   return a;
 }
+

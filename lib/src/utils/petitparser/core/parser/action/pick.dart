@@ -46,3 +46,4 @@ class PickParser<R> extends DelegateParser<List<R>, R> {
   bool hasEqualProperties(PickParser<R> other) =>
       super.hasEqualProperties(other) && index == other.index;
 }
+

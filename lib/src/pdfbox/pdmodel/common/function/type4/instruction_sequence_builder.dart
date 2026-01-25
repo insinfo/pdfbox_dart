@@ -54,3 +54,4 @@ class InstructionSequenceBuilder extends AbstractSyntaxHandler {
     _currentSequence.addName(token);
   }
 }
+

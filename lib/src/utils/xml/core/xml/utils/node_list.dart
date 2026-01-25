@@ -195,3 +195,4 @@ class XmlNodeList<E extends XmlNode> extends DelegatingList<E> {
     return expanded;
   }
 }
+

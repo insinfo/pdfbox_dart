@@ -18,3 +18,4 @@ class QrErrorCorrectLevel {
     _ => throw ArgumentError('level $level not supported'),
   };
 }
+

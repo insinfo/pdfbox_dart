@@ -32,3 +32,4 @@ class CastParser<R, S> extends DelegateParser<R, S> {
   @override
   CastParser<R, S> copy() => CastParser<R, S>(delegate);
 }
+

@@ -39,3 +39,4 @@ String? lookupNamespacePrefix(XmlNode? start, String uri) {
   }
   return null;
 }
+

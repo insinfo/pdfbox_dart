@@ -47,3 +47,4 @@ class PDDeviceCMYK extends PDDeviceColorSpace {
   }
 }
 
+

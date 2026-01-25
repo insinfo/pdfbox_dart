@@ -122,3 +122,4 @@ class PDShadingType4 extends PDTriangleBasedShadingType {
     return list;
   }
 }
+

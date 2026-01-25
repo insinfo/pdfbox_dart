@@ -10,3 +10,4 @@ class PDPostScriptXObject extends PDXObject {
   PDPostScriptXObject.fromCOSStream(COSStream stream)
       : super.fromCOSStream(stream, COSName.ps);
 }
+

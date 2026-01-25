@@ -172,3 +172,4 @@ extension RecordParserExtension6<T1, T2, T3, T4, T5, T6>
     bool hasSideEffects = false,
   }) => map((record) => record.map(callback), hasSideEffects: hasSideEffects);
 }
+

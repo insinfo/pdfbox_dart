@@ -82,3 +82,4 @@ class DictionaryEncoding extends Encoding {
       return name;
   }
 }
+

@@ -50,3 +50,4 @@ extension XPathBinaryExtension on Object {
     throw XPathEvaluationException.unsupportedCast(self, 'hexBinary');
   }
 }
+

@@ -1,6 +1,7 @@
 import '../../../cos/cos_array.dart';
 import '../../../cos/cos_dictionary.dart';
 import '../../../cos/cos_name.dart';
+import '../../../cos/cos_object.dart';
 import '../annotation/pd_annotation_widget.dart';
 import 'pd_acro_form.dart';
 import 'pd_field.dart';
@@ -21,7 +22,10 @@ class PDNonTerminalField extends PDField {
 
     final children = <PDField>[];
     for (var i = 0; i < kids.length; i++) {
-      final kid = kids.getObject(i);
+      var kid = kids.getObject(i);
+      if (kid is COSObject) {
+         kid = kid.object;
+      }
       if (kid is COSDictionary) {
         // Avoid infinite recursion if child is same as parent
         if (kid == cosObject) {
@@ -50,3 +54,4 @@ class PDNonTerminalField extends PDField {
     return [];
   }
 }
+

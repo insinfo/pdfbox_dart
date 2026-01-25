@@ -12,3 +12,4 @@ class PDAppearanceStream extends PDFormXObject {
   PDAppearanceStream.forDocument(PDDocument document)
       : super.forDocument(document);
 }
+

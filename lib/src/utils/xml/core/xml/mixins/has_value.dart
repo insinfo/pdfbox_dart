@@ -20,3 +20,4 @@ mixin XmlValueBase {
   )
   String get text => XmlStringExtension(this as XmlNode).innerText;
 }
+

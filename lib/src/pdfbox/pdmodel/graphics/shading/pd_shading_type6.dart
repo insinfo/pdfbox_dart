@@ -11,3 +11,4 @@ class PDShadingType6 extends PDMeshBasedShadingType {
     return CoonsPatch(points, color);
   }
 }
+

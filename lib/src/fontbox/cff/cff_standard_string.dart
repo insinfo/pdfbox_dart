@@ -404,3 +404,4 @@ class CFFStandardString {
     'Semibold',
   ];
 }
+

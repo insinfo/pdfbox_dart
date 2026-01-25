@@ -94,3 +94,4 @@ class ASCIIHexFilter extends Filter {
     return -1;
   }
 }
+

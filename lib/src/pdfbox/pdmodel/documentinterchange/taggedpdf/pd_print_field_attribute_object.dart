@@ -52,3 +52,4 @@ class PDPrintFieldAttributeObject extends PDStandardAttributeObject {
     return buffer.toString();
   }
 }
+

@@ -264,3 +264,4 @@ class _RSAPkcs7SignerInfoBuilder extends Pkcs7SignerInfoBuilder {
     return issuer.generateSignature(privateKey, message, digestAlgorithm);
   }
 }
+

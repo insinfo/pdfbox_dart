@@ -183,3 +183,4 @@ class PDPageFitRectangleDestination extends PDPageDestination {
 
   set top(double? value) => _setNumber(5, value);
 }
+

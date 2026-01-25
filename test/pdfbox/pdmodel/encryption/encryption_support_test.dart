@@ -26,15 +26,7 @@ import 'package:test/test.dart';
 import 'package:pointycastle/export.dart' as pc;
 
 X509Certificate _buildDummyCertificate() {
-  final algorithm = AlgorithmIdentifier(
-    const ObjectIdentifier(<int>[1, 2, 840, 113549, 1, 1, 1]),
-    null,
-  );
-  return X509Certificate(
-    const TbsCertificate(),
-    algorithm,
-    const <int>[],
-  );
+  return X509Certificate(null);
 }
 
 void main() {
@@ -730,3 +722,4 @@ const String _passwordSample256UEHex =
     'a1cb3e2397771d525d6e1814a2140983b865465ed3977ab2288667d42ed9b519';
 
 const String _passwordSample256PermsHex = '385e3d765015923322c76d74ef59a531';
+

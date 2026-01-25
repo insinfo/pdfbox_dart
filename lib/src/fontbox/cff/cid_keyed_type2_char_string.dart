@@ -26,3 +26,4 @@ class CIDKeyedType2CharString extends Type2CharString {
   /// Returns the character identifier represented by this charstring.
   int get cidValue => cid;
 }
+

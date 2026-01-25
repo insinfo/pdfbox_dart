@@ -72,3 +72,4 @@ XPathSequence _fnTrace(
   context.onTraceCallback?.call(value, label);
   return value;
 }
+

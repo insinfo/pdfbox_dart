@@ -1072,3 +1072,4 @@ const fnParseIetfDate = XPathFunctionDefinition(
 
 XPathSequence _fnParseIetfDate(XPathContext context, [XPathString? value]) =>
     throw UnimplementedError('fn:parse-ietf-date');
+

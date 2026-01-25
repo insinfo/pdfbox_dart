@@ -35,3 +35,4 @@ class ParserPattern implements Pattern {
     return end < 0 ? null : ParserMatch(this, string, start, end);
   }
 }
+

@@ -18,3 +18,4 @@ const preferInlineWasm = pragma('wasm:prefer-inline');
 const noBoundsChecks = isJavaScript ? noBoundsChecksJs : noBoundsChecksVm;
 const noBoundsChecksJs = pragma('dart2js:index-bounds:trust');
 const noBoundsChecksVm = pragma('vm:unsafe:no-bounds-checks');
+

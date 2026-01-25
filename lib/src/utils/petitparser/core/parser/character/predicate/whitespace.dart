@@ -48,3 +48,4 @@ class WhitespaceCharPredicate extends CharacterPredicate {
   @override
   bool isEqualTo(CharacterPredicate other) => other is WhitespaceCharPredicate;
 }
+

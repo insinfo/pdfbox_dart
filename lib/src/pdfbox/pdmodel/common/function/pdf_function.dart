@@ -165,3 +165,4 @@ abstract class PDFunction implements COSObjectable {
     return _range;
   }
 }
+

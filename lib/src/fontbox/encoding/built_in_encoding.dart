@@ -5,3 +5,4 @@ class BuiltInEncoding extends Encoding {
     codeToName.forEach(addCharacterEncoding);
   }
 }
+

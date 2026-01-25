@@ -272,3 +272,4 @@ class TtfParser {
     return intPart + (fracPart / 65536.0);
   }
 }
+

@@ -89,3 +89,4 @@ class EndPathOperator extends OperatorProcessor {
     context.endPath();
   }
 }
+

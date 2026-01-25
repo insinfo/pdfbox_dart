@@ -30,3 +30,4 @@ class PDMetadata extends PDStream {
     cosStream.setName(COSName.subtype, 'XML');
   }
 }
+

@@ -54,3 +54,4 @@ class LzwCodec extends Codec<List<int>, List<int>> {
    */
   Converter<List<int>, List<int>> get decoder => new LzwDecoder(options);
 }
+

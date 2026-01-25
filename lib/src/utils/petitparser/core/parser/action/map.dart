@@ -58,3 +58,4 @@ class MapParser<R, S> extends DelegateParser<R, S> {
   MapParser<R, S> copy() =>
       MapParser<R, S>(delegate, callback, hasSideEffects: hasSideEffects);
 }
+

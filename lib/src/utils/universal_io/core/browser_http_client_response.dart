@@ -11,3 +11,4 @@ mixin BrowserHttpClientResponse on HttpClientResponse {
 
   set browserResponse(dynamic value);
 }
+

@@ -8,3 +8,4 @@ class EndTextOperator extends OperatorProcessor {
     context.endText();
   }
 }
+

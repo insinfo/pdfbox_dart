@@ -22,3 +22,4 @@ class ParsedStream {
   DecodeResult? get lastDecodeResult =>
       decodeResults.isEmpty ? null : decodeResults.last;
 }
+

@@ -16,3 +16,4 @@ extension XPathArrayExtension on Object {
     XPathEvaluationException.unsupportedCast(self, 'array');
   }
 }
+

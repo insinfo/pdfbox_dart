@@ -16,3 +16,4 @@ class LookupTypeSingleSubstFormat1 extends LookupSubTable {
   String toString() =>
       'LookupTypeSingleSubstFormat1[substFormat=$substFormat,deltaGlyphID=$deltaGlyphId]';
 }
+

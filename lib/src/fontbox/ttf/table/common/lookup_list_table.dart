@@ -10,3 +10,4 @@ class LookupListTable {
   @override
   String toString() => 'LookupListTable[lookupCount=$lookupCount]';
 }
+

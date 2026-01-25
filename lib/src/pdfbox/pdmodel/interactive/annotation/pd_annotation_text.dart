@@ -35,3 +35,4 @@ class PDAnnotationText extends PDAnnotation {
 
   set stateModel(String? value) => dictionary.setString(COSName.stateModel, value);
 }
+

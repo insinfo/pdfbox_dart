@@ -82,3 +82,4 @@ Future<void> main(List<String> arguments) async {
   final targetPath = p.join(repoRoot, 'lib', 'src', 'fontbox', 'cmap', 'predefined_cmaps.dart');
   await File(targetPath).writeAsString(buffer.toString());
 }
+

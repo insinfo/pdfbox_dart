@@ -682,3 +682,4 @@ class Type1Parser {
     return out;
   }
 }
+

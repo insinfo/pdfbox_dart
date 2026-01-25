@@ -113,3 +113,4 @@ XPathSequence _fnEscapeHtmlUri(XPathContext context, XPathString? uri) {
   // Simple implementation using Uri.encodeFull which is similar to what's required
   return XPathSequence.single(Uri.encodeFull(val));
 }
+

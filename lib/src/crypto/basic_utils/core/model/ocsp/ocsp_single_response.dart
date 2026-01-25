@@ -16,3 +16,4 @@ class OCSPSingleResponse {
 
   OCSPSingleResponse(this.certStatus, this.thisUpdate);
 }
+

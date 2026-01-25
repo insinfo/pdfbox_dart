@@ -38,3 +38,4 @@ enum RenderingMode {
       this == RenderingMode.fillStrokeClip ||
       this == RenderingMode.neitherClip;
 }
+

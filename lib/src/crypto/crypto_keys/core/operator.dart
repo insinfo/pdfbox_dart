@@ -76,3 +76,4 @@ abstract class EncryptionResult {
       Uint8List? authenticationTag,
       Uint8List? additionalAuthenticatedData}) = EncryptionResultImpl;
 }
+

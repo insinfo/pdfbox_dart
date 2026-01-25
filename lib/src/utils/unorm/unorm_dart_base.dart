@@ -46,3 +46,4 @@ String nfc(String str) => _normalize(_NormalizeMode.NFC, str);
 
 /// Normalizes provided [str] with Compatibility Decomposition, followed by Canonical Composition.
 String nfkc(String str) => _normalize(_NormalizeMode.NFKC, str);
+

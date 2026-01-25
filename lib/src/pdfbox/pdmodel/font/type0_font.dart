@@ -290,3 +290,4 @@ class Type0Glyph extends CidGlyphMapping {
     return buffer.toString();
   }
 }
+

@@ -49,3 +49,4 @@ class FontHeaders {
     _otfSupplement = supplement;
   }
 }
+

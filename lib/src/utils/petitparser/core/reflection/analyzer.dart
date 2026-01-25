@@ -112,3 +112,4 @@ class Analyzer {
   /// computations.
   static final sentinel = EpsilonParser<void>(null);
 }
+

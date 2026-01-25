@@ -83,3 +83,4 @@ class XmlTagException extends XmlException with XmlFormatException {
   @override
   String toString() => 'XmlTagException: $message$locationString';
 }
+

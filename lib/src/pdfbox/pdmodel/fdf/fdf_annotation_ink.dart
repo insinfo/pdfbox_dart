@@ -1,5 +1,6 @@
+import '../../../utils/xml/xml.dart';
 import '../../cos/cos_array.dart';
-import '../../cos/cos_base.dart';
+
 import '../../cos/cos_dictionary.dart';
 import '../../cos/cos_float.dart';
 import '../../cos/cos_name.dart';
@@ -12,7 +13,7 @@ class FDFAnnotationInk extends FDFAnnotation {
 
   /// Default constructor.
   FDFAnnotationInk() : super() {
-    annot.setName(COSName.subtype, SUBTYPE);
+    annot.setItem(COSName.subtype, COSName.ink);
   }
 
   /// Constructor.
@@ -20,35 +21,38 @@ class FDFAnnotationInk extends FDFAnnotation {
   /// [a] An existing FDF Annotation.
   FDFAnnotationInk.fromDictionary(COSDictionary a) : super.fromDictionary(a);
 
+  /// Constructor from XML Element.
+  FDFAnnotationInk.fromXml(XmlElement element) : super.fromXml(element) {
+    annot.setItem(COSName.subtype, COSName.ink);
+  }
+
   /// Set the paths making up the freehand "scribble".
-  ///
-  /// The ink annotation is made up of one ore more disjoint paths. Each array entry is an array representing a stroked
-  /// path, being a series of alternating horizontal and vertical coordinates in default user space.
-  ///
-  /// [inklist] the List of arrays representing the paths.
-  void setInkList(List<List<double>> inklist) {
-    COSArray newInklist = COSArray();
-    for (List<double> array in inklist) {
-      newInklist.add(COSArray(array.map((e) => COSFloat(e)).toList()));
+  void setInkList(List<List<double>> inkList) {
+    COSArray newInkList = COSArray();
+    for (List<double> path in inkList) {
+      COSArray newPath = COSArray();
+      for(double d in path) {
+        newPath.add(COSFloat(d));
+      }
+      newInkList.add(newPath);
     }
-    annot.setItem(COSName.inkList, newInklist);
+    annot.setItem(COSName.inkList, newInkList);
   }
 
   /// Get the paths making up the freehand "scribble".
-  ///
-  /// Returns the List of arrays representing the paths.
   List<List<double>>? getInkList() {
-    COSArray? array = annot.getCOSArray(COSName.inkList);
-    if (array != null) {
+    COSArray? inkList = annot.getCOSArray(COSName.inkList);
+    if (inkList != null) {
       List<List<double>> retval = [];
-      for (COSBase entry in array) {
-        if (entry is COSArray) {
-          retval.add(entry.toDoubleList());
+      for (int i = 0; i < inkList.length; i++) {
+        COSArray? path = inkList.getObject(i) as COSArray?;
+        if (path != null) {
+           retval.add(path.toDoubleList());
         }
       }
       return retval;
-    } else {
-      return null;
     }
+    return null;
   }
 }
+

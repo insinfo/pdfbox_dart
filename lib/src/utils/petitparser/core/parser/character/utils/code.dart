@@ -26,3 +26,4 @@ const _escapedChars = {
   0x27: r"\'", // single quote
   0x5c: r'\\', // backslash
 };
+

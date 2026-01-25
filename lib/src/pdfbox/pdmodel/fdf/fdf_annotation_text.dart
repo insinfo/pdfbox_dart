@@ -1,3 +1,4 @@
+import 'package:pdfbox_dart/src/utils/xml/xml.dart';
 import '../../cos/cos_dictionary.dart';
 import '../../cos/cos_name.dart';
 import '../interactive/annotation/pd_annotation_text.dart';
@@ -10,13 +11,30 @@ class FDFAnnotationText extends FDFAnnotation {
 
   /// Default constructor.
   FDFAnnotationText() : super() {
-    annot.setName(COSName.subtype, SUBTYPE);
+    annot.setItem(COSName.subtype, COSName.text);
   }
 
   /// Constructor.
   ///
   /// [a] An existing FDF Annotation.
   FDFAnnotationText.fromDictionary(COSDictionary a) : super.fromDictionary(a);
+
+  /// Constructor from XML Element.
+  FDFAnnotationText.fromXml(XmlElement element) : super.fromXml(element) {
+    annot.setItem(COSName.subtype, COSName.text);
+    String? icon = element.getAttribute('icon');
+    if (icon != null) {
+      setIcon(icon);
+    }
+    String? state = element.getAttribute('state');
+    if (state != null) {
+      setState(state);
+    }
+    String? stateModel = element.getAttribute('statemodel');
+    if (stateModel != null) {
+      setStateModel(stateModel);
+    }
+  }
 
   /// This will set the icon (and hence appearance, AP taking precedence) For this annotation. See the
   /// PDAnnotationText.NAME_XXX constants for valid values.
@@ -62,3 +80,5 @@ class FDFAnnotationText extends FDFAnnotation {
     annot.setString(COSName.stateModel, stateModel);
   }
 }
+
+

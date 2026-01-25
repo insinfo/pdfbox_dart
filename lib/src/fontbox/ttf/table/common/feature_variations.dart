@@ -94,3 +94,4 @@ FeatureVariationCondition? _readConditionTable(
 }
 
 double _fromF2Dot14(int value) => value / 16384.0;
+

@@ -6,3 +6,4 @@ class DigitalSignatureTable extends TtfTable {
 
   DigitalSignatureTable();
 }
+

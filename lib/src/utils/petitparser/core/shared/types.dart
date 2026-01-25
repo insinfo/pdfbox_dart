@@ -8,3 +8,4 @@ typedef Predicate<T> = Callback<T, bool>;
 
 /// A generic void callback with an argument of type [T], but no return value.
 typedef VoidCallback<T> = Callback<T, void>;
+

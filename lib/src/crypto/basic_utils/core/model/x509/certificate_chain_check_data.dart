@@ -33,3 +33,4 @@ class CertificateChainCheckData {
     return valid;
   }
 }
+

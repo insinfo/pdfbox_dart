@@ -332,3 +332,4 @@ const fnTransform = XPathFunctionDefinition(
 XPathSequence _fnTransform(XPathContext context, [XPathMap? options]) {
   throw UnimplementedError('fn:transform');
 }
+

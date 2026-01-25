@@ -67,3 +67,4 @@ abstract class COSBase implements COSObjectable {
   /// Allows subclasses to detect dirty nested objects.
   bool hasDirtyDescendant(Set<COSBase> visited) => false;
 }
+

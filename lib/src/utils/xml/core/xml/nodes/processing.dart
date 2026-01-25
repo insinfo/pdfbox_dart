@@ -19,3 +19,4 @@ class XmlProcessing extends XmlData {
   @override
   void accept(XmlVisitor visitor) => visitor.visitProcessing(this);
 }
+

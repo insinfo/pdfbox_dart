@@ -29,3 +29,4 @@ String get operatingSystemVersion {
 }
 
 HttpClient newHttpClient() => HttpClient();
+

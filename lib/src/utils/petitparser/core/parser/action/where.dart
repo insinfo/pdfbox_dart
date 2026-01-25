@@ -64,3 +64,4 @@ class WhereParser<R> extends DelegateParser<R, R> {
 FailureFactory<R> defaultFactory_<R>(String? message) =>
     (context, success) =>
         context.failure(message ?? 'unexpected "${success.value}"');
+

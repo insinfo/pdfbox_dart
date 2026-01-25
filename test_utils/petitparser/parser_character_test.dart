@@ -618,3 +618,4 @@ void main() {
     test('ranges', () => stress(RangesCharPredicate.fromRanges));
   });
 }
+

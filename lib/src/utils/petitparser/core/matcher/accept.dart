@@ -7,3 +7,4 @@ extension AcceptParser<R> on Parser<R> {
   /// `letter().plus().accept('123')` returns `false`.
   bool accept(String input, {int start = 0}) => fastParseOn(input, start) >= 0;
 }
+

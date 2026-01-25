@@ -52,3 +52,4 @@ class PDFourColours implements COSObjectable {
     _array[index] = base;
   }
 }
+

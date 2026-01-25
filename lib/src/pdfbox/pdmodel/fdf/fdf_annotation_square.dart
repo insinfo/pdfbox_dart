@@ -1,3 +1,4 @@
+import 'package:pdfbox_dart/src/utils/xml/xml.dart';
 import '../../cos/cos_array.dart';
 import '../../cos/cos_dictionary.dart';
 import '../../cos/cos_float.dart';
@@ -12,13 +13,40 @@ class FDFAnnotationSquare extends FDFAnnotation {
 
   /// Default constructor.
   FDFAnnotationSquare() : super() {
-    annot.setName(COSName.subtype, SUBTYPE);
+    annot.setItem(COSName.subtype, COSName.square);
   }
 
   /// Constructor.
   ///
   /// [a] An existing FDF Annotation.
   FDFAnnotationSquare.fromDictionary(COSDictionary a) : super.fromDictionary(a);
+
+  /// Constructor from XML Element.
+  FDFAnnotationSquare.fromXml(XmlElement element) : super.fromXml(element) {
+    annot.setItem(COSName.subtype, COSName.square);
+    String? intervalColor = element.getAttribute('interior-color');
+    if (intervalColor != null) {
+      if (intervalColor.isNotEmpty) {
+        List<double> color = [];
+        for (String s in intervalColor.split(',')) {
+          color.add(double.parse(s));
+        }
+        setInteriorColor(color);
+      }
+    }
+    String? fringe = element.getAttribute('fringe');
+    if (fringe != null) {
+      if (fringe.isNotEmpty) {
+        List<double> fringes = [];
+        for (String s in fringe.split(',')) {
+          fringes.add(double.parse(s));
+        }
+        if (fringes.length == 4) {
+          setFringe(PDRectangle(fringes[0], fringes[1], fringes[2], fringes[3]));
+        }
+      }
+    }
+  }
 
   /// This will set interior color of the drawn area.
   ///
@@ -59,3 +87,4 @@ class FDFAnnotationSquare extends FDFAnnotation {
     return rd != null ? PDRectangle.fromCOSArray(rd) : null;
   }
 }
+

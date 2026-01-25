@@ -12,3 +12,4 @@ abstract class XReferenceEntry implements Comparable<XReferenceEntry> {
 
   int get thirdColumnValue;
 }
+

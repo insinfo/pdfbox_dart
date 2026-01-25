@@ -245,3 +245,4 @@ XPathSequence _mapForEach(
   }
   return XPathSequence(result);
 }
+

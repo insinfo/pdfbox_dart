@@ -49,3 +49,4 @@ class EndOfInputParser extends Parser<void> {
   bool hasEqualProperties(EndOfInputParser other) =>
       super.hasEqualProperties(other) && message == other.message;
 }
+

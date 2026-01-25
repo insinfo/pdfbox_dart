@@ -195,3 +195,4 @@ TrueTypeFont _buildSubsetFont(Uint8List data) {
   final parser = TtfParser(isEmbedded: true);
   return parser.parse(RandomAccessReadBuffer.fromBytes(data));
 }
+

@@ -58,3 +58,4 @@ class SeparatedList<R, S> {
   @override
   String toString() => '$runtimeType$sequential';
 }
+

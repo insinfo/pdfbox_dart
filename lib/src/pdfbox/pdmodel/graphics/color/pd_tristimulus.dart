@@ -51,3 +51,4 @@ class PDTristimulus implements COSObjectable {
 
   set z(double value) => _values[2] = COSFloat(value);
 }
+

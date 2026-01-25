@@ -890,3 +890,4 @@ void _setTypes(
     textData[i].type = newType;
   }
 }
+

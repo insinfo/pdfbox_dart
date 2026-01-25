@@ -69,3 +69,4 @@ CharacterPredicate optimizedRanges(
     return LookupCharPredicate.fromRanges(mergedRanges);
   }
 }
+

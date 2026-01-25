@@ -5,3 +5,4 @@ enum ImageType {
   RGB,
   ARGB,
 }
+

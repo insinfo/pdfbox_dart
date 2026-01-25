@@ -207,3 +207,4 @@ class Predictor {
     return cleared | (truncated << startBit);
   }
 }
+

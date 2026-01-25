@@ -123,3 +123,4 @@ void main() {
             : 'Missing golden PNG: ${expectedPng.path}');
   }
 }
+

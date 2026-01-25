@@ -212,3 +212,4 @@ class Platform {
   /// build details.
   static String get version => '';
 }
+

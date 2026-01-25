@@ -174,3 +174,4 @@ class _Segment {
   final int length;
   final int cumulativeStart;
 }
+

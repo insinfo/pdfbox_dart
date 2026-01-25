@@ -331,3 +331,4 @@ class ScratchFile implements RandomAccessStreamCache {
     }
   }
 }
+

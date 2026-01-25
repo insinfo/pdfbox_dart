@@ -15,3 +15,4 @@ class COSBoolean extends COSBase {
   @override
   String toString() => value ? 'true' : 'false';
 }
+

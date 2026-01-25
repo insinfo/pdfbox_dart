@@ -31,3 +31,4 @@ abstract class AbstractXReference implements XReferenceEntry {
     return currentKey.generationNumber.compareTo(otherKey.generationNumber);
   }
 }
+

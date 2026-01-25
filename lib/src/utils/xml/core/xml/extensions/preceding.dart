@@ -56,3 +56,4 @@ class XmlPrecedingIterator implements Iterator<XmlNode> {
     }
   }
 }
+

@@ -63,3 +63,4 @@ class PDSoftMask implements COSObjectable {
   Matrix? getInitialTransformationMatrix() =>
       _initialTransformationMatrix?.clone();
 }
+

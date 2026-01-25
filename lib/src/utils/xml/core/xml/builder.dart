@@ -456,3 +456,4 @@ class NodeBuilder {
 
 typedef Callback = void Function();
 typedef CallbackWithBuilder = void Function(XmlBuilder builder);
+

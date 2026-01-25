@@ -2,6 +2,7 @@ import '../../../cos/cos_array.dart';
 import '../../../cos/cos_base.dart';
 import '../../../cos/cos_dictionary.dart';
 import '../../../cos/cos_name.dart';
+import '../../../cos/cos_object.dart';
 
 import '../../../cos/cos_document.dart';
 import '../../../cos/cos_string.dart';
@@ -67,7 +68,10 @@ class PDAcroForm implements COSObjectable {
     }
     final result = <PDField>[];
     for (var i = 0; i < fieldsArray.length; i++) {
-      final item = fieldsArray.getObject(i);
+      var item = fieldsArray.getObject(i);
+      if (item is COSObject) {
+        item = item.object;
+      }
       if (item is COSDictionary) {
         final field = PDFieldFactory.createField(this, item, null);
         if (field != null) {
@@ -251,3 +255,4 @@ class PDAcroForm implements COSObjectable {
     }
   }
 }
+

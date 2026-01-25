@@ -27,3 +27,4 @@ class XmlDoctype extends XmlNode with XmlHasParent<XmlNode> {
   @override
   void accept(XmlVisitor visitor) => visitor.visitDoctype(this);
 }
+

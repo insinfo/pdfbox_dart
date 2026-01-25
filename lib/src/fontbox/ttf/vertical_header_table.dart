@@ -68,3 +68,4 @@ class VerticalHeaderTable extends TtfTable {
 abstract class VerticalHeaderTableProvider {
   VerticalHeaderTable? getVerticalHeaderTable();
 }
+

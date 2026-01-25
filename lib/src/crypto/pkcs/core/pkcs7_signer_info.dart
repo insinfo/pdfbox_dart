@@ -201,3 +201,4 @@ class Pkcs7SignerInfo with Pkcs {
     return b.toString();
   }
 }
+

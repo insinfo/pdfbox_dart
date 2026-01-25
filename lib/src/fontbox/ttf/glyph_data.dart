@@ -55,3 +55,4 @@ class GlyphData {
     return GlyphRenderer(description).getPath();
   }
 }
+

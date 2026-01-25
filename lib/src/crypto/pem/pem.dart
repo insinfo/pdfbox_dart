@@ -354,3 +354,4 @@ class NoPemBlockFoundException implements Exception {
   @override
   String toString() => 'No valid PEM blocks was found in the data:\n$data';
 }
+

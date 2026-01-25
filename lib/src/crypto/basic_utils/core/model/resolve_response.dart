@@ -71,3 +71,4 @@ class ResolveResponse {
     return val;
   }
 }
+

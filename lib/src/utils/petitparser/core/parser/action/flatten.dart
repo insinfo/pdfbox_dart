@@ -62,3 +62,4 @@ class FlattenParser extends DelegateParser<void, String> {
   @override
   FlattenParser copy() => FlattenParser(delegate, message);
 }
+

@@ -1,3 +1,4 @@
+import 'package:pdfbox_dart/src/utils/xml/xml.dart';
 import '../../cos/cos_dictionary.dart';
 import '../../cos/cos_name.dart';
 import 'fdf_annotation.dart';
@@ -9,11 +10,17 @@ class FDFAnnotationSound extends FDFAnnotation {
 
   /// Default constructor.
   FDFAnnotationSound() : super() {
-    annot.setName(COSName.subtype, SUBTYPE);
+    annot.setItem(COSName.subtype, COSName.sound);
   }
 
   /// Constructor.
   ///
   /// [a] An existing FDF Annotation.
   FDFAnnotationSound.fromDictionary(COSDictionary a) : super.fromDictionary(a);
+
+  /// Constructor from XML Element.
+  FDFAnnotationSound.fromXml(XmlElement element) : super.fromXml(element) {
+    annot.setItem(COSName.subtype, COSName.sound);
+  }
 }
+

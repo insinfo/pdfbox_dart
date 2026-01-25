@@ -42,3 +42,4 @@ class XmlCharacterDataParser extends Parser<String> {
       _stopper == other._stopper &&
       _minLength == other._minLength;
 }
+

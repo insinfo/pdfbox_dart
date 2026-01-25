@@ -97,3 +97,4 @@ class _TraceEvent extends TraceEvent {
   @override
   String toString() => '${'  ' * level}${result ?? parser}';
 }
+

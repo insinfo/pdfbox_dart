@@ -25,3 +25,4 @@ extension MatchesParserExtension<T> on Parser<T> {
     bool overlapping = false,
   }) => MatchesIterable<T>(this, input, start, overlapping);
 }
+

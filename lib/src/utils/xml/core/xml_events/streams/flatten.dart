@@ -3,3 +3,4 @@ extension XmlFlattenStreamExtension<T> on Stream<Iterable<T>> {
   /// values of type [T].
   Stream<T> flatten() => expand((values) => values);
 }
+

@@ -34,3 +34,4 @@ class _NoDataFoundGsubData implements GsubData {
   @override
   Set<String> getSupportedFeatures() => _error();
 }
+

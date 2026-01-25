@@ -163,3 +163,4 @@ class TrueTypeEmbedder {
 
   static const String _base25 = 'BCDEFGHIJKLMNOPQRSTUVWXYZ';
 }
+

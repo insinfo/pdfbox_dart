@@ -55,3 +55,4 @@ class LzwOptions {
     this.earlyChange = false,
   });
 }
+

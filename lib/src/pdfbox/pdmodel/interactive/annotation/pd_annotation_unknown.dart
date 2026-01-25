@@ -6,3 +6,4 @@ class PDAnnotationUnknown extends PDAnnotation {
   PDAnnotationUnknown.fromDictionary(COSDictionary dictionary)
       : super.internal(dictionary);
 }
+

@@ -9,3 +9,4 @@ abstract class XPathExpression {
   /// Evaluates the given XPath expression.
   XPathSequence call(XPathContext context);
 }
+

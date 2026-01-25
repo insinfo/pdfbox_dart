@@ -14,3 +14,4 @@ enum LetterForm {
   /// A presentation form of a letter that is not connected to other letters on either sides.
   isolated
 }
+

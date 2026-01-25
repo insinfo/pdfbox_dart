@@ -133,3 +133,4 @@ class GlyfSimpleDescript extends GlyfDescript {
   @override
   bool get isComposite => false;
 }
+

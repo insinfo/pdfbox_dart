@@ -344,3 +344,4 @@ class InternetAddress implements dart_io.InternetAddress {
     );
   }
 }
+

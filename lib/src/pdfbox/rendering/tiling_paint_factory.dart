@@ -95,3 +95,4 @@ final class TilingPaintFactory {
     return out;
   }
 }
+

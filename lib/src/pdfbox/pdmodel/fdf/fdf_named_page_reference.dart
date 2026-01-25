@@ -42,3 +42,4 @@ class FDFNamedPageReference implements COSObjectable {
     _dictionary.setItem(COSName.f, fs);
   }
 }
+

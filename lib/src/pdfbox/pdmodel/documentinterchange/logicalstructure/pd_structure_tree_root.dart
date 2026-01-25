@@ -57,3 +57,4 @@ class PDStructureTreeRoot extends PDStructureNode {
     cosObject[COSName.idTree] = idTree;
   }
 }
+

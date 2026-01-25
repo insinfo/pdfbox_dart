@@ -46,3 +46,4 @@ abstract class HeaderTableProvider {
   HeaderTable? getHeaderTable();
   int get numberOfGlyphs;
 }
+

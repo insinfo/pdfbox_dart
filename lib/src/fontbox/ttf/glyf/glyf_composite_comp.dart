@@ -76,3 +76,4 @@ class GlyfCompositeComp {
 
   int scaleY(int x, int y) => (x * scale01 + y * yScale).round();
 }
+

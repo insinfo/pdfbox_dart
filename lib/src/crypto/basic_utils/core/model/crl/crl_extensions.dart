@@ -7,3 +7,4 @@ class CrlExtensions {
     this.crlNumber,
   });
 }
+

@@ -48,3 +48,4 @@ class PDFSaveOptions {
   /// are not used and the writer emits a classic cross-reference table.
   final CompressParameters? objectStreamCompression;
 }
+

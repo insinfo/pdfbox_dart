@@ -74,3 +74,4 @@ class RC4Cipher {
     data[second] = tmp;
   }
 }
+

@@ -57,3 +57,4 @@ class ReferenceParser<R> extends Parser<R> implements ResolvableParser<R> {
 
 Never _throwUnsupported() =>
     throw UnsupportedError('Unsupported operation on parser reference');
+

@@ -11,3 +11,4 @@ import 'predicate/lowercase.dart';
 @useResult
 Parser<String> lowercase({String message = 'lowercase letter expected'}) =>
     CharacterParser(const LowercaseCharPredicate(), message);
+

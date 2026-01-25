@@ -25,3 +25,4 @@ class SigningSupport implements ExternalSigningSupport {
   Future<void> setSignature(Uint8List signature) =>
       _context.applySignature(signature);
 }
+

@@ -7,5 +7,6 @@ analyzer:
     - "insinfo_dart_pdf/**"
     - "referencias/**"
     - "resources/**"
-    # - "test_deps/**"
-    # - "lib/src/dependencies/**"
+    - "test_utils/**"
+    # - "lib/src/utils/**"
+    # - "lib/src/crypto/**"

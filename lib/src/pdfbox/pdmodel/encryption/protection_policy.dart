@@ -42,3 +42,4 @@ abstract class ProtectionPolicy {
   /// Java compatibility helper used by existing ports.
   void setPreferAES(bool value) => preferAes = value;
 }
+

@@ -16,3 +16,4 @@ extension XPathNodeExtension on Object {
     XPathEvaluationException.unsupportedCast(self, 'node');
   }
 }
+

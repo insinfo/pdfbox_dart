@@ -27,3 +27,4 @@ extension XPathFunctionExtension on Object {
     XPathEvaluationException.unsupportedCast(self, 'function(*)');
   }
 }
+

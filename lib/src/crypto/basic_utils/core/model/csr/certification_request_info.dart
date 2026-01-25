@@ -59,3 +59,4 @@ class CertificationRequestInfo {
     return val;
   }
 }
+

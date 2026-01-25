@@ -41,3 +41,4 @@ class PatternParser extends Parser<Match> {
       pattern == other.pattern &&
       message == other.message;
 }
+

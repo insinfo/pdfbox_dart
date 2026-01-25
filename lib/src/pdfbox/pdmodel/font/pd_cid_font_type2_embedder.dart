@@ -703,3 +703,4 @@ class PDCIDFontType2Embedder {
     return trimmed;
   }
 }
+

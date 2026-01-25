@@ -218,3 +218,4 @@ class COSDocument {
     trailer.markCleanDeep();
   }
 }
+

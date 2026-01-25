@@ -209,3 +209,4 @@ void writePng(img.Image image, File outFile) {
 void writeImageBufferPng(ImageBuffer buffer, File outFile) {
   writePng(imageFromImageBufferTopDown(buffer), outFile);
 }
+

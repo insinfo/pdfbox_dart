@@ -55,3 +55,4 @@ abstract class IOSinkBase implements IOSink {
     write('\n');
   }
 }
+

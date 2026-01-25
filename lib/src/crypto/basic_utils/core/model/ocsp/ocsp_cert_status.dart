@@ -20,3 +20,4 @@ class OCSPCertStatus {
 
   OCSPCertStatus({this.status, this.revocationTime});
 }
+

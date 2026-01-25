@@ -18,3 +18,4 @@ class InputTooLongException implements Exception {
   @override
   String toString() => 'QrInputTooLongException: $message';
 }
+

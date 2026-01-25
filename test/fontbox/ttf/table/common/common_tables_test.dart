@@ -101,3 +101,4 @@ class _TestLookupSubTable extends LookupSubTable {
   @override
   int doSubstitution(int glyphId, int coverageIndex) => glyphId + 1;
 }
+

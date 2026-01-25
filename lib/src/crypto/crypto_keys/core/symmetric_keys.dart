@@ -16,3 +16,4 @@ abstract class SymmetricKey extends Key with PublicKey, PrivateKey {
     return SymmetricKey(keyValue: value);
   }
 }
+

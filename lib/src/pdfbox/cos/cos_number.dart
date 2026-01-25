@@ -5,3 +5,4 @@ abstract class COSNumber extends COSBase {
 
   int get intValue;
 }
+

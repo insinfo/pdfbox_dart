@@ -17,3 +17,4 @@ class ClipEvenOddOperator extends OperatorProcessor {
     context.clipPath(PathWindingRule.evenOdd);
   }
 }
+

@@ -40,3 +40,4 @@ class PDArtifactMarkedContent extends PDMarkedContent {
     return false;
   }
 }
+

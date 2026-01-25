@@ -32,3 +32,4 @@ class PatternIterator implements Iterator<ParserMatch> {
     return false;
   }
 }
+

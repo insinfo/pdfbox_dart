@@ -88,3 +88,4 @@ class COSString extends COSBase {
     throw FormatException('Invalid hex character: $char');
   }
 }
+

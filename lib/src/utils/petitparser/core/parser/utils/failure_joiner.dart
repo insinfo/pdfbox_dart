@@ -22,3 +22,4 @@ Failure selectFarthestJoined(Failure first, Failure second) =>
     : first.position < second.position
     ? second
     : first.failure('${first.message} OR ${second.message}');
+

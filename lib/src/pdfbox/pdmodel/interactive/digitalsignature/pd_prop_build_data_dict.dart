@@ -99,3 +99,4 @@ class PDPropBuildDataDict implements COSObjectable {  // ignore: prefer-match-fi
 
   COSDictionary toCOSDictionary() => _dictionary;
 }
+

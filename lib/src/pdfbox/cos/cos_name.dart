@@ -446,6 +446,23 @@ class COSName extends COSBase implements Comparable<COSName> {
   static final COSName target = COSName('Target');
   static final COSName status = COSName('Status');
   static final COSName templates = COSName('Templates');
+  static final COSName caret = COSName('Caret');
+  static final COSName circle = COSName('Circle');
+  static final COSName fileAttachment = COSName('FileAttachment');
+  static final COSName freeText = COSName('FreeText');
+  static final COSName highlight = COSName('Highlight');
+  static final COSName ink = COSName('Ink');
+  static final COSName line = COSName('Line');
+  static final COSName link = COSName('Link');
+  static final COSName polygon = COSName('Polygon');
+  static final COSName polyline = COSName('Polyline');
+  static final COSName sound = COSName('Sound');
+  static final COSName square = COSName('Square');
+  static final COSName squiggly = COSName('Squiggly');
+  static final COSName stamp = COSName('Stamp');
+  static final COSName strikeOut = COSName('StrikeOut');
+  static final COSName text = COSName('Text');
+  static final COSName underline = COSName('Underline');
 
   @override
   int compareTo(COSName other) => name.compareTo(other.name);
@@ -459,3 +476,4 @@ class COSName extends COSBase implements Comparable<COSName> {
   @override
   String toString() => '/$name';
 }
+

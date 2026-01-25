@@ -21,3 +21,4 @@ extension XPathDateTimeExtension on Object {
     XPathEvaluationException.unsupportedCast(self, 'dateTime');
   }
 }
+

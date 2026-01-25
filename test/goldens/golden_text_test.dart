@@ -63,3 +63,4 @@ void main() {
 String _normalizeText(String text) {
   return text.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
 }
+

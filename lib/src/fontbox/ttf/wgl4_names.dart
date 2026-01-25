@@ -274,3 +274,4 @@ class Wgl4Names {
 
   static List<String> getAllNames() => List<String>.from(_macGlyphNames);
 }
+

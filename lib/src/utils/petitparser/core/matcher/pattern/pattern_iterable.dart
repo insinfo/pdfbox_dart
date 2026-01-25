@@ -18,3 +18,4 @@ class PatternIterable extends IterableBase<ParserMatch> {
   Iterator<ParserMatch> get iterator =>
       PatternIterator(pattern, pattern.parser, input, start);
 }
+

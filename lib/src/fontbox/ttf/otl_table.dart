@@ -284,3 +284,4 @@ class JstfMax {
 
   bool get isEmpty => lookupOffsets.isEmpty;
 }
+

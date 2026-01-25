@@ -38,3 +38,4 @@ class ConstantParser<R, S> extends DelegateParser<R, S> {
   @override
   ConstantParser<R, S> copy() => ConstantParser<R, S>(delegate, value);
 }
+

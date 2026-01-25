@@ -1,7 +1,8 @@
 import 'dart:convert';
+import 'package:pdfbox_dart/src/utils/xml/xml.dart';
 
 import '../../cos/cos_array.dart';
-import '../../cos/cos_base.dart' show COSObjectable;
+import '../../cos/cos_base.dart';
 import '../../cos/cos_dictionary.dart';
 import '../../cos/cos_name.dart';
 import '../../cos/cos_stream.dart';
@@ -130,4 +131,100 @@ class FDFField implements COSObjectable {
   void setFieldType(String? type) {
     _field.setName(COSName.ft, type);
   }
+
+  /// This will set the rich text that is associated with this field.
+  /// Returns the rich text XHTML stream.
+  String? getRichText() {
+    final rv = _field.getDictionaryObject(COSName.rv);
+    if (rv == null) {
+      return null;
+    } else if (rv is COSString) {
+      return rv.string;
+    } else if (rv is COSStream) {
+      // Assuming COSStream handles string conversion or we read bytes.
+      // Ideally should decode using encoding but for now simple string.
+      return ""; // TODO: Implement stream to text decoding properly
+ 
+    }
+    return null;
+  }
+
+  /// This will set the rich text value.
+  /// [rv] The rich text value for the stream.
+  void setRichText(COSBase rv) {
+    _field.setItem(COSName.rv, rv);
+  }
+
+  /// Constructor from XML Element.
+  FDFField.fromXml(XmlElement fieldXML) : _field = COSDictionary() {
+    setPartialFieldName(fieldXML.getAttribute('name'));
+    List<FDFField> kids = [];
+    for (var node in fieldXML.children) {
+      if (node is XmlElement) {
+        if (node.name.local == 'value') {
+          setValue(_getNodeValue(node));
+        } else if (node.name.local == 'value-richtext') {
+           setRichText(COSString(_getNodeValue(node)));
+        } else if (node.name.local == 'field') {
+          kids.add(FDFField.fromXml(node));
+        }
+      }
+    }
+    if (kids.isNotEmpty) {
+      setKids(kids);
+    }
+  }
+
+  String _getNodeValue(XmlElement element) {
+    return element.innerText;
+  }
+  
+  /// This will write this element as an XML document.
+  /// [output] The stream to write the xml to.
+  /// Throws IOException if there is an error writing the XML.
+  void writeXML(StringSink output) {
+    output.write('<field name="${_escapeXML(getPartialFieldName() ?? '')}">\n');
+    
+    // getValue implementation in Dart might return different types based on dictionary content.
+    // Assuming handling String and List<String> primarily.
+    Object? value;
+    try {
+       value = getValue();
+    } catch(e) {
+       // ignore
+    }
+
+    if (value is String) {
+      output.write('<value>${_escapeXML(value)}</value>\n');
+    } else if (value is List<String>) {
+      for (var item in value) {
+        output.write('<value>${_escapeXML(item)}</value>\n');
+      }
+    } else if (value != null) {
+      output.write('<value>${_escapeXML(value.toString())}</value>\n');
+    }
+    
+    var rt = getRichText();
+    if (rt != null) {
+      output.write('<value-richtext>${_escapeXML(rt)}</value-richtext>\n');
+    }
+    
+    var kids = getKids();
+    if (kids != null) {
+      for (var kid in kids) {
+        kid.writeXML(output);
+      }
+    }
+    
+    output.write('</field>\n');
+  }
+
+  String _escapeXML(String input) {
+    return input.replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&apos;');
+  }
 }
+

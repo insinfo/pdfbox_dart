@@ -110,3 +110,4 @@ PDFunctionType4 _createType4(String source) {
   stream.data = latin1.encode(source);
   return PDFunction.create(stream) as PDFunctionType4;
 }
+

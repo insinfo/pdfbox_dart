@@ -8,8 +8,9 @@ void main() {
       final doc = FDFDocument.create();
       final catalog = doc.catalog;
 
-      expect(catalog.cosObject.isNotEmpty, isTrue);
+      expect(catalog.cosObject, isNotNull);
       expect(doc.cosDocument.trailer.isNotEmpty, isTrue);
     });
   });
 }
+

@@ -15,3 +15,4 @@ class NotCharPredicate extends CharacterPredicate {
   @override
   String toString() => '${super.toString()}($predicate)';
 }
+

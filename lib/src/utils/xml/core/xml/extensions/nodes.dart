@@ -5,3 +5,4 @@ extension XmlNodesExtension on XmlNode {
   /// (attributes, children) in document order.
   Iterable<XmlNode> get nodes => [attributes, children].expand((each) => each);
 }
+

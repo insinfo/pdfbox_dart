@@ -17,3 +17,4 @@ mixin XmlHasName {
   /// Return the namespace URI, or `null`.
   String? get namespaceUri => name.namespaceUri;
 }
+

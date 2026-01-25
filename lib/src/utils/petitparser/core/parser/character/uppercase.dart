@@ -11,3 +11,4 @@ import 'predicate/uppercase.dart';
 @useResult
 Parser<String> uppercase({String message = 'uppercase letter expected'}) =>
     CharacterParser(const UppercaseCharPredicate(), message);
+

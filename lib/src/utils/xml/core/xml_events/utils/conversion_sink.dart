@@ -10,3 +10,4 @@ class ConversionSink<T> implements Sink<T> {
   @override
   void close() {}
 }
+

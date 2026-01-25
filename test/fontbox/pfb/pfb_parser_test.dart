@@ -44,3 +44,4 @@ void main() {
     expect(parser.data, equals(expectedOrder));
   });
 }
+

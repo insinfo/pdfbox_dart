@@ -351,3 +351,4 @@ class MathUtils {
     return logBase(x, 10);
   }
 }
+

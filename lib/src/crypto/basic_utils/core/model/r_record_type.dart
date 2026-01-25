@@ -27,3 +27,4 @@ enum RRecordType {
   MX,
   CNAME
 }
+

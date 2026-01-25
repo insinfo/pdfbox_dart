@@ -43,3 +43,4 @@ class XmlNodeTypeException extends XmlException {
   @override
   String toString() => 'XmlNodeTypeException: $message';
 }
+

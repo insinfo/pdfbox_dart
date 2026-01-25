@@ -38,3 +38,4 @@ class FilterFactory {
 
   bool hasFilter(COSName name) => _filters.containsKey(name);
 }
+

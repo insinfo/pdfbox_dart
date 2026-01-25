@@ -172,3 +172,4 @@ class UChar {
     return cp >= 0xDC00 && cp <= 0xDFFF;
   }
 }
+

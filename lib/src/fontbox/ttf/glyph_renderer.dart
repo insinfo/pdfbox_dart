@@ -212,3 +212,4 @@ class _GlyphPoint {
   final bool onCurve;
   final bool endOfContour;
 }
+

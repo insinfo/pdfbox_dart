@@ -75,3 +75,4 @@ class _GlyphSequenceKey {
       other is _GlyphSequenceKey &&
       const ListEquality<int>().equals(sequence, other.sequence);
 }
+

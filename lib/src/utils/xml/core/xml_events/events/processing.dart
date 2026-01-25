@@ -28,3 +28,4 @@ class XmlProcessingEvent extends XmlEvent {
       other.target == target &&
       other.value == value;
 }
+

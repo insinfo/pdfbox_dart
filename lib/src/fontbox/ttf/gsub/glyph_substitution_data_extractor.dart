@@ -267,3 +267,4 @@ class _ScriptTableDetails {
   final String featureName;
   final ScriptTable scriptTable;
 }
+

@@ -49,3 +49,4 @@ mixin XmlVisitor {
   /// Visit an [XmlText] node.
   void visitText(XmlText node) {}
 }
+

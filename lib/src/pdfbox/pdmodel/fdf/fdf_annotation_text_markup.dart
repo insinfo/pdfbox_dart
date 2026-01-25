@@ -1,3 +1,4 @@
+import 'package:pdfbox_dart/src/utils/xml/xml.dart';
 import '../../cos/cos_array.dart';
 import '../../cos/cos_dictionary.dart';
 import '../../cos/cos_float.dart';
@@ -13,6 +14,18 @@ abstract class FDFAnnotationTextMarkup extends FDFAnnotation {
   ///
   /// [a] An existing FDF Annotation.
   FDFAnnotationTextMarkup.fromDictionary(COSDictionary a) : super.fromDictionary(a);
+
+  /// Constructor from XML Element.
+  FDFAnnotationTextMarkup.fromXml(XmlElement element) : super.fromXml(element) {
+    String? nums = element.getAttribute('coords');
+    if (nums != null) {
+        List<double> values = [];
+        for(String s in nums.split(',')) {
+            values.add(double.parse(s));
+        }
+        setCoords(values);
+    }
+  }
 
   /// Set the coordinates of individual words or group of words.
   ///
@@ -36,3 +49,4 @@ abstract class FDFAnnotationTextMarkup extends FDFAnnotation {
     }
   }
 }
+

@@ -76,3 +76,4 @@ const Set<XmlNodeType> childrenNodeTypes = {
 
 /// Supported attribute node types.
 const Set<XmlNodeType> attributeNodeTypes = {XmlNodeType.ATTRIBUTE};
+

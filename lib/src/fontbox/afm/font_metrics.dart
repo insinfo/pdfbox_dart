@@ -299,3 +299,4 @@ class FontMetrics {
     _standardVerticalWidth = standardVerticalWidth;
   }
 }
+

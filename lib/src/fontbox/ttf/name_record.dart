@@ -68,3 +68,4 @@ class NameRecord {
   String toString() =>
       'NameRecord[platform=$platformId,encoding=$platformEncodingId,language=$languageId,name=$nameId,string=$string]';
 }
+

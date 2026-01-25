@@ -998,3 +998,4 @@ class _InMemoryByteSource implements CFFByteSource {
   @override
   Uint8List getBytes() => Uint8List.fromList(bytes);
 }
+

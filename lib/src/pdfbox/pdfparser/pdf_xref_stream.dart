@@ -181,3 +181,4 @@ class PDFXRefStream {
     return width;
   }
 }
+

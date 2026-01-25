@@ -22,3 +22,4 @@ mixin XmlHasLocation {
     _stop = stop;
   }
 }
+

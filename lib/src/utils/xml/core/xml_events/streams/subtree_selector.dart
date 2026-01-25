@@ -71,3 +71,4 @@ class _XmlSubtreeSelectorSink implements ChunkedConversionSink<List<XmlEvent>> {
     sink.close();
   }
 }
+

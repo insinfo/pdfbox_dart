@@ -76,3 +76,4 @@ class JpegColorInfo {
   final bool possibleCmyk;
   final bool convertedToRgba;
 }
+

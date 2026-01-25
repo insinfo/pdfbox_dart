@@ -8,3 +8,4 @@ abstract class FontProvider {
   /// Enumerates every font known to this provider.
   List<FontInfo> getFontInfo();
 }
+

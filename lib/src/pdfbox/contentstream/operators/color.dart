@@ -195,3 +195,4 @@ _ColorOperands _extractComponents(List<COSBase> operands) {
   }
   return _ColorOperands(components, patternName);
 }
+

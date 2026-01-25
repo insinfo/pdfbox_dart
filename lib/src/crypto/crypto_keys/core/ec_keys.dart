@@ -29,3 +29,4 @@ abstract class EcPrivateKey extends EcKey implements PrivateKey {
       {required BigInt eccPrivateKey,
       required Identifier curve}) = EcPrivateKeyImpl;
 }
+

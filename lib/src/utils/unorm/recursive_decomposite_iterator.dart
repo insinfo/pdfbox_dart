@@ -37,3 +37,4 @@ class RecursiveDecompositeIterator implements UnormIterator {
     return _resultBuffer.removeAt(0);
   }
 }
+

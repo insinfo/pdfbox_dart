@@ -65,3 +65,4 @@ class FvarTable extends TtfTable {
 abstract class VariationAxisConsumer {
   void updateVariationAxes(List<FontVariationAxis> axes);
 }
+

@@ -85,3 +85,4 @@ class TrimmingParser<R> extends DelegateParser<R, R>
     }
   }
 }
+

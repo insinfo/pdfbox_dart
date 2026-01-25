@@ -267,6 +267,11 @@ class RandomAccessReadWriteBuffer extends RandomAccessReadBuffer implements Rand
   }
 
   @override
+  void setPosition(int position) {
+    seek(position);
+  }
+
+  @override
   void writeByte(int value) {
     checkClosed();
     _ensureWriteCapacity(1);
@@ -310,3 +315,4 @@ class RandomAccessReadWriteBuffer extends RandomAccessReadBuffer implements Rand
     }
   }
 }
+

@@ -53,3 +53,4 @@ class GlyphArraySplitterRegexImpl implements GlyphArraySplitter {
     return List<int>.unmodifiable(result);
   }
 }
+

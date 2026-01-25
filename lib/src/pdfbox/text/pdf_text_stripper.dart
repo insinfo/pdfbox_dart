@@ -1011,3 +1011,4 @@ class PositionWrapper {
 
   bool isHangingIndentMethod() => isHangingIndent;
 }
+

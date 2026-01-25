@@ -97,3 +97,4 @@ class ChoiceParser<R> extends ListParser<R, R> {
   ChoiceParser<R> copy() =>
       ChoiceParser<R>(children, failureJoiner: failureJoiner);
 }
+

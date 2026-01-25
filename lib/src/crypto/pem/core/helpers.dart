@@ -29,3 +29,4 @@ Parser<String> flatten(Parser<dynamic> p) => p.map((value) {
       _flattenString(value, s);
       return s.toString();
     });
+

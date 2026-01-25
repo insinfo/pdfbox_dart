@@ -103,3 +103,4 @@ class IncrementalSigningContext {
 
   List<int> get byteRangeValues => List<int>.from(_byteRangeValues ?? const <int>[]);
 }
+

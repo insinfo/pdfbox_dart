@@ -19,7 +19,7 @@ e va atualizando este roteiro com o que for sendo implementado
 
 dart analyze só na pasta onde aplicou modificações para ser mais rapido
 
-Arquivos FDF portados (10 total):
+Arquivos FDF portados (29 total):
 
 FDFCatalog ✓
 FDFDictionary ✓
@@ -31,11 +31,16 @@ FDFIconFit ✓
 FDFPageInfo ✓
 FDFTemplate ✓
 FDFField ✓ (versão simplificada)
-Ainda faltam (19 arquivos):
+FDFPage ✓
+FDFAnnotation ✓ (base)
+FDFAnnotation* subclasses (17) ✓ (Caret, Circle, FileAttachment, FreeText, Highlight, Ink, Line, Link, Polygon, Polyline, Sound, Square, Squiggly, Stamp, StrikeOut, Text, Underline)
+Ainda faltam (0 arquivos):
 
-FDFPage
-FDFAnnotation (base)
-17 subclasses FDFAnnotation* (Caret, Circle, FileAttachment, FreeText, Highlight, Ink, Line, Link, Polygon, Polyline, Sound, Square, Squiggly, Stamp, StrikeOut, Text, Underline)
+## Correções de Assinatura Digital (COSWriter e I/O)
+- Interface `RandomAccessWrite`: Adicionado suporte a `setPosition(int)` para permitir escrita não-sequencial (necessário para corrigir o ByteRange).
+- Implementações de I/O: Atualizado `RandomAccessReadWriteBuffer` e `ScratchFileBuffer` para implementar `setPosition`.
+- `COSWriter`: Ajustada a lógica de `_patchByteRangeOnTarget` para usar `setPosition` em vez de criar um novo buffer, permitindo a correção in-place do array ByteRange no arquivo final.
+- `external_signature_test.dart`: Teste passando com sucesso, gerando PDF assinado válido e detectando adulteração (tampering) corretamente.
 
 ## implementado (marcos)
 - PageDrawer: clipping real `W/W*` (mask em device-space), com stack sincronizado com `q/Q`.
@@ -91,6 +96,9 @@ FDFAnnotation (base)
 - FDFDocument: construtor `create` com catalogo inicial + wrappers minimos `FDFCatalog`/`FDFDictionary`.
 - PDFMergerUtility: merge otimizado (OptimizeResourcesMode) com teste basico.
 - SecurityHandler: encrypt/decrypt RC4/AES para strings/streams + filtros de criptografia e testes.
+- XMPBox: Port completo do sistema de metadados XMP, incluindo `XMPMetadata`, `XmpSerializer`, e schemas comuns: `AdobePDFSchema`, `DublinCoreSchema`, `XMPBasicSchema`, `PDFAIdentificationSchema`. Suporte a tipos complexos (Bag, Seq, Alt) e tipos simples (Text, Integer, Boolean, Date, Real).
+- Assinatura Digital: Implementação de `ExternalPdfSignature` para fluxos de assinatura externa (Gov.br, HSM), com extração rápida de `ByteRange` e `/Contents` sem necessidade de parse completo do PDF.
+- Scripts de assinatura: removida dependência de `package:dart_pdf/pdf.dart`, usando `pdfbox_dart` + assinatura externa (OpenSSL) e correção de import de `TrustedRootsProvider` nos testes.
 
 ## pendente (observado)
 - TaggedPDF: ParentTree com entrada do tipo dicionario (nao array) para objetos individuais (ex.: annotation/XObject) via `/StructParent` ou `/StructParents` [IMPLEMENTADO].

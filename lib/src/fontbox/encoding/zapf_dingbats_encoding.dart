@@ -8,3 +8,4 @@ class ZapfDingbatsEncoding extends Encoding {
 
   static final ZapfDingbatsEncoding instance = ZapfDingbatsEncoding._();
 }
+

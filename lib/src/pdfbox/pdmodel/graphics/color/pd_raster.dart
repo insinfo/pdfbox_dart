@@ -93,3 +93,4 @@ class PDRaster {
     return (y * width + x) * componentsPerPixel;
   }
 }
+

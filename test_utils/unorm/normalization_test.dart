@@ -102,3 +102,4 @@ void doTest(Parts parts) {
   expect(nfkd[3], equals(raw[4]), reason: "${parts.line}: c5 == NFKD(c4)");
   expect(nfkd[4], equals(raw[4]), reason: "${parts.line}: c5 == NFKD(c5)");
 }
+

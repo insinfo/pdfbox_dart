@@ -504,3 +504,4 @@ class PDTrueTypeFont extends PDSimpleFont implements PDVectorFont {
     return super.toUnicode(code);
   }
 }
+

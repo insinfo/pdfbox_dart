@@ -110,3 +110,4 @@ class COSDictionaryMap<K, V> extends MapBase<K, V> {
     return COSDictionaryMap<String, Object?>(actual, dictionary);
   }
 }
+

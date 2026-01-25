@@ -279,3 +279,4 @@ class _Truncate implements Operator {
     }
   }
 }
+

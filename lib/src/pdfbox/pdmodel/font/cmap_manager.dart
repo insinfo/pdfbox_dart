@@ -33,3 +33,4 @@ class CMapManager {
     return CMapParser().parse(source);
   }
 }
+

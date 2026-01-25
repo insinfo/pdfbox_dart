@@ -15,3 +15,4 @@ class ShadingFillOperator extends OperatorProcessor {
     context.shadingFill(name);
   }
 }
+

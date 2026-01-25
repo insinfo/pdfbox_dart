@@ -133,3 +133,4 @@ class LzwEncoder extends LzwConverter {
     if (_options.earlyChange) _maxCode --;
   }
 }
+

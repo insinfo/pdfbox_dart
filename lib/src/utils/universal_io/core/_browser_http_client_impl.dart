@@ -196,3 +196,4 @@ class BrowserHttpClientImpl extends BrowserHttpClient {
     return openUrl('PUT', url);
   }
 }
+

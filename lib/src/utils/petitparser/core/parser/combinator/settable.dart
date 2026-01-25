@@ -54,3 +54,4 @@ class SettableParser<R> extends DelegateParser<R, R>
   @override
   SettableParser<R> copy() => SettableParser<R>(delegate);
 }
+

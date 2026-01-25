@@ -15,3 +15,4 @@ class LangSysTable {
   String toString() =>
       'LangSysTable[requiredFeatureIndex=$requiredFeatureIndex]';
 }
+

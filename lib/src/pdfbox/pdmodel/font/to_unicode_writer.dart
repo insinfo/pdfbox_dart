@@ -167,3 +167,4 @@ class ToUnicodeWriter {
     return buffer.toString();
   }
 }
+

@@ -811,3 +811,4 @@ RegExp _createRegExp(String pattern, String flags) {
     unicode: isUnicode,
   );
 }
+

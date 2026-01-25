@@ -703,3 +703,4 @@ int _nextPowerOf2(int number) {
     number = nextNumber;
   }
 }
+

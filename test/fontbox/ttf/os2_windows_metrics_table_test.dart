@@ -130,3 +130,4 @@ List<int> _uint(int value) => <int>[
     ];
 
 List<int> _string(String value) => value.codeUnits;
+

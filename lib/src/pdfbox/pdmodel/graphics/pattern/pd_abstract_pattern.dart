@@ -66,3 +66,4 @@ class PDUnknownPattern extends PDAbstractPattern {
   PDUnknownPattern(COSDictionary dictionary, {PDResources? resources})
       : super(dictionary, resources: resources);
 }
+

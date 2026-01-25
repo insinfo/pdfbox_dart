@@ -91,3 +91,4 @@ class OperatorName {
 
   const OperatorName._();
 }
+

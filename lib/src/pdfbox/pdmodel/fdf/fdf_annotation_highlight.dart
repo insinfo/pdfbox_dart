@@ -1,3 +1,4 @@
+import 'package:pdfbox_dart/src/utils/xml/xml.dart';
 import '../../cos/cos_dictionary.dart';
 import '../../cos/cos_name.dart';
 import 'fdf_annotation_text_markup.dart';
@@ -9,11 +10,18 @@ class FDFAnnotationHighlight extends FDFAnnotationTextMarkup {
 
   /// Default constructor.
   FDFAnnotationHighlight() : super() {
-    annot.setName(COSName.subtype, SUBTYPE);
+    annot.setItem(COSName.subtype, COSName.highlight);
   }
 
   /// Constructor.
   ///
   /// [a] An existing FDF Annotation.
   FDFAnnotationHighlight.fromDictionary(COSDictionary a) : super.fromDictionary(a);
+
+  /// Constructor from XML Element.
+  FDFAnnotationHighlight.fromXml(XmlElement element) : super.fromXml(element) {
+    annot.setItem(COSName.subtype, COSName.highlight);
+  }
 }
+
+

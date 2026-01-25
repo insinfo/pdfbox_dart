@@ -11,3 +11,4 @@ import 'predicate/digit.dart';
 @useResult
 Parser<String> digit({String message = 'digit expected'}) =>
     CharacterParser(const DigitCharPredicate(), message);
+

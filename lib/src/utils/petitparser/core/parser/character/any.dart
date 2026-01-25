@@ -11,3 +11,4 @@ import 'predicate/constant.dart';
 @useResult
 Parser<String> any({String message = 'input expected', bool unicode = false}) =>
     CharacterParser(ConstantCharPredicate.any, message, unicode: unicode);
+

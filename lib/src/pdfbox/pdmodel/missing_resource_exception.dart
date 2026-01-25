@@ -4,3 +4,4 @@ import '../../io/exceptions.dart';
 class MissingResourceException extends IOException {
   MissingResourceException(String message) : super(message);
 }
+

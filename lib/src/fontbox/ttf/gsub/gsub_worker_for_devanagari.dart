@@ -195,3 +195,4 @@ class GsubWorkerForDevanagari implements GsubWorker {
     return List<int>.unmodifiable(glyphIds);
   }
 }
+

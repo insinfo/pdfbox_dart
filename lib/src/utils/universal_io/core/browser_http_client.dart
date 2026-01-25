@@ -41,3 +41,4 @@ abstract class BrowserHttpClient implements HttpClient {
 
   BrowserHttpClient.constructor();
 }
+

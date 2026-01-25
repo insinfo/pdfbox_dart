@@ -47,3 +47,4 @@ export 'core/xml/visitors/normalizer.dart' show XmlNormalizerExtension;
 export 'core/xml/visitors/pretty_writer.dart' show XmlPrettyWriter;
 export 'core/xml/visitors/visitor.dart' show XmlVisitor;
 export 'core/xml/visitors/writer.dart' show XmlWriter;
+

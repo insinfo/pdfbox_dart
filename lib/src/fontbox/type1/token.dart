@@ -70,3 +70,4 @@ class Token {
     return 'Token[kind=$kind, text=$text]';
   }
 }
+

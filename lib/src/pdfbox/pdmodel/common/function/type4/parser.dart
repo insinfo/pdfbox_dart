@@ -188,3 +188,4 @@ class _Tokenizer {
     handler.token(buffer.toString());
   }
 }
+

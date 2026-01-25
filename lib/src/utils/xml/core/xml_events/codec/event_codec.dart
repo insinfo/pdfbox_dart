@@ -19,3 +19,4 @@ class XmlEventCodec extends Codec<List<XmlEvent>, String> {
   @override
   final Converter<List<XmlEvent>, String> encoder;
 }
+

@@ -1,3 +1,4 @@
+import 'package:pdfbox_dart/src/utils/xml/xml.dart';
 import '../../cos/cos_array.dart';
 import '../../cos/cos_dictionary.dart';
 import '../../cos/cos_float.dart';
@@ -11,13 +12,38 @@ class FDFAnnotationPolygon extends FDFAnnotation {
 
   /// Default constructor.
   FDFAnnotationPolygon() : super() {
-    annot.setName(COSName.subtype, SUBTYPE);
+    annot.setItem(COSName.subtype, COSName.polygon);
   }
 
   /// Constructor.
   ///
   /// [a] An existing FDF Annotation.
   FDFAnnotationPolygon.fromDictionary(COSDictionary a) : super.fromDictionary(a);
+
+  /// Constructor from XML Element.
+  FDFAnnotationPolygon.fromXml(XmlElement element) : super.fromXml(element) {
+    annot.setItem(COSName.subtype, COSName.polygon);
+    String? vertices = element.getAttribute('vertices');
+    if (vertices != null) {
+      if (vertices.isNotEmpty) {
+        List<double> values = [];
+        for (String s in vertices.split(',')) {
+          values.add(double.parse(s));
+        }
+        setVertices(values);
+      }
+    }
+    String? intervalColor = element.getAttribute('interior-color');
+    if (intervalColor != null) {
+      if (intervalColor.isNotEmpty) {
+        List<double> color = [];
+        for (String s in intervalColor.split(',')) {
+          color.add(double.parse(s));
+        }
+        setInteriorColor(color);
+      }
+    }
+  }
 
   /// This will set the coordinates of the vertices.
   ///
@@ -53,3 +79,4 @@ class FDFAnnotationPolygon extends FDFAnnotation {
     return array?.toDoubleList();
   }
 }
+

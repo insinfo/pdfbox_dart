@@ -290,3 +290,4 @@ class Type1Lexer {
 
   bool _isDigit(int value) => value >= 0x30 && value <= 0x39;
 }
+

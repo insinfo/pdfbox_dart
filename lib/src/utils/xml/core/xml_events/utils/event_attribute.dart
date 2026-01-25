@@ -23,3 +23,4 @@ class XmlEventAttribute with XmlNamed, XmlHasParent {
       other.value == value &&
       other.attributeType == attributeType;
 }
+

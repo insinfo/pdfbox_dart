@@ -6,3 +6,4 @@
 abstract class DecryptionMaterial {
   const DecryptionMaterial();
 }
+

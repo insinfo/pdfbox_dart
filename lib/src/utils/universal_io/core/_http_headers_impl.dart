@@ -679,3 +679,4 @@ class _CharCode {
   static const int comma = 44;
   static const int colon = 58;
 }
+

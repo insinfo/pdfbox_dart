@@ -27,3 +27,4 @@ enum CrlReason {
   privilegeWithdrawn, //9
   aACompromise //10
 }
+

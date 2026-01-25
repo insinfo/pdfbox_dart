@@ -845,3 +845,4 @@ class _ContextualKerningEngine implements _KerningEngine {
     return row[cls];
   }
 }
+

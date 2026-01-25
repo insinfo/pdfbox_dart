@@ -804,3 +804,4 @@ class PDType0Font extends PDFont implements PDVectorFont, PDCIDFontParent {
     return null;
   }
 }
+

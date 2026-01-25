@@ -31,3 +31,4 @@ class XmlDeclarationEvent extends XmlEvent {
         attributes,
       );
 }
+

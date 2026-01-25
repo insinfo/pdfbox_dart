@@ -200,3 +200,4 @@ class COSArrayList<E> extends ListBase<E> {
     return array;
   }
 }
+

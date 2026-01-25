@@ -42,3 +42,4 @@ class TokenParser<R> extends DelegateParser<R, Token<R>> {
   @override
   TokenParser<R> copy() => TokenParser<R>(delegate);
 }
+

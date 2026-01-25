@@ -176,3 +176,4 @@ class PDExtendedGraphicsState implements COSObjectable {
 
   COSBase? getTransfer2() => _dictionary.getDictionaryObject(COSName.tr2);
 }
+

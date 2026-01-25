@@ -58,3 +58,4 @@ class PDSignatureField extends PDTerminalField {
     }
   }
 }
+

@@ -9,3 +9,4 @@ class LowercaseCharPredicate extends CharacterPredicate {
   @override
   bool isEqualTo(CharacterPredicate other) => other is LowercaseCharPredicate;
 }
+

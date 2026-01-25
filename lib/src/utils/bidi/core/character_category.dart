@@ -16471,3 +16471,4 @@ const characterCategories = <int, CharacterCategory>{
   57344: CharacterCategory.co,
   63743: CharacterCategory.co
 };
+

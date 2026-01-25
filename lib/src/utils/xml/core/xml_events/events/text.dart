@@ -53,3 +53,4 @@ class XmlRawTextEvent extends XmlEvent implements XmlTextEvent {
   bool operator ==(Object other) =>
       other is XmlTextEvent && other.value == value;
 }
+

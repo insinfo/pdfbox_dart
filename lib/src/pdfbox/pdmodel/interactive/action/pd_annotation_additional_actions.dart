@@ -147,3 +147,4 @@ class PDAnnotationAdditionalActions implements COSObjectable {
     _actions.setItem(COSName.pi, pi);
   }
 }
+

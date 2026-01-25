@@ -86,3 +86,4 @@ class PDLineDashPattern implements COSObjectable {
   @override
   String toString() => 'PDLineDashPattern{array=$_array, phase=$_phase}';
 }
+

@@ -1213,3 +1213,4 @@ class CryptoUtils {
     return '$BEGIN_PRIVATE_KEY\n$base64Formatted\n$END_PRIVATE_KEY';
   }
 }
+

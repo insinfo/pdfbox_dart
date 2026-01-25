@@ -405,3 +405,4 @@ class PDPageContentStream {
     return buffer.toString();
   }
 }
+

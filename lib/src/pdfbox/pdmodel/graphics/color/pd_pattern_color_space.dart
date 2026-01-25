@@ -68,3 +68,4 @@ class PDPatternColorSpace extends PDColorSpace {
   img.Image? toRawImage(PDRaster raster) => underlying?.toRawImage(raster);
 }
 
+

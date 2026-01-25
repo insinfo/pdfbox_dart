@@ -11,3 +11,4 @@ class FeatureTable {
   String toString() =>
       'FeatureTable[lookupListIndicesCount=${lookupListIndices.length}]';
 }
+

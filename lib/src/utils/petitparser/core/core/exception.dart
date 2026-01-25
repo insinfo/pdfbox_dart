@@ -21,3 +21,4 @@ class ParserException implements FormatException {
   @override
   String toString() => '$runtimeType[${failure.toPositionString()}]: $message';
 }
+

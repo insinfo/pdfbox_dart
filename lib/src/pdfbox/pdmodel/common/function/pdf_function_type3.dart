@@ -104,3 +104,4 @@ class PDFunctionType3 extends PDFunction {
     return PDRange.fromCOSArray(encode, index * 2);
   }
 }
+

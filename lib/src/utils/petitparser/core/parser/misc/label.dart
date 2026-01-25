@@ -42,3 +42,4 @@ class LabelParser<R> extends DelegateParser<R, R> implements LabeledParser<R> {
   bool hasEqualProperties(LabelParser<R> other) =>
       super.hasEqualProperties(other) && label == other.label;
 }
+

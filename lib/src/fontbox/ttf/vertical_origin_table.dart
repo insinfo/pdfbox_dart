@@ -31,3 +31,4 @@ class VerticalOriginTable extends TtfTable {
 
   Map<int, int> get origins => Map<int, int>.unmodifiable(_origins);
 }
+

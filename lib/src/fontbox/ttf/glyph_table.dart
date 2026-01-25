@@ -113,3 +113,4 @@ abstract class GlyphTableDependencies
   MaximumProfileTable? getMaximumProfileTable();
   int get numberOfGlyphs;
 }
+

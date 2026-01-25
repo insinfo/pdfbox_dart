@@ -137,3 +137,4 @@ class _XPathCachedIterator implements Iterator<XPathItem> {
     return false;
   }
 }
+

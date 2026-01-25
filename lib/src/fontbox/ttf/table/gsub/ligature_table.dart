@@ -16,3 +16,4 @@ class LigatureTable {
   String toString() =>
       'LigatureTable[ligatureGlyph=$ligatureGlyph, componentCount=$componentCount]';
 }
+

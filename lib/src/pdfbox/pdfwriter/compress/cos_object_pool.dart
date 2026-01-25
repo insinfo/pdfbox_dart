@@ -65,3 +65,4 @@ class COSObjectPool {
 
   int get highestXRefObjectNumber => _highestXRefObjectNumber;
 }
+

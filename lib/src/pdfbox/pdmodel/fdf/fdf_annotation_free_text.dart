@@ -1,4 +1,5 @@
 import '../../cos/cos_array.dart';
+import 'package:pdfbox_dart/src/utils/xml/xml.dart';
 import '../../cos/cos_dictionary.dart';
 import '../../cos/cos_float.dart';
 import '../../cos/cos_name.dart';
@@ -12,13 +13,37 @@ class FDFAnnotationFreeText extends FDFAnnotation {
 
   /// Default constructor.
   FDFAnnotationFreeText() : super() {
-    annot.setName(COSName.subtype, SUBTYPE);
+    annot.setItem(COSName.subtype, COSName.freeText);
   }
 
   /// Constructor.
   ///
   /// [a] An existing FDF Annotation.
   FDFAnnotationFreeText.fromDictionary(COSDictionary a) : super.fromDictionary(a);
+
+  /// Constructor from XML Element.
+  FDFAnnotationFreeText.fromXml(XmlElement element) : super.fromXml(element) {
+    annot.setItem(COSName.subtype, COSName.freeText);
+    String? justification = element.getAttribute('justification');
+    if (justification != null) {
+      setJustification(justification);
+    }
+    String? rotation = element.getAttribute('rotation');
+    if (rotation != null) {
+        setRotation(int.parse(rotation));
+    }
+    String? fringe = element.getAttribute('fringe');
+    if (fringe != null && fringe.isNotEmpty) {
+      List<double> fringes = [];
+      for (String s in fringe.split(',')) {
+        fringes.add(double.parse(s));
+      }
+      if (fringes.length == 4) {
+        setFringe(PDRectangle(fringes[0], fringes[1], fringes[2], fringes[3]));
+      }
+    }
+    // line ending styles, color, etc could be parsed too
+  }
 
   /// This will set the coordinates of the callout line.
   ///
@@ -70,7 +95,7 @@ class FDFAnnotationFreeText extends FDFAnnotation {
   ///
   /// Returns The number of degrees of clockwise rotation.
   String? getRotation() {
-    return annot.getString(COSName.rotate);
+    return annot.getInt(COSName.rotate)?.toString();
   }
 
   /// Set the default appearance string.
@@ -133,3 +158,4 @@ class FDFAnnotationFreeText extends FDFAnnotation {
     return annot.getNameAsString(COSName.le);
   }
 }
+

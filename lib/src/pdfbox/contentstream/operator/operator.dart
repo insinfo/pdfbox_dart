@@ -38,3 +38,4 @@ class Operator {
   @override
   String toString() => 'PDFOperator{$_operator}';
 }
+

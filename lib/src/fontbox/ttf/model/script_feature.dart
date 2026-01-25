@@ -8,3 +8,4 @@ abstract class ScriptFeature {
 
   List<int> getReplacementForGlyphs(List<int> glyphIds);
 }
+

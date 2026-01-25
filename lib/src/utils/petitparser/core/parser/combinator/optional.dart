@@ -52,3 +52,4 @@ class OptionalParser<R> extends DelegateParser<R, R> {
   bool hasEqualProperties(OptionalParser<R> other) =>
       super.hasEqualProperties(other) && otherwise == other.otherwise;
 }
+

@@ -144,3 +144,4 @@ List<int> _short(int value) {
   final encoded = value & 0xffff;
   return <int>[(encoded >> 8) & 0xff, encoded & 0xff];
 }
+

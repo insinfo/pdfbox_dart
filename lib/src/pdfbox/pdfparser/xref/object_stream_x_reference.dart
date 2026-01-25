@@ -33,3 +33,4 @@ class ObjectStreamXReference extends AbstractXReference {
   String toString() =>
       'ObjectStreamEntry{ key=$key, type=${type.numericValue}, objectStreamIndex=$objectStreamIndex, parent=$parentKey }';
 }
+

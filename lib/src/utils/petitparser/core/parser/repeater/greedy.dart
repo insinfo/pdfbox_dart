@@ -129,3 +129,4 @@ class GreedyRepeatingParser<R> extends LimitedRepeatingParser<R> {
   GreedyRepeatingParser<R> copy() =>
       GreedyRepeatingParser<R>(delegate, limit, min, max);
 }
+

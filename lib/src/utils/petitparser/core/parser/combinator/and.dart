@@ -38,3 +38,4 @@ class AndParser<R> extends DelegateParser<R, R> {
   @override
   AndParser<R> copy() => AndParser<R>(delegate);
 }
+

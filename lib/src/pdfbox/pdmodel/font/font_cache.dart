@@ -56,3 +56,4 @@ class FontCache {
     // even after eviction, so we cannot eagerly close underlying resources yet.
   }
 }
+

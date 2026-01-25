@@ -210,3 +210,4 @@ class SequenceRandomAccessRead extends RandomAccessRead {
     }
   }
 }
+

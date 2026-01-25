@@ -2452,3 +2452,4 @@ const decompositionTypes = <int, DecompositionType>{
 DecompositionType? getDecompositionType(int character) {
   return decompositionTypes[character];
 }
+

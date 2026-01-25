@@ -70,3 +70,4 @@ class NewlineParser extends Parser<String> {
   @override
   NewlineParser copy() => NewlineParser(message);
 }
+

@@ -67,3 +67,4 @@ const Set<XmlNodeType> attributeNodeTypes = {XmlNodeType.ATTRIBUTE};
 const versionAttribute = 'version';
 const encodingAttribute = 'encoding';
 const standaloneAttribute = 'standalone';
+

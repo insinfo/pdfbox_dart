@@ -138,3 +138,4 @@ class RunLengthFilter extends Filter {
     return encoded.takeBytes();
   }
 }
+

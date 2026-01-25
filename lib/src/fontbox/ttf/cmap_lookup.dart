@@ -9,3 +9,4 @@ abstract class CMapLookup {
   /// Retorna todos os codepoints associados ao [glyphId], ou `null` se inexistente.
   List<int>? getCharCodes(int glyphId);
 }
+

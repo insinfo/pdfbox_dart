@@ -151,3 +151,4 @@ List<int> _signedShort(int value) {
 List<int> _unsignedShort(int value) {
   return <int>[(value >> 8) & 0xff, value & 0xff];
 }
+

@@ -144,3 +144,4 @@ class RepeatingCharacterParser extends Parser<String> {
       min == other.min &&
       max == other.max;
 }
+

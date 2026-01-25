@@ -87,3 +87,4 @@ class SequenceParser<R> extends ListParser<R, List<R>>
   @override
   SequenceParser<R> copy() => SequenceParser<R>(children);
 }
+

@@ -213,3 +213,4 @@ class Os2WindowsMetricsTable extends TtfTable {
   int get breakChar => _usBreakChar;
   int get maxContext => _usMaxContext;
 }
+

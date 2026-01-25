@@ -138,3 +138,4 @@ class XmlPrettyWriter extends XmlWriter {
 }
 
 final _whitespaceOrLineTerminators = RegExp(r'\s+');
+

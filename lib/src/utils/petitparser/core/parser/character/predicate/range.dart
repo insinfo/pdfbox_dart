@@ -17,3 +17,4 @@ class RangeCharPredicate extends CharacterPredicate {
   @override
   String toString() => '${super.toString()}($start, $stop)';
 }
+

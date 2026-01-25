@@ -108,3 +108,4 @@ abstract class TtfDataStream implements Closeable {
 
   int get originalDataSize;
 }
+

@@ -261,3 +261,4 @@ enum BaseState {
     return BaseState.on;
   }
 }
+

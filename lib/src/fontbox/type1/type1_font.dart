@@ -248,3 +248,4 @@ class Type1Font implements Type1CharStringReader, EncodedFont, FontBoxFont {
         'charStrings=${charStrings.length}]';
   }
 }
+

@@ -27,3 +27,4 @@ class ExpressionResultInfix<V, O> {
 
   V call(V left, V right) => callback(left, operator, right);
 }
+

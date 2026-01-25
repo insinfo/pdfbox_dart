@@ -40,3 +40,4 @@ extension XmlParentExtension on XmlNode {
     return result;
   }
 }
+

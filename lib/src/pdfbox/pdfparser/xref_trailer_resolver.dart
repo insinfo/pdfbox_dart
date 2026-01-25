@@ -174,3 +174,4 @@ class _XrefTrailerObj {
     trailer = null;
   }
 }
+

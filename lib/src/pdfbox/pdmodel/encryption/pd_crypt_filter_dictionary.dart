@@ -39,3 +39,4 @@ class PDCryptFilterDictionary implements COSObjectable {
   set encryptMetaData(bool value) =>
       _dictionary.setBoolean(COSName.encryptMetadata, value);
 }
+

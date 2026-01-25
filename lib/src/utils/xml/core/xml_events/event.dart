@@ -19,3 +19,4 @@ abstract class XmlEvent with XmlHasParent, XmlHasLocation, XmlHasBuffer {
   @override
   String toString() => XmlEventEncoder().convert([this]);
 }
+

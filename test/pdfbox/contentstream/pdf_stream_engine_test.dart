@@ -330,3 +330,4 @@ class RecordingPDFStreamEngine extends PDFStreamEngine {
     events.add('d1:$wx:$wy:$llx:$lly:$urx:$ury');
   }
 }
+

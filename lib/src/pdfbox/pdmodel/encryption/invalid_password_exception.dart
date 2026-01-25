@@ -8,3 +8,4 @@ class InvalidPasswordException implements Exception {
   @override
   String toString() => 'InvalidPasswordException: $message';
 }
+

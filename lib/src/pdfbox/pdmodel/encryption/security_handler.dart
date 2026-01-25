@@ -457,3 +457,4 @@ abstract class SecurityHandler<T extends ProtectionPolicy> {
     return true;
   }
 }
+

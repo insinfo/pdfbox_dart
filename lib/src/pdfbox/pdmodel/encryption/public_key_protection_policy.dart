@@ -43,3 +43,4 @@ class PublicKeyProtectionPolicy extends ProtectionPolicy {
   void setDecryptionCertificate(X509Certificate? value) =>
       decryptionCertificate = value;
 }
+

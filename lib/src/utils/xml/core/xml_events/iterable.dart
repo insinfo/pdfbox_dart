@@ -35,3 +35,4 @@ class XmlEventIterable extends Iterable<XmlEvent> {
     ),
   );
 }
+

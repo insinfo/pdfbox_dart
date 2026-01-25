@@ -56,3 +56,4 @@ class EnumUtils {
     return map;
   }
 }
+

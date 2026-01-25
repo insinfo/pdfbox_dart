@@ -17,3 +17,4 @@ class PDEmbeddedFilesNameTreeNode
   PDEmbeddedFilesNameTreeNode createChildNode(COSDictionary dictionary) =>
       PDEmbeddedFilesNameTreeNode(dictionary: dictionary);
 }
+

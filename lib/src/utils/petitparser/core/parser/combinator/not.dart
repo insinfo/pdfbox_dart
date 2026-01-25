@@ -65,3 +65,4 @@ class NotParser<R> extends DelegateParser<R, Failure> {
   bool hasEqualProperties(NotParser<R> other) =>
       super.hasEqualProperties(other) && message == other.message;
 }
+

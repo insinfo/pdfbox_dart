@@ -19,3 +19,4 @@ class EmailAddress {
     return local + '@' + domain.toString();
   }
 }
+

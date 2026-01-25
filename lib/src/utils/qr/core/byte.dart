@@ -137,3 +137,4 @@ class QrAlphaNumeric implements QrDatum {
   @override
   int get length => _string.length;
 }
+

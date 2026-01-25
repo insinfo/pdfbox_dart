@@ -119,3 +119,4 @@ XPathSequence _fnXmlToJson(
 ]) {
   throw UnimplementedError('fn:xml-to-json');
 }
+

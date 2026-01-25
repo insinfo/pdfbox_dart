@@ -106,3 +106,4 @@ class _TrueTypeFontByteSource implements CFFByteSource {
     return typed.Uint8List.fromList(ttf.getTableBytes(table));
   }
 }
+

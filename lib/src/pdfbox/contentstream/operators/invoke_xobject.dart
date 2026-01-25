@@ -9,3 +9,4 @@ class InvokeXObjectOperator extends OperatorProcessor {
     context.processXObject(cosName);
   }
 }
+

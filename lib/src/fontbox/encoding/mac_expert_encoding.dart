@@ -179,3 +179,4 @@ const List<List<String>> _macExpertEncodingTable = <List<String>>[
   ['060', 'zerooldstyle'],
   ['0342', 'zerosuperior'],
 ];
+

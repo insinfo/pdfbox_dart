@@ -21,3 +21,4 @@ abstract class FontBoxFont {
   /// Returns `true` when the glyph [name] is present.
   bool hasGlyph(String name);
 }
+

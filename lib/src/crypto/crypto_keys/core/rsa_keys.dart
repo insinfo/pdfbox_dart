@@ -32,3 +32,4 @@ abstract class RsaPrivateKey extends RsaKey implements PrivateKey {
       required BigInt secondPrimeFactor,
       required BigInt modulus}) = RsaPrivateKeyImpl;
 }
+

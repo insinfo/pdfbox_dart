@@ -92,6 +92,11 @@ class ScratchFileBuffer extends RandomAccessRead implements RandomAccess {
   }
 
   @override
+  void setPosition(int position) {
+    seek(position);
+  }
+
+  @override
   void close() {
     closeInternal();
   }
@@ -259,3 +264,4 @@ class ScratchFileBuffer extends RandomAccessRead implements RandomAccess {
     throw UnsupportedError('${runtimeType.toString()}.createView is not supported.');
   }
 }
+

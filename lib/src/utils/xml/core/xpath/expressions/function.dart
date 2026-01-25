@@ -44,3 +44,4 @@ class DynamicFunctionExpression implements XPathExpression {
     }
   }
 }
+

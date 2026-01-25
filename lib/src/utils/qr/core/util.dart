@@ -83,3 +83,4 @@ int _bchDigit(int data) {
 
 List<int> patternPosition(int typeNumber) =>
     _patternPositionTable[typeNumber - 1];
+

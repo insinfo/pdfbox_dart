@@ -27,3 +27,4 @@ void main() {
     expect(table.rawData, equals(bytes));
   });
 }
+

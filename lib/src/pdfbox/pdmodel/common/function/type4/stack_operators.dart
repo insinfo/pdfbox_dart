@@ -118,3 +118,4 @@ class _Roll implements Operator {
     }
   }
 }
+

@@ -39,3 +39,4 @@ final class PageDrawerParameters {
   double getImageDownscalingOptimizationThreshold() =>
       _imageDownscalingOptimizationThreshold;
 }
+

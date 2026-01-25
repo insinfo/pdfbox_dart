@@ -85,3 +85,4 @@ mixin XmlHasChildren<T extends XmlNode> implements XmlChildrenBase {
     return null;
   }
 }
+

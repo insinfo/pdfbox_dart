@@ -11,3 +11,4 @@ abstract class PDVectorFont {
   /// Indicates whether the glyph mapped from [code] exists in the font.
   bool hasGlyph(int code);
 }
+

@@ -38,3 +38,4 @@ abstract class GlyfDescript implements GlyphDescription {
   @override
   void resolve() {}
 }
+

@@ -10,3 +10,4 @@ class FeatureListTable {
   @override
   String toString() => 'FeatureListTable[featureCount=$featureCount]';
 }
+

@@ -11,3 +11,4 @@ import 'predicate/letter.dart';
 @useResult
 Parser<String> letter({String message = 'letter expected'}) =>
     CharacterParser(const LetterCharPredicate(), message);
+

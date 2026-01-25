@@ -18,3 +18,4 @@ class FontMappers {
     _instance = fontMapper;
   }
 }
+

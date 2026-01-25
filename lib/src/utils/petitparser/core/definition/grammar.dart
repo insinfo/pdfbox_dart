@@ -86,3 +86,4 @@ abstract class GrammarDefinition<R> {
   @useResult
   Parser<T> buildFrom<T>(Parser<T> parser) => resolve<T>(parser);
 }
+

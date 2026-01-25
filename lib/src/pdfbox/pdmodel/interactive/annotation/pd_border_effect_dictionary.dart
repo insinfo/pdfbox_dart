@@ -52,3 +52,4 @@ class PDBorderEffectDictionary implements COSObjectable {
     return _dictionary.getNameAsString(COSName.get("S"), STYLE_SOLID) ?? STYLE_SOLID;
   }
 }
+

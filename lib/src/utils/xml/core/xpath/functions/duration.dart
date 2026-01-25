@@ -498,3 +498,4 @@ XPathSequence _fnSecondsFromDuration(XPathContext context, XPathDuration? arg) {
     arg.inSeconds % 60 + (arg.inMicroseconds % 1000000) / 1000000.0,
   );
 }
+

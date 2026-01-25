@@ -294,3 +294,4 @@ class IDNAConverter {
         : _result.elementAt(0);
   }
 }
+

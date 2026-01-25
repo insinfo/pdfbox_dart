@@ -17,3 +17,4 @@ class CertificateChainPairCheckResult {
     return dnDataMatch && signatureMatch;
   }
 }
+

@@ -221,3 +221,4 @@ class FileSystemFontInfo extends FontInfo {
   @override
   PDPanoseClassification? get panose => _panose;
 }
+

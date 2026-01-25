@@ -384,3 +384,4 @@ class PDPage implements PDContentStream, COSObjectable {
     _dictionary[COSName.b] = array;
   }
 }
+

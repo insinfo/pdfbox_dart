@@ -1115,3 +1115,4 @@ class StandardSecurityHandler
     return true;
   }
 }
+

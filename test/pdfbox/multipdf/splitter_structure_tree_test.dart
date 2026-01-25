@@ -79,3 +79,4 @@ COSDictionary? _asDictionary(COSBase? value) {
   }
   return null;
 }
+

@@ -64,3 +64,4 @@ class AnySingleCharacterParser extends SingleCharacterParser {
   int fastParseOn(String buffer, int position) =>
       position < buffer.length ? position + 1 : -1;
 }
+

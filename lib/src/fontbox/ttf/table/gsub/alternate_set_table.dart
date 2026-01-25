@@ -13,3 +13,4 @@ class AlternateSetTable {
   String toString() =>
       'AlternateSetTable{glyphCount=$glyphCount, alternateGlyphIDs=$alternateGlyphIds}';
 }
+

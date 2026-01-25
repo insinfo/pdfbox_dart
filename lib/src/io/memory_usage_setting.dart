@@ -146,3 +146,4 @@ class _NormalizedConfig {
   final int maxMainMemoryBytes;
   final int maxStorageBytes;
 }
+

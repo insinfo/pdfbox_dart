@@ -9,3 +9,4 @@ class DecodeResult {
   final Object? colorSpace;
   final Object? smask;
 }
+

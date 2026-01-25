@@ -70,3 +70,4 @@ class PDAnnotationWidget extends PDAnnotation {
     dictionary.setItem(COSName.aa, actions);
   }
 }
+

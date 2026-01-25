@@ -83,3 +83,4 @@ class MsbReader extends LzwReader {
     }
   }
 }
+

@@ -934,3 +934,4 @@ XPathSequence _fnSerialize(
 ]) {
   throw UnimplementedError('fn:serialize is not yet implemented');
 }
+

@@ -383,3 +383,4 @@ class DateUtils {
     return ((diffInDays - date.weekday + 10) / 7).floor();
   }
 }
+

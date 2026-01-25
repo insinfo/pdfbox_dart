@@ -100,3 +100,4 @@ class MarkedContentPointWithPropertiesOperator extends OperatorProcessor {
     context.markedContentPoint(tag, properties);
   }
 }
+

@@ -42,3 +42,4 @@ class PDShadingType3 extends PDShading {
     return fn.eval(<double>[t]);
   }
 }
+

@@ -9,3 +9,4 @@ enum XmlAttributeType {
 
   final String token;
 }
+

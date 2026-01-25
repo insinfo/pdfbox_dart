@@ -197,3 +197,4 @@ String _toVariableName(String fileName) {
   return parts.first.toLowerCase() +
       parts.skip(1).map((p) => p.isEmpty ? '' : p[0].toUpperCase() + p.substring(1).toLowerCase()).join();
 }
+

@@ -162,3 +162,4 @@ abstract class HttpClient implements dart_io.HttpClient {
     return 'DIRECT';
   }
 }
+

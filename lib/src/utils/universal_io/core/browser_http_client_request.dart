@@ -35,3 +35,4 @@ mixin BrowserHttpClientRequest on HttpClientRequest {
   ///  ```
   bool browserCredentialsMode = false;
 }
+

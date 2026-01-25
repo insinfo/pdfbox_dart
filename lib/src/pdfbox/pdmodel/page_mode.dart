@@ -20,3 +20,4 @@ enum PageMode {
     throw ArgumentError('Unknown page mode: $value');
   }
 }
+

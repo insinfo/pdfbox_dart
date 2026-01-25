@@ -15,3 +15,4 @@ class SingleCharPredicate extends CharacterPredicate {
   @override
   String toString() => '${super.toString()}($charCode)';
 }
+

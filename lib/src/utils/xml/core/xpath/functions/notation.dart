@@ -30,3 +30,4 @@ XPathSequence _opNotationEqual(
   if (arg1 == null || arg2 == null) return XPathSequence.empty;
   return XPathSequence.single(arg1 == arg2);
 }
+

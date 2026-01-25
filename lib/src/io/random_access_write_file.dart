@@ -36,6 +36,18 @@ class RandomAccessWriteFile implements RandomAccessWrite {
   }
 
   @override
+  void setPosition(int position) {
+    _checkClosed();
+    _raf.setPositionSync(position);
+  }
+
+  @override
+  int get position {
+    _checkClosed();
+    return _raf.positionSync();
+  }
+
+  @override
   void close() {
     if (_isClosed) {
       return;
@@ -50,3 +62,4 @@ class RandomAccessWriteFile implements RandomAccessWrite {
     }
   }
 }
+

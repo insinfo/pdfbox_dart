@@ -26,3 +26,4 @@ class CoverageTableFormat2 extends CoverageTableFormat1 {
   @override
   String toString() => 'CoverageTableFormat2[coverageFormat=$coverageFormat]';
 }
+

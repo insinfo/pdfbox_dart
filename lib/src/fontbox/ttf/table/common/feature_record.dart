@@ -9,3 +9,4 @@ class FeatureRecord {
   @override
   String toString() => 'FeatureRecord[featureTag=$featureTag]';
 }
+

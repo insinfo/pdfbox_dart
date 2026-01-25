@@ -142,3 +142,4 @@ abstract class Parser<R> {
   @override
   String toString() => '$runtimeType';
 }
+

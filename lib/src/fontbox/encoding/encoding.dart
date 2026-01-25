@@ -23,3 +23,4 @@ abstract class Encoding {
   /// Exposes an immutable view of the code-to-name assignments.
   Map<int, String> get codeToNameMap => UnmodifiableMapView(_codeToName);
 }
+

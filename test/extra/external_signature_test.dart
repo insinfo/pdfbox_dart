@@ -1,0 +1,237 @@
+import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:pdfbox_dart/src/pdfbox/extra/external_pdf_signature.dart';
+import 'package:pdfbox_dart/src/pdfbox/extra/pdf_signature_validation.dart';
+import 'package:pdfbox_dart/src/pdfbox/pdmodel/common/pd_rectangle.dart';
+import 'package:pdfbox_dart/src/pdfbox/pdmodel/interactive/digitalsignature/pd_signature.dart';
+import 'package:pdfbox_dart/src/pdfbox/pdmodel/pd_document.dart';
+import 'package:pdfbox_dart/src/pdfbox/pdmodel/pd_page.dart';
+import 'package:test/test.dart';
+
+class SignaturePosition {
+  final int pageNumber;
+  final double x, y, width, height;
+  const SignaturePosition(
+      this.pageNumber, this.x, this.y, this.width, this.height);
+}
+
+class PdfAssinaturaGovBrService {
+  Future<({String hashBase64, String tempFilePath})> prepararPdfParaAssinatura({
+    required String inputPath,
+    required SignaturePosition signaturePosition,
+  }) async {
+    final originalFile = File(inputPath);
+    if (!originalFile.existsSync()) throw Exception('File not found');
+
+    final tempFileName =
+        'temp_align_${DateTime.now().millisecondsSinceEpoch}.pdf';
+    final tempFilePath = '${originalFile.parent.path}/$tempFileName';
+    final tempFile = File(tempFilePath);
+    await originalFile.copy(tempFilePath);
+
+    final fileBytes = await tempFile.readAsBytes();
+    final PDSignature signature = PDSignature()
+      ..setContactInfo('Gov.br - Assinatura Digital')
+      ..setReason('Assinatura eletronica via Gov.br');
+
+    final prepared = await PdfExternalSigning.preparePdf(
+      inputBytes: Uint8List.fromList(fileBytes),
+      pageNumber: signaturePosition.pageNumber,
+      bounds: PDRectangle(
+        signaturePosition.x,
+        signaturePosition.y,
+        signaturePosition.x + signaturePosition.width,
+        signaturePosition.y + signaturePosition.height,
+      ),
+      fieldName: 'GovBr_Signature',
+      signature: signature,
+    );
+
+    await tempFile.writeAsBytes(prepared.preparedPdfBytes, flush: true);
+
+    return (hashBase64: prepared.hashBase64, tempFilePath: tempFilePath);
+  }
+
+  Future<Uint8List> finalizarAssinaturaNoPdf({
+    required String tempFilePath,
+    required String p7sHex,
+  }) async {
+    final tempFile = File(tempFilePath);
+    if (!tempFile.existsSync()) throw Exception('Temp file missing');
+
+    final fileBytes = await tempFile.readAsBytes();
+    final sigBytes = _hexToBytes(p7sHex);
+    return PdfExternalSigning.embedSignature(
+      preparedPdfBytes: Uint8List.fromList(fileBytes),
+      pkcs7Bytes: sigBytes,
+    );
+  }
+}
+
+void main() {
+  final bool hasOpenSsl = _hasOpenSsl();
+
+  test(
+    'external signature flow with OpenSSL',
+    () async {
+      if (!hasOpenSsl) return;
+
+      final testDir = await Directory.systemTemp.createTemp('sig_test_');
+      try {
+        final service = PdfAssinaturaGovBrService();
+
+        await _runCmd('openssl', [
+          'req',
+          '-x509',
+          '-newkey',
+          'rsa:2048',
+          '-keyout',
+          '${testDir.path}/user_key.pem',
+          '-out',
+          '${testDir.path}/user_cert.pem',
+          '-days',
+          '365',
+          '-nodes',
+          '-subj',
+          '/CN=John Doe',
+          '-addext',
+          'keyUsage=digitalSignature'
+        ]);
+
+        final PDDocument doc = PDDocument();
+        doc.addPage(PDPage());
+        final String inputPdfPath = '${testDir.path}/input.pdf';
+        File(inputPdfPath).writeAsBytesSync(doc.saveToBytes());
+        doc.close();
+
+        final prepResult = await service.prepararPdfParaAssinatura(
+          inputPath: inputPdfPath,
+          signaturePosition: const SignaturePosition(1, 100, 100, 200, 50),
+        );
+
+        final tempPdfPath = prepResult.tempFilePath;
+        final preparedBytes = File(tempPdfPath).readAsBytesSync();
+        final ranges = PdfExternalSigning.extractByteRange(preparedBytes);
+
+        final start1 = ranges[0];
+        final len1 = ranges[1];
+        final start2 = ranges[2];
+        final len2 = ranges[3];
+
+        final part1 = preparedBytes.sublist(start1, start1 + len1);
+        final part2 = preparedBytes.sublist(start2, start2 + len2);
+        final dataToSignPath = '${testDir.path}/data_to_sign.bin';
+        final dataSink = File(dataToSignPath).openWrite();
+        dataSink.add(part1);
+        dataSink.add(part2);
+        await dataSink.close();
+
+        await _runCmd('openssl', [
+          'smime',
+          '-sign',
+          '-binary',
+          '-in',
+          dataToSignPath.replaceAll('/', Platform.pathSeparator),
+          '-signer',
+          '${testDir.path}/user_cert.pem'
+              .replaceAll('/', Platform.pathSeparator),
+          '-inkey',
+          '${testDir.path}/user_key.pem'
+              .replaceAll('/', Platform.pathSeparator),
+          '-out',
+          '${testDir.path}/signature.p7s'
+              .replaceAll('/', Platform.pathSeparator),
+          '-outform',
+          'DER'
+        ]);
+
+        final sigFile = File('${testDir.path}/signature.p7s');
+        expect(sigFile.existsSync(), isTrue);
+        final sigBytes = sigFile.readAsBytesSync();
+        final sigHex = _hex(sigBytes);
+
+        final finalizedBytes = await service.finalizarAssinaturaNoPdf(
+          tempFilePath: tempPdfPath,
+          p7sHex: sigHex,
+        );
+        
+        // Debug gap location
+        final rangesFinal = PdfExternalSigning.extractByteRange(finalizedBytes);
+        print('Final ByteRange: $rangesFinal');
+        print('Total size: ${finalizedBytes.length}');
+        
+        // DEBUG: Dump tail of finalized bytes
+        if (finalizedBytes.length > 200) {
+            final tail = finalizedBytes.sublist(finalizedBytes.length - 200);
+            print('Tail of finalized PDF (${finalizedBytes.length} bytes):');
+            print(String.fromCharCodes(tail));
+            print('Hex: ${_hex(tail)}');
+        }
+
+        final PdfSignatureValidationResult validation =
+            PdfSignatureValidation().validatePdfSignature(finalizedBytes);
+        expect(validation.cmsSignatureValid, isTrue);
+        expect(validation.byteRangeDigestOk, isTrue);
+        expect(validation.documentIntact, isTrue);
+        expect(validation.certsPem, isNotEmpty);
+
+        // Tamper with a byte inside the signed region: digest check must fail.
+        final Uint8List tampered = Uint8List.fromList(finalizedBytes);
+        // Tamper with a byte near the end (trailer/xref), which is definitely signed.
+        final int tamperIndex = tampered.length - 10;
+        tampered[tamperIndex] = (tampered[tamperIndex] + 1) & 0xFF;
+        
+        final PdfSignatureValidationResult tamperedValidation =
+            PdfSignatureValidation().validatePdfSignature(tampered);
+        expect(tamperedValidation.documentIntact, isFalse);
+        expect(tamperedValidation.byteRangeDigestOk, isFalse);
+
+        final signedPdfPath = '${testDir.path}/final_signed.pdf';
+        File(signedPdfPath).writeAsBytesSync(finalizedBytes);
+        expect(finalizedBytes, isNotEmpty);
+      } catch (e) {
+        if (e is IOException) {
+           print('Caught IOException: $e');
+        }
+        rethrow;
+      } finally {
+        await testDir.delete(recursive: true);
+      }
+    },
+    timeout: const Timeout(Duration(minutes: 2)),
+    skip: hasOpenSsl ? false : 'openssl not available',
+  );
+}
+
+bool _hasOpenSsl() {
+  try {
+    final ProcessResult result = Process.runSync('openssl', const ['version']);
+    return result.exitCode == 0;
+  } catch (_) {
+    return false;
+  }
+}
+
+Future<void> _runCmd(String cmd, List<String> args) async {
+  final res = await Process.run(cmd, args);
+  if (res.exitCode != 0) {
+    throw Exception('Command failed: $cmd ${args.join(' ')}');
+  }
+}
+
+String _hex(List<int> bytes) {
+  return bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+}
+
+List<int> _hexToBytes(String hex) {
+  final String clean = hex.trim();
+  if (clean.isEmpty) return <int>[];
+  final String normalized = clean.length.isOdd ? '0$clean' : clean;
+  final List<int> out = <int>[];
+  for (int i = 0; i < normalized.length; i += 2) {
+    out.add(int.parse(normalized.substring(i, i + 2), radix: 16));
+  }
+  return out;
+}
+

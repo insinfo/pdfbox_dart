@@ -417,3 +417,4 @@ class Float32x4Buffer extends TypedDataBuffer<Float32x4> {
   @override
   Float32x4List _createBuffer(int size) => Float32x4List(size);
 }
+

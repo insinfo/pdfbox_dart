@@ -139,3 +139,4 @@ ShapeJoiningType getShapeJoiningType(int character) {
 
   return ShapeJoiningType.nonJoining;
 }
+

@@ -8,3 +8,4 @@ class StandardDecryptionMaterial extends DecryptionMaterial {
   /// Password used to unlock the document.
   final String password;
 }
+

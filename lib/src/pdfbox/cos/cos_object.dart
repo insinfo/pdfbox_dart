@@ -62,3 +62,4 @@ class COSObject extends COSBase {
   bool hasDirtyDescendant(Set<COSBase> visited) =>
       _object.needsUpdateDeep(visited);
 }
+

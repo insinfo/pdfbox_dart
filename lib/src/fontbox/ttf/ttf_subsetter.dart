@@ -927,3 +927,4 @@ class _TableRecord {
   final int offset;
   final int length;
 }
+

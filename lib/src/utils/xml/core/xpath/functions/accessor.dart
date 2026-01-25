@@ -175,3 +175,4 @@ XPathSequence _fnDocumentUri(XPathContext context, [XPathNode? node]) {
   }
   return XPathSequence.empty;
 }
+

@@ -21,3 +21,4 @@ part 'core/character_mirror.dart';
 part 'core/bidi_characters.dart';
 part 'core/shaping_resolver.dart';
 part 'core/unicode_character_resolver.dart';
+

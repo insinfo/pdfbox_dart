@@ -32,3 +32,4 @@ class XmlDoctypeEvent extends XmlEvent {
       externalId == other.externalId &&
       internalSubset == other.internalSubset;
 }
+

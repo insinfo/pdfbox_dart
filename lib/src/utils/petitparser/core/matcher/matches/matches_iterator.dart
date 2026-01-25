@@ -32,3 +32,4 @@ class MatchesIterator<R> implements Iterator<R> {
     return false;
   }
 }
+

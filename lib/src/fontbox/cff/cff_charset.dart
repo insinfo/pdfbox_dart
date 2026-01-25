@@ -157,3 +157,4 @@ class EmbeddedCharset implements CFFCharset {
   int getCIDForGID(int gid) => _delegate.getCIDForGID(gid);
 }
 
+

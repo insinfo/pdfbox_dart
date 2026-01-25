@@ -18,3 +18,4 @@ class MatchesIterable<R> extends IterableBase<R> {
   Iterator<R> get iterator =>
       MatchesIterator<R>(parser, input, start, overlapping);
 }
+

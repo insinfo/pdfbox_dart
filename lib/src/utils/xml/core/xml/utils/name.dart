@@ -51,3 +51,4 @@ abstract class XmlName extends Object
   @override
   void accept(XmlVisitor visitor) => visitor.visitName(this);
 }
+

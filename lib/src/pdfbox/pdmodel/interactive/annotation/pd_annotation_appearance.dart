@@ -118,3 +118,4 @@ class PDAppearanceDictionary implements COSObjectable {
     _dictionary.setItem(COSName.d, ap);
   }
 }
+

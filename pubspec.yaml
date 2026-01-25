@@ -24,12 +24,7 @@ dependencies:
     #   url: https://github.com/insinfo/dart_graphics
     #   ref: master
 
-dev_dependencies: 
-  dart_pdf:
-  #   path: insinfo_dart_pdf
-   git:
-    url: https://github.com/insinfo/insinfo_dart_pdf
-    ref: 31.1.21-fix   #branch name   
+dev_dependencies:
   test: ^1.26.3
 
  

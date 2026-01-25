@@ -128,3 +128,4 @@ class PDFormXObject extends PDXObject implements PDContentStream {
     _resourceCache = cache;
   }
 }
+

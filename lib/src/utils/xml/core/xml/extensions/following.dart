@@ -65,3 +65,4 @@ class XmlFollowingIterator implements Iterator<XmlNode> {
     }
   }
 }
+

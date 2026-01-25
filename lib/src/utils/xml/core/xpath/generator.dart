@@ -92,3 +92,4 @@ String _createSegment(
   }
   return buffer.toString();
 }
+

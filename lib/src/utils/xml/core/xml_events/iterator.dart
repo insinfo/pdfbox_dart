@@ -58,3 +58,4 @@ class XmlEventIterator implements Iterator<XmlEvent> {
     return false;
   }
 }
+

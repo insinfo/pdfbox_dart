@@ -162,3 +162,4 @@ class SeparatedRepeatingParser<R, S>
   SeparatedRepeatingParser<R, S> copy() =>
       SeparatedRepeatingParser<R, S>(delegate, separator, min, max);
 }
+

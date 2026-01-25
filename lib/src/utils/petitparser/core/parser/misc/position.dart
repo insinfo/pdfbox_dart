@@ -24,3 +24,4 @@ class PositionParser extends Parser<int> {
   @override
   PositionParser copy() => PositionParser();
 }
+

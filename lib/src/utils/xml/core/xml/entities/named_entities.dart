@@ -2393,3 +2393,4 @@ const Map<String, String> html5Entities = {
   'zwj': '\u200D',
   'zwnj': '\u200C',
 };
+

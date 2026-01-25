@@ -21,3 +21,4 @@ abstract class XmlNode extends Object
   /// Return a copy of this node and all its children.
   XmlNode copy();
 }
+

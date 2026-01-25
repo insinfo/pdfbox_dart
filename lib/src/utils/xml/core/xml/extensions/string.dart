@@ -40,3 +40,4 @@ extension XmlStringExtension on XmlNode {
     }
   }
 }
+

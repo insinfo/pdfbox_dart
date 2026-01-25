@@ -238,3 +238,4 @@ abstract class PDAnnotation {
     return (flags & 0x10) != 0; // NoRotate flag
   }
 }
+

@@ -256,3 +256,4 @@ int _getCharacterByLetterForm(int character, LetterForm form) {
 
   return character;
 }
+

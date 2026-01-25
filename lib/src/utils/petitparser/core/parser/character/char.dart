@@ -31,3 +31,4 @@ Parser<String> char(
       '${ignoreCase ? ' (case-insensitive)' : ''} expected';
   return CharacterParser(predicate, message, unicode: unicode);
 }
+

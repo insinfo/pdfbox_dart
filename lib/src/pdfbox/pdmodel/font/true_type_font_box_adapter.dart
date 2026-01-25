@@ -165,3 +165,4 @@ class TrueTypeFontBoxAdapter implements FontBoxFont {
     return scaled;
   }
 }
+

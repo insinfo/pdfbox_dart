@@ -11,3 +11,4 @@ class ScriptTable {
   String toString() =>
       'ScriptTable[hasDefault=${defaultLangSysTable != null},langSysRecordsCount=${langSysTables.length}]';
 }
+

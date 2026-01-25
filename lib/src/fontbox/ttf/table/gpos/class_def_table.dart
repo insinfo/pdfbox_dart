@@ -66,3 +66,4 @@ class ClassDefTable {
     return ClassDefTable._(Map<int, int>.unmodifiable(glyphToClass), maxClass);
   }
 }
+

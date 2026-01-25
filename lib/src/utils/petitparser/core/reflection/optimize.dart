@@ -56,3 +56,4 @@ Parser<R> optimize<R>(
   }
   return parser;
 }
+

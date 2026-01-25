@@ -52,3 +52,4 @@ Map<int, String> _parseAfm(File file) {
   }
   return map;
 }
+

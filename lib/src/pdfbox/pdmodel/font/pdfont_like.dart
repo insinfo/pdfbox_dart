@@ -41,3 +41,4 @@ abstract class PDFontLike {
   /// Returns the average width of glyphs in text space units.
   double getAverageFontWidth();
 }
+

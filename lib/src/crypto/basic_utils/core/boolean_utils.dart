@@ -239,3 +239,4 @@ class BooleanUtils {
     return value ? TRUE : FALSE;
   }
 }
+

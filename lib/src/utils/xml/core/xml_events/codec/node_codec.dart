@@ -19,3 +19,4 @@ class XmlNodeCodec extends Codec<List<XmlNode>, List<XmlEvent>> {
   @override
   final Converter<List<XmlNode>, List<XmlEvent>> encoder;
 }
+

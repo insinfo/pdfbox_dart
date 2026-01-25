@@ -62,3 +62,4 @@ class XmlToken {
       '\u{e000}-\u{fffd}'
       '\u{10000}-\u{10ffff}';
 }
+

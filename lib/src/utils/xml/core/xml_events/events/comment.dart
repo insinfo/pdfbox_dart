@@ -24,3 +24,4 @@ class XmlCommentEvent extends XmlEvent {
   bool operator ==(Object other) =>
       other is XmlCommentEvent && other.value == value;
 }
+

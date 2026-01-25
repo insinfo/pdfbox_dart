@@ -21,3 +21,4 @@ class COSInteger extends COSNumber {
   @override
   String toString() => value.toString();
 }
+

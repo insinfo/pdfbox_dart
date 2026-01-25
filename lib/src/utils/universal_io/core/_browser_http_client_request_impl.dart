@@ -419,3 +419,4 @@ class BrowserHttpClientRequestImpl extends IOSinkBase
   @override
   bool browserCredentialsMode = false;
 }
+

@@ -63,3 +63,4 @@ class SkipParser<R> extends DelegateParser<R, R> implements SequentialParser {
     if (after == source) after = target;
   }
 }
+

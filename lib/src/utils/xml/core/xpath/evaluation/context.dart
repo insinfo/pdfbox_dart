@@ -62,3 +62,4 @@ class XPathContext {
 /// Function type for tracing evaluation.
 typedef XPathTraceCallback =
     void Function(XPathSequence value, XPathString? label);
+

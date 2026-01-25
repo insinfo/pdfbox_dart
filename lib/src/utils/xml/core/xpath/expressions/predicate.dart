@@ -43,3 +43,4 @@ class PredicateExpression implements XPathExpression {
     return XPathSequence(matched);
   }
 }
+

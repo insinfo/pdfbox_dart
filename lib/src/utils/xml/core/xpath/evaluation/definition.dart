@@ -211,3 +211,4 @@ enum XPathArgumentCardinality {
   /// The argument can have any number of values `*`.
   zeroOrMore,
 }
+

@@ -5,3 +5,4 @@ abstract class PDContentStream {
   /// Returns a [RandomAccessRead] for stream parsing.
   RandomAccessRead getContentsForStreamParsing();
 }
+

@@ -104,3 +104,4 @@ extension RecordParserExtension3<T1, T2, T3> on Parser<(T1, T2, T3)> {
     bool hasSideEffects = false,
   }) => map((record) => record.map(callback), hasSideEffects: hasSideEffects);
 }
+

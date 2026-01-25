@@ -19,3 +19,4 @@ enum OCSPResponseStatus {
   SIG_REQUIRED,
   UNAUTHORIZED
 }
+

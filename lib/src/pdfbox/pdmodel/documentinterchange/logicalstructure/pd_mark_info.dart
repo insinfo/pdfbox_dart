@@ -31,3 +31,4 @@ class PDMarkInfo implements COSObjectable {
 
   set isSuspect(bool value) => _dictionary.setBoolean(_suspects, value);
 }
+

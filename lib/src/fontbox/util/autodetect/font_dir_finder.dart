@@ -5,3 +5,4 @@ abstract class FontDirFinder {
   /// Returns the list of directories that may contain installed fonts.
   List<Directory> find();
 }
+

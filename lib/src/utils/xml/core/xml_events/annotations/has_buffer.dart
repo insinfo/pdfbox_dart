@@ -15,3 +15,4 @@ mixin XmlHasBuffer {
     _buffer = buffer;
   }
 }
+

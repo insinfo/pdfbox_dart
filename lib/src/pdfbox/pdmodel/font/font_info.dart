@@ -79,3 +79,4 @@ abstract class FontInfo {
         'os/2: 0x${familyClass.toRadixString(16)}, cid: $cidDescription)';
   }
 }
+

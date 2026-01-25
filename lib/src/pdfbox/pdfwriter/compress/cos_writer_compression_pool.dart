@@ -175,3 +175,4 @@ class COSWriterCompressionPool {
     return a.generationNumber.compareTo(b.generationNumber);
   }
 }
+

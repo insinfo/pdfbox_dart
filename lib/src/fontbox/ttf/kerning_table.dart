@@ -59,3 +59,4 @@ class KerningTable extends TtfTable {
   List<KerningSubtable> get subtables =>
       List<KerningSubtable>.unmodifiable(_subtables);
 }
+

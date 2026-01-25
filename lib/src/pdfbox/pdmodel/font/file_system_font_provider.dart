@@ -151,3 +151,4 @@ class FileSystemFontProvider extends FontProvider {
   /// Exposes the internally shared cache so external callers can reuse it.
   FontCache get cache => _cache;
 }
+

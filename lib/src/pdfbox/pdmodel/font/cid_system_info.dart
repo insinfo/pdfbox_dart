@@ -9,3 +9,4 @@ class CidSystemInfo {
   @override
   String toString() => '$registry-$ordering-$supplement';
 }
+

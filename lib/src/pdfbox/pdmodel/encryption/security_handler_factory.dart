@@ -72,3 +72,4 @@ class SecurityHandlerFactory {
     return creator?.call(policy);
   }
 }
+

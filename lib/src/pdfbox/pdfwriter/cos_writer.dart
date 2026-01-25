@@ -64,6 +64,9 @@ class COSWriter {
     _objectStreamReferences.clear();
     _highestObjectNumber = 0;
 
+    // Enable signature tracking for full document save
+    _signatureTracking = _SignatureTracking(0);
+
     final cosDocument = document.cosDocument;
     final trailer = cosDocument.trailer;
     _activeCOSDocument = cosDocument;
@@ -131,10 +134,50 @@ class COSWriter {
         _writeClassicXrefSection(document, trailer);
       }
       _clearUpdateStates(cosDocument);
+
+      final tracking = _signatureTracking;
+      if (tracking != null && tracking.byteRangeOffset > 0) {
+        final totalLength = _output.position;
+        final sigOffset = tracking.signatureOffset;
+        final sigLen = tracking.signatureLength;
+        final values = <int>[
+          0,
+          sigOffset,
+          sigOffset + sigLen,
+          totalLength - (sigOffset + sigLen)
+        ];
+        _patchByteRangeOnTarget(tracking, values);
+      }
     } finally {
       _activeCOSDocument = null;
+      _signatureTracking = null;
       _restoreDirectStates();
     }
+  }
+
+  void _patchByteRangeOnTarget(
+    _SignatureTracking tracking,
+    List<int> values,
+  ) {
+    // Generate text WITHOUT closing bracket, as tracking.byteRangeLength
+    // corresponds to the content inside [ ... ].
+    // We pad with spaces to overwrite the placeholder completely.
+    final rangeString = '0 ${values[1]} ${values[2]} ${values[3]}';
+    final encoded = latin1.encode(rangeString);
+    if (encoded.length > tracking.byteRangeLength) {
+      // If we don't have enough space, we can't fix it properly.
+      // This happens if the placeholder was too small (e.g. [0 0 0 0]).
+      throw StateError(
+          'Not enough space in ByteRange placeholder: needed ${encoded.length}, available ${tracking.byteRangeLength}');
+    }
+
+    final currentPos = _output.position;
+    _target.setPosition(tracking.byteRangeOffset);
+    _target.writeBytes(Uint8List.fromList(encoded));
+    for (var i = encoded.length; i < tracking.byteRangeLength; i++) {
+      _target.writeByte(0x20); // space
+    }
+    _target.setPosition(currentPos);
   }
 
   void writeIncremental(PDDocument document, RandomAccessRead original) {
@@ -1442,3 +1485,4 @@ class _CopyResult {
 
   bool get endsWithEol => lastByte == 0x0a || lastByte == 0x0d;
 }
+

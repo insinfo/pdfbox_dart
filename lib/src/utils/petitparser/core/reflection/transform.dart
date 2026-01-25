@@ -32,3 +32,4 @@ Parser<R> transformParser<R>(Parser<R> parser, TransformationHandler handler) {
   }
   return mapping[parser] as Parser<R>;
 }
+

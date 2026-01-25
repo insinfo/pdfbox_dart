@@ -34,3 +34,4 @@ class FailureParser extends Parser<Never> {
   bool hasEqualProperties(FailureParser other) =>
       super.hasEqualProperties(other) && message == other.message;
 }
+

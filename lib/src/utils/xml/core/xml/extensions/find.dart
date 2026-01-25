@@ -49,3 +49,4 @@ Iterable<XmlElement> filterElements(
   final matcher = createNameMatcher(name, namespace);
   return iterable.whereType<XmlElement>().where(matcher);
 }
+

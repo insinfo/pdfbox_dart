@@ -20,3 +20,4 @@ class CertificateRevokeListeData {
     this.signatureAlgorithmReadableName,
   });
 }
+

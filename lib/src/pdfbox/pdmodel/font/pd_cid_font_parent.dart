@@ -11,3 +11,4 @@ abstract class PDCIDFontParent {
   /// Returns the optional UCS-2 CMap when available.
   CMap? get cMapUcs2;
 }
+

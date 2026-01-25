@@ -12,3 +12,4 @@ class RangeRecord {
   String toString() =>
       'RangeRecord[startGlyphID=$startGlyphId,endGlyphID=$endGlyphId,startCoverageIndex=$startCoverageIndex]';
 }
+

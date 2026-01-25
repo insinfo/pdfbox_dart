@@ -57,3 +57,4 @@ abstract class XmlEntityMapping {
   String encodeAttributeValueWithQuotes(String input, XmlAttributeType type) =>
       '${type.token}${encodeAttributeValue(input, type)}${type.token}';
 }
+

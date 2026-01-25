@@ -57,3 +57,4 @@ class HeaderTable extends TtfTable {
     setInitialized(true);
   }
 }
+

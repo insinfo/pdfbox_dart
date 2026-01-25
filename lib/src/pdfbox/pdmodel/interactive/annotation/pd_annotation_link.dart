@@ -75,3 +75,4 @@ class PDAnnotationLink extends PDAnnotation {
   set action(PDAction? value) =>
       cosObject.setItem(COSName.a, value?.cosObject);
 }
+

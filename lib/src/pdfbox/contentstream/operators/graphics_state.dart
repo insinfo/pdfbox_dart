@@ -90,3 +90,4 @@ class SetGraphicsStateOperator extends OperatorProcessor {
     context.setGraphicsStateParameters(name);
   }
 }
+

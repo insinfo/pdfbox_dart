@@ -111,3 +111,4 @@ class SignatureOptions implements Closeable {
     _disposeCurrent();
   }
 }
+

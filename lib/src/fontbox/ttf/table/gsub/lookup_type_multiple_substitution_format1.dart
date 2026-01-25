@@ -18,3 +18,4 @@ class LookupTypeMultipleSubstitutionFormat1 extends LookupSubTable {
   int doSubstitution(int glyphId, int coverageIndex) =>
       throw UnsupportedError('Multiple substitution expands glyph sequences');
 }
+

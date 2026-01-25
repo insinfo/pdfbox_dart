@@ -4,3 +4,4 @@ class Ligature {
   final String successor;
   final String ligature;
 }
+

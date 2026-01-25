@@ -73,3 +73,4 @@ class _ProgressFrame extends ProgressFrame {
   @override
   String toString() => '${'*' * (1 + position)} $parser';
 }
+

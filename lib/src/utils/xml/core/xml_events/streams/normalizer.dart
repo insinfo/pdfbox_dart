@@ -76,3 +76,4 @@ class _XmlNormalizeEventsSink implements ChunkedConversionSink<List<XmlEvent>> {
     sink.close();
   }
 }
+

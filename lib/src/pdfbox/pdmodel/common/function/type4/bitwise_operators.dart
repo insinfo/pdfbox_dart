@@ -101,3 +101,4 @@ class _Xor extends _AbstractLogicalOperator {
   @override
   int applyForInteger(int a, int b) => a ^ b;
 }
+

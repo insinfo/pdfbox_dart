@@ -73,3 +73,4 @@ class PDBorderStyleDictionary implements COSObjectable {
     _dictionary.setItem(COSName.d, array);
   }
 }
+

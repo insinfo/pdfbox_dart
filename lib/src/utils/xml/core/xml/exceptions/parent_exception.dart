@@ -46,3 +46,4 @@ class XmlParentException extends XmlException {
   @override
   String toString() => 'XmlParentException: $message';
 }
+

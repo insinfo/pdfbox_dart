@@ -92,3 +92,4 @@ extension RecordParserExtension2<T1, T2> on Parser<(T1, T2)> {
     bool hasSideEffects = false,
   }) => map((record) => record.map(callback), hasSideEffects: hasSideEffects);
 }
+

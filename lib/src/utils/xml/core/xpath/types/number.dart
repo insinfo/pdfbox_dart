@@ -24,3 +24,4 @@ extension XPathNumberExtension on Object {
     XPathEvaluationException.unsupportedCast(self, 'number');
   }
 }
+

@@ -154,3 +154,4 @@ class PostScriptTable extends TtfTable {
     return names[gid];
   }
 }
+

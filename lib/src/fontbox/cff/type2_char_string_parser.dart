@@ -191,3 +191,4 @@ class _GlyphData {
   int hstemCount = 0;
   int vstemCount = 0;
 }
+

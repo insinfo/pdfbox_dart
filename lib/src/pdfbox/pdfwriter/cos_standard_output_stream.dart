@@ -55,3 +55,4 @@ class COSStandardOutputStream {
 
   void writeLF() => writeBytes(lf);
 }
+

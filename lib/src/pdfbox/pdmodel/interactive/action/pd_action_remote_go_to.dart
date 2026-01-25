@@ -64,3 +64,4 @@ class PDActionRemoteGoTo extends PDAction {
 
   set newWindow(bool value) => setBoolean(COSName.newWindow, value);
 }
+

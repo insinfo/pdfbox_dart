@@ -375,3 +375,4 @@ class _JstfAwareTrueTypeFont extends TrueTypeFont {
   @override
   OtlTable? getJstfTable() => _jstf;
 }
+

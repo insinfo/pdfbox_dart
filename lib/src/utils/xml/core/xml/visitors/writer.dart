@@ -146,3 +146,4 @@ class XmlWriter with XmlVisitor {
     }
   }
 }
+

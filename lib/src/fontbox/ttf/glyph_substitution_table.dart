@@ -732,3 +732,4 @@ class GlyphSubstitutionTable extends TtfTable {
   Set<String> getSupportedScriptTags() =>
       UnmodifiableSetView<String>(_scriptList.keys.toSet());
 }
+

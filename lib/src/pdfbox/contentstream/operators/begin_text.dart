@@ -8,3 +8,4 @@ class BeginTextOperator extends OperatorProcessor {
     context.beginText();
   }
 }
+

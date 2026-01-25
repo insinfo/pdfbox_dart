@@ -45,3 +45,4 @@ class HorizontalHeaderTable extends TtfTable {
     setInitialized(true);
   }
 }
+

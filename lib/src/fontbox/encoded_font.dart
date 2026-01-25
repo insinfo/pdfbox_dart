@@ -5,3 +5,4 @@ abstract class EncodedFont {
   /// Returns the encoding vector associated with this font.
   Encoding? getEncoding();
 }
+

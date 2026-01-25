@@ -30,3 +30,4 @@ class CertificateRevocationList with Pkcs {
   /// DER representation of the Certificate Revocation List
   Uint8List get der => _asn1.encodedBytes!;
 }
+

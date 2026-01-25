@@ -872,3 +872,4 @@ class PDFMergerUtility {
     destStructTree.setIDTree(destIDTree);
   }
 }
+

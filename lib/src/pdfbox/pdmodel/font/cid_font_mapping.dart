@@ -20,3 +20,4 @@ class CidFontMapping extends FontMapping<OpenTypeFont> {
   /// Returns `true` when the mapping references a CID font program.
   bool get isCidFont => font != null;
 }
+

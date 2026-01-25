@@ -16,3 +16,4 @@ class PDTransparencyGroup extends PDFormXObject {
 
   PDTransparencyGroup.forDocument(PDDocument document) : super.forDocument(document);
 }
+

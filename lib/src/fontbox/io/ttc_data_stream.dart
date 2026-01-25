@@ -40,3 +40,4 @@ class TtcDataStream extends TtfDataStream {
   @override
   int get originalDataSize => _delegate.originalDataSize;
 }
+

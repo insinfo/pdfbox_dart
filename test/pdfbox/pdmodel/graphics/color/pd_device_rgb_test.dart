@@ -26,3 +26,4 @@ void main() {
     expect(secondPixel.b, equals(64));
   });
 }
+

@@ -10,3 +10,4 @@ class SetFontOperator extends OperatorProcessor {
     context.setFont(fontName, fontSize);
   }
 }
+

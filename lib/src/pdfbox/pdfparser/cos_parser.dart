@@ -1090,3 +1090,4 @@ class XrefTrailerInfo {
   final COSDictionary trailer;
   final int startXref;
 }
+

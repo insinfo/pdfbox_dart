@@ -5934,3 +5934,4 @@ const characterTypes = <int, CharacterType>{
 CharacterType getCharacterType(int character) {
   return characterTypes[character] ?? CharacterType.ltr;
 }
+

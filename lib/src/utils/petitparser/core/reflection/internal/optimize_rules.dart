@@ -92,3 +92,4 @@ class RemoveDuplicate extends OptimizeRule {
     }
   }
 }
+

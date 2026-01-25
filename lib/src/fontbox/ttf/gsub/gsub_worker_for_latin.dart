@@ -63,3 +63,4 @@ class GsubWorkerForLatin implements GsubWorker {
     return processedGlyphs;
   }
 }
+

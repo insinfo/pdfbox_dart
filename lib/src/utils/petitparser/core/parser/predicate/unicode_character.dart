@@ -126,3 +126,4 @@ bool _isTrailSurrogate(int code) => (code & 0xFC00) == 0xDC00;
 @preferInline
 int _combineSurrogatePair(int start, int end) =>
     0x10000 + ((start & 0x3FF) << 10) + (end & 0x3FF);
+

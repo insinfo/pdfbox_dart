@@ -17,3 +17,4 @@ Predicate<T> toPredicate<T>(
   if (all != null) return (node) => all;
   return (node) => otherwise;
 }
+

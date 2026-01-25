@@ -32,3 +32,4 @@ typedef Predicate<T> = SingleFunction<T, bool>;
 /// Represents an operation on a single operand that produces a result of the
 /// same type as its operand.
 typedef UnaryOperator<T> = SingleFunction<T, T>;
+

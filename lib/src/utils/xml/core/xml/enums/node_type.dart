@@ -38,3 +38,4 @@ enum XmlNodeType {
   /// The text contents of a node.
   TEXT,
 }
+

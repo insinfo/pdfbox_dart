@@ -50,3 +50,4 @@ class CurlyArrayConstructor implements XPathExpression {
     ).expand((member) => member is XPathSequence ? member : [member]).toList(),
   );
 }
+

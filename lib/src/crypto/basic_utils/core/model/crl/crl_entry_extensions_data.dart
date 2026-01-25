@@ -5,3 +5,4 @@ class CrlEntryExtensionsData {
 
   CrlEntryExtensionsData({this.reason});
 }
+

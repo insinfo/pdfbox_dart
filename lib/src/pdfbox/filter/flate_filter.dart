@@ -44,3 +44,4 @@ class FlateFilter extends Filter {
   @override
   int getCompressionLevel() => -1;
 }
+

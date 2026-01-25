@@ -26,3 +26,4 @@ class PredefinedCMapRepository {
   /// Returns the list of embedded predefined CMap names.
   static List<String> list() => List<String>.unmodifiable(PredefinedCMapData.names);
 }
+

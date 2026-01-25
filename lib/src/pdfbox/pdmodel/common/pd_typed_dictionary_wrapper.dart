@@ -14,3 +14,4 @@ class PDTypedDictionaryWrapper extends PDDictionaryWrapper {
 
   String? get type => cosObject.getNameAsString(COSName.type);
 }
+

@@ -70,3 +70,4 @@ class CffOperator {
 
   static int _key(int b0, int b1) => (b1 << 8) | (b0 & 0xFF);
 }
+

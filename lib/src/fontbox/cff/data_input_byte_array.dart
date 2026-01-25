@@ -74,3 +74,4 @@ class DataInputByteArray implements DataInput {
   @override
   int length() => _buffer.length;
 }
+

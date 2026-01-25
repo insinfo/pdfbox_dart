@@ -13,3 +13,4 @@ class TrackKern {
   final double maxPointSize;
   final double maxKern;
 }
+

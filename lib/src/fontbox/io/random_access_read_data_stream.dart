@@ -123,3 +123,4 @@ class RandomAccessReadDataStream extends TtfDataStream {
   @override
   int get originalDataSize => _length;
 }
+

@@ -62,3 +62,4 @@ Uint8List _buildSimplePdfWithBadStartXref() {
 
   return Uint8List.fromList(utf8.encode(buffer.toString()));
 }
+

@@ -37,3 +37,4 @@ class CertificateListData {
     this.version,
   });
 }
+

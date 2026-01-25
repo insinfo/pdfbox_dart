@@ -14,3 +14,4 @@ abstract class CharacterPredicate {
   @override
   String toString() => '$runtimeType';
 }
+

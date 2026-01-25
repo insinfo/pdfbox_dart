@@ -45,3 +45,4 @@ class StandardProtectionPolicy extends ProtectionPolicy {
   /// Java compatibility helper matching the original API.
   void setUserPassword(String value) => userPassword = value;
 }
+

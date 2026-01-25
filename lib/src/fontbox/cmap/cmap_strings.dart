@@ -58,3 +58,4 @@ class CMapStrings {
     return value;
   }
 }
+

@@ -129,3 +129,4 @@ class GlyphList {
         ZapfDingbatsEncoding.instance.contains(name);
   }
 }
+

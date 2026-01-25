@@ -144,3 +144,4 @@ void _writeBrokenXrefStreamPdf(Directory dir) {
   final file = File('${dir.path}/broken_xref_stream.pdf');
   file.writeAsBytesSync(builder.toBytes());
 }
+

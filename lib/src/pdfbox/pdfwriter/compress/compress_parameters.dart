@@ -13,3 +13,4 @@ class CompressParameters {
 
   bool get isCompress => objectStreamSize > 0;
 }
+

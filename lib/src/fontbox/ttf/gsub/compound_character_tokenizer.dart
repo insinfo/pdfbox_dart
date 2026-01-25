@@ -55,3 +55,4 @@ class CompoundCharacterTokenizer {
     return UnmodifiableListView<String>(tokens);
   }
 }
+

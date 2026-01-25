@@ -221,3 +221,4 @@ const List<List<String>> _macRomanEncodingTable = [
   ['0172', 'z'],
   ['060', 'zero'],
 ];
+

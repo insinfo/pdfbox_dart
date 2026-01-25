@@ -9,18 +9,25 @@
 //(que contém basic_utils, pointycastle, etc.) e as funcionalidades de assinatura de PDF da sua biblioteca dart_pdf.
 
 import 'dart:io';
-import 'dart:typed_data';
 import 'dart:math';
-import 'package:dart_pdf/pdf.dart' as pdf;
+import 'dart:typed_data';
+
 import 'package:crypto/crypto.dart' as crypto;
 import 'package:pdfbox_dart/basic_utils.dart';
-import 'package:pointycastle/api.dart';
 import 'package:pdfbox_dart/qr.dart' as qr;
-import 'package:pointycastle/asymmetric/api.dart';
+import 'package:pdfbox_dart/src/pdfbox/cos/cos_name.dart';
+import 'package:pdfbox_dart/src/pdfbox/extra/external_pdf_signature.dart';
+import 'package:pdfbox_dart/src/pdfbox/extra/pdf_signature_validator.dart';
+import 'package:pdfbox_dart/src/pdfbox/pdmodel/common/pd_rectangle.dart';
+import 'package:pdfbox_dart/src/pdfbox/pdmodel/interactive/digitalsignature/pd_signature.dart';
+import 'package:pdfbox_dart/src/pdfbox/pdmodel/pd_document.dart';
+import 'package:pdfbox_dart/src/pdfbox/pdmodel/pd_page.dart';
+import 'package:pdfbox_dart/src/pdfbox/pdmodel/pd_page_content_stream.dart';
+import 'package:pointycastle/api.dart';
 import 'package:pointycastle/api.dart' hide Padding;
+import 'package:pointycastle/asymmetric/api.dart';
 import 'package:pointycastle/key_generators/api.dart';
 import 'package:pointycastle/key_generators/rsa_key_generator.dart';
-//import 'package:pointycastle/pointycastle.dart';
 import 'package:pointycastle/random/fortuna_random.dart';
 
 /// Retorna um gerador de números aleatórios seguros.
@@ -175,172 +182,56 @@ Future<void> main() async {
   File('user.p12').writeAsBytesSync(p12FileBytes);
   print("-> Pacote PFX salvo em: user.p12 (Senha: $p12Password)");
 
-  // --- 4. ASSINATURA DO PDF USANDO dart_pdf ---
+  // --- 4. ASSINATURA DO PDF USANDO pdfbox_dart (assinatura externa + OpenSSL) ---
   print("[PASSO 7/9] Assinando um novo documento PDF com o PFX gerado...");
 
   List<int>? pdfBytes;
   try {
-    // 1) Cria o documento e adiciona conteúdo na página 1
-    final doc = pdf.PdfDocument();
-    final page1 = doc.pages.add();
-    final g1 = page1.graphics;
-    final font = pdf.PdfStandardFont(pdf.PdfFontFamily.helvetica, 10);
-    g1.drawRectangle(
-      bounds: pdf.Rect.fromLTWH(40, 40, 515, 220),
-      pen: pdf.PdfPen(pdf.PdfColor(0, 51, 153), width: 2.5),
-      brush: pdf.PdfSolidBrush(pdf.PdfColor(240, 248, 255)),
-    );
-    g1.drawString(
-      'PREFEITURA MUNICIPAL DE RIO DAS OSTRAS\n'
-      'Estado do Rio de Janeiro\n\n'
-      '═══════════════════════════════════════════════\n\n'
-      'DOCUMENTO OFICIALMENTE ASSINADO\n\n'
-      'Servidor: Isaque Neves Sant\'Ana\n'
-      'Matrícula: [informar]\n'
-      'E-mail: isaque.santana@pmro.gov.br\n'
-      'Setor: Tecnologia da Informação\n\n'
-      'Data/Hora: ${DateTime.now().toString().substring(0, 19)}\n'
-      'Localização: Rio das Ostras, RJ, Brasil\n\n'
-      'Este documento possui validade jurídica conforme\n'
-      'MP 2.200-2/2001 e Lei 14.063/2020',
-      font,
-      brush: pdf.PdfSolidBrush(pdf.PdfColor(0, 0, 0)),
-      bounds: pdf.Rect.fromLTWH(50, 50, 495, 200),
-    );
+    // Salva chave e certificado em PEM para uso no OpenSSL.
+    File('user_key.pem').writeAsStringSync(userPrivateKeyPem);
+    File('user_cert.pem').writeAsStringSync(userCertPem);
 
-    // 2) Salva os bytes pré-assinatura e calcula o hash SHA-256
-    final preSignBytes = await doc.save();
-    final pdfHash = crypto.sha256.convert(preSignBytes).bytes;
-    final pdfHashHex = _toHex(pdfHash);
+    // 1) Cria o PDF base e calcula hash (pré-assinatura).
+    final Uint8List basePdf = _createBasePdf();
+    final String pdfHashHex = _toHex(crypto.sha256.convert(basePdf).bytes);
 
-    // 3) Reabre a partir dos bytes para evitar perda de conteúdo da página 1
-    final docSigned = pdf.PdfDocument(inputBytes: preSignBytes);
-    final lastPage = docSigned.pages.add();
-    final lastG = lastPage.graphics;
+    // 2) Reabre e adiciona QR/legenda com o hash.
+    final Uint8List pdfWithQr = _appendQrAndHash(basePdf, pdfHashHex);
 
-    // 3.1) Desenha QR com o hash ao lado da assinatura
-    void drawQr(
-        pdf.PdfGraphics g, double x, double y, double size, String data) {
-      // 1. Crie o objeto de dados do QrCode usando a fábrica
-      // Isso substitui o loop try...catch
-      final qrCode = qr.QrCode.fromData(
-        data: data,
-        errorCorrectLevel: qr.QrErrorCorrectLevel.M,
-      );
+    // 3) Prepara PDF para assinatura externa.
+    final PDSignature signature = PDSignature()
+      ..setFilter(PDSignature.filterAdobePpklite)
+      ..setSubFilter(PDSignature.subFilterAdbePkcs7Detached)
+      ..setReason('Documento oficial')
+      ..setLocation('Rio das Ostras, BR')
+      ..setContactInfo('isaque.santana@pmro.gov.br')
+      ..setName('Isaque Neves Sant Ana')
+      ..setSignDate(DateTime.now().toUtc());
 
-      // 2. Crie um objeto QrImage para renderização
-      final qrImage = qr.QrImage(qrCode);
-
-      // 3. Desenhe os módulos com base no qrImage
-      final int count = qrImage.moduleCount;
-      final double cell = size / count;
-      for (int r = 0; r < count; r++) {
-        for (int c = 0; c < count; c++) {
-          // Use qrImage.isDark() em vez de code.isDark()
-          if (qrImage.isDark(r, c)) {
-            g.drawRectangle(
-              bounds: pdf.Rect.fromLTWH(x + c * cell, y + r * cell, cell, cell),
-              brush: pdf.PdfSolidBrush(pdf.PdfColor(0, 0, 0)),
-            );
-          }
-        }
-      }
-
-      // 4. Desenhe a borda
-      g.drawRectangle(
-        bounds: pdf.Rect.fromLTWH(x, y, size, size),
-        pen: pdf.PdfPen(pdf.PdfColor(0, 0, 0), width: 1),
-      );
-    }
-
-    final sigBounds = pdf.Rect.fromLTWH(50, 120, 320, 95);
-    final qrSize = 95.0;
-    final qrX = sigBounds.left + sigBounds.width + 20;
-    final qrY = sigBounds.top;
-
-    drawQr(lastG, qrX, qrY, qrSize, 'SHA256:$pdfHashHex');
-    lastG.drawString(
-      'Hash (SHA-256): ${pdfHashHex.substring(0, 16)}…',
-      pdf.PdfStandardFont(pdf.PdfFontFamily.helvetica, 9),
-      bounds: pdf.Rect.fromLTWH(qrX, qrY + qrSize + 6, 260, 12),
-    );
-
-    // 4) Carrega o certificado PFX
-    final certificate = pdf.PdfCertificate(p12FileBytes, p12Password);
-
-    // 5) Configura a assinatura
-    final signature = pdf.PdfSignature(
-      certificate: certificate,
-      digestAlgorithm: pdf.DigestAlgorithm.sha256,
-      cryptographicStandard: pdf.CryptographicStandard.cms,
-      reason: 'Documento oficial',
-      locationInfo: 'Rio das Ostras, BR',
-      contactInfo: 'isaque.santana@pmro.gov.br',
-      signedName: 'Isaque Neves Sant Ana',
-    );
-
-    // 6) Campo de assinatura VISÍVEL com aparência personalizada
-    final signatureField = pdf.PdfSignatureField(
-      lastPage,
-      'MinhaAssinatura',
-      bounds: sigBounds,
+    final PdfExternalSigningResult prepared =
+        await PdfExternalSigning.preparePdf(
+      inputBytes: pdfWithQr,
+      pageNumber: 1,
+      bounds: PDRectangle(50, 120, 320, 95),
+      fieldName: 'MinhaAssinatura',
       signature: signature,
-      borderWidth: 1,
-      borderStyle: pdf.PdfBorderStyle.solid,
-      borderColor: pdf.PdfColor(0, 51, 153),
-      backColor: pdf.PdfColor(255, 255, 255),
-    );
-    docSigned.form.fields.add(signatureField);
-
-    final normalAp = signatureField.appearance.normal;
-    final apG = normalAp.graphics!;
-    apG.drawRectangle(
-      bounds:
-          pdf.Rect.fromLTWH(0, 0, normalAp.size.width, normalAp.size.height),
-      pen: pdf.PdfPen(pdf.PdfColor(0, 51, 153), width: 1),
-      brush: pdf.PdfSolidBrush(pdf.PdfColor(255, 255, 255)),
-    );
-    final titleFont = pdf.PdfStandardFont(
-      pdf.PdfFontFamily.helvetica,
-      10,
-      style: pdf.PdfFontStyle.bold,
-    );
-    final textFont = pdf.PdfStandardFont(pdf.PdfFontFamily.helvetica, 9);
-    const double padX = 8;
-    const double padY = 6;
-    final double innerWidth = normalAp.size.width - (padX * 2);
-    apG.drawString(
-      'ASSINADO DIGITALMENTE',
-      titleFont,
-      bounds: pdf.Rect.fromLTWH(padX, padY, innerWidth, 14),
-    );
-    final nowStr = DateTime.now().toString().substring(0, 19);
-    apG.drawString(
-      'Por: \'Isaque Neves Sant\'Ana\'',
-      textFont,
-      bounds: pdf.Rect.fromLTWH(padX, padY + 18, innerWidth, 12),
-    );
-    apG.drawString(
-      'E-mail: isaque.santana@pmro.gov.br',
-      textFont,
-      bounds: pdf.Rect.fromLTWH(padX, padY + 33, innerWidth, 12),
-    );
-    apG.drawString(
-      'Data/Hora: $nowStr',
-      textFont,
-      bounds: pdf.Rect.fromLTWH(padX, padY + 48, innerWidth, 12),
     );
 
-    // 7) Salva o documento final (assinatura acontece aqui)
-    pdfBytes = await docSigned.save();
-    docSigned.dispose();
+    final Uint8List signedBytes = await _signWithOpenSsl(
+      preparedPdfBytes: prepared.preparedPdfBytes,
+      fieldName: 'MinhaAssinatura',
+      keyPath: 'user_key.pem',
+      certPath: 'user_cert.pem',
+      chainPath: 'root_ca.crt',
+    );
 
-    File('documento_assinado_native.pdf').writeAsBytesSync(pdfBytes);
+    pdfBytes = signedBytes;
+    File('documento_assinado_native.pdf').writeAsBytesSync(signedBytes);
     print('--- SUCESSO! ---');
     print('-> PDF assinado salvo em: documento_assinado_native.pdf');
   } catch (e, s) {
     print('\n--- ERRO AO ASSINAR O PDF ---');
-    print('Houve um erro ao usar a biblioteca dart_pdf para assinar:');
+    print('Houve um erro ao usar a assinatura externa via OpenSSL:');
     print(e);
     print(s);
   }
@@ -349,21 +240,23 @@ Future<void> main() async {
   if (pdfBytes != null) {
     print('\n[PASSO 8/9] Verificando a assinatura dentro do PDF...');
     try {
-      final loadedDocument = pdf.PdfDocument(inputBytes: pdfBytes);
-      final loadedSignatureField =
-          loadedDocument.form.fields[0] as pdf.PdfSignatureField;
+      final PdfSignatureValidationReport report =
+          await PdfSignatureValidator().validateAllSignatures(
+        Uint8List.fromList(pdfBytes),
+        trustedRootsPem: <String>[rootCaCertPem],
+      );
 
-      // Verifica se o campo de assinatura está de fato assinado
-      if (loadedSignatureField.isSigned) {
-        print(
-            '-> Verificação interna (dart_pdf): Campo "MinhaAssinatura" ESTÁ assinado.');
-        print(
-            '-> Motivo da assinatura: ${loadedSignatureField.signature!.reason}');
+      if (report.signatures.isEmpty) {
+        print('-> Nenhuma assinatura encontrada no PDF.');
       } else {
-        print(
-            '-> Verificação interna (dart_pdf): ERRO! O campo não está assinado.');
+        for (final PdfSignatureValidationItem item in report.signatures) {
+          print(
+              '-> Campo "${item.fieldName}": cms=${item.validation.cmsSignatureValid}, '
+              'digest=${item.validation.byteRangeDigestOk}, '
+              'intact=${item.validation.documentIntact}, '
+              'chainTrusted=${item.chainTrusted}');
+        }
       }
-      loadedDocument.dispose();
     } catch (e, s) {
       print('\n--- ERRO AO VALIDAR O PDF ASSINADO ---');
       print(e);
@@ -396,5 +289,200 @@ Future<void> main() async {
   }
 }
 
+Future<void> _runCmd(String cmd, List<String> args) async {
+  final ProcessResult res = await Process.run(cmd, args);
+  if (res.exitCode != 0) {
+    throw Exception('Command failed: $cmd ${args.join(' ')}');
+  }
+}
+
 String _toHex(List<int> bytes) =>
     bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+
+Uint8List _createBasePdf() {
+  final PDDocument document = PDDocument();
+  final PDPage page = PDPage();
+  document.addPage(page);
+
+  final PDPageContentStream stream = PDPageContentStream(document, page);
+  stream.saveGraphicsState();
+  stream.setLineWidth(2.5);
+  stream.setStrokingColorRgb(0.0, 0.2, 0.6);
+  stream.setNonStrokingColorRgb(0.941, 0.973, 1.0);
+  stream.rectangle(40, 40, 515, 220);
+  stream.fill();
+  stream.rectangle(40, 40, 515, 220);
+  stream.stroke();
+  stream.restoreGraphicsState();
+
+  final COSName fontResource = COSName.get('F1');
+  stream.resources.registerStandard14Font(fontResource, 'Helvetica');
+
+  stream.beginText();
+  stream.setNonStrokingColorRgb(0, 0, 0);
+  stream.setFont(fontResource, 10);
+  stream.setAutoLeading(12);
+  stream.newLineAtOffset(50, 240);
+  stream.showParagraph(
+    'PREFEITURA MUNICIPAL DE RIO DAS OSTRAS\n'
+    'Estado do Rio de Janeiro\n\n'
+    '═══════════════════════════════════════════════\n\n'
+    'DOCUMENTO OFICIALMENTE ASSINADO\n\n'
+    'Servidor: Isaque Neves Sant\'Ana\n'
+    'Matrícula: [informar]\n'
+    'E-mail: isaque.santana@pmro.gov.br\n'
+    'Setor: Tecnologia da Informação\n\n'
+    'Data/Hora: ${DateTime.now().toString().substring(0, 19)}\n'
+    'Localização: Rio das Ostras, RJ, Brasil\n\n'
+    'Este documento possui validade jurídica conforme\n'
+    'MP 2.200-2/2001 e Lei 14.063/2020',
+    trailingLineBreaks: 0,
+  );
+  stream.endText();
+
+  // Moldura visual da área de assinatura.
+  stream.setStrokingColorRgb(0.0, 0.2, 0.6);
+  stream.setLineWidth(1);
+  stream.rectangle(50, 120, 320, 95);
+  stream.stroke();
+
+  stream.close();
+
+  final Uint8List out = document.saveToBytes();
+  document.close();
+  return out;
+}
+
+Uint8List _appendQrAndHash(Uint8List basePdf, String pdfHashHex) {
+  final PDDocument document = PDDocument.loadFromBytes(basePdf);
+  try {
+    final PDPage page = document.getPage(0);
+    final PDPageContentStream stream = PDPageContentStream(
+      document,
+      page,
+      mode: PDPageContentMode.append,
+    );
+
+    final double sigX = 50;
+    final double sigY = 120;
+    final double sigW = 320;
+    const double qrSize = 95.0;
+    final double qrX = sigX + sigW + 20;
+    final double qrY = sigY;
+
+    _drawQr(stream, qrX, qrY, qrSize, 'SHA256:$pdfHashHex');
+
+    final COSName fontResource = COSName.get('F1');
+    stream.resources.registerStandard14Font(fontResource, 'Helvetica');
+    stream.beginText();
+    stream.setNonStrokingColorRgb(0, 0, 0);
+    stream.setFont(fontResource, 9);
+    stream.newLineAtOffset(qrX, qrY - 12);
+    stream.showText('Hash (SHA-256): ${pdfHashHex.substring(0, 16)}…');
+    stream.endText();
+    stream.close();
+
+    final Uint8List out = document.saveToBytes();
+    return out;
+  } finally {
+    document.close();
+  }
+}
+
+void _drawQr(
+  PDPageContentStream stream,
+  double x,
+  double y,
+  double size,
+  String data,
+) {
+  final qrCode = qr.QrCode.fromData(
+    data: data,
+    errorCorrectLevel: qr.QrErrorCorrectLevel.M,
+  );
+  final qrImage = qr.QrImage(qrCode);
+
+  final int count = qrImage.moduleCount;
+  final double cell = size / count;
+
+  stream.saveGraphicsState();
+  stream.setNonStrokingColorRgb(0, 0, 0);
+  for (int r = 0; r < count; r++) {
+    for (int c = 0; c < count; c++) {
+      if (qrImage.isDark(r, c)) {
+        stream.rectangle(x + c * cell, y + r * cell, cell, cell);
+        stream.fill();
+      }
+    }
+  }
+
+  stream.setStrokingColorRgb(0, 0, 0);
+  stream.setLineWidth(1);
+  stream.rectangle(x, y, size, size);
+  stream.stroke();
+  stream.restoreGraphicsState();
+}
+
+Future<Uint8List> _signWithOpenSsl({
+  required Uint8List preparedPdfBytes,
+  required String fieldName,
+  required String keyPath,
+  required String certPath,
+  String? chainPath,
+}) async {
+  final Directory tempDir = await Directory.systemTemp
+      .createTemp('pdfbox_dart_external_sign_');
+  try {
+    final List<int> ranges =
+        PdfExternalSigning.extractByteRange(preparedPdfBytes);
+    final int start1 = ranges[0];
+    final int len1 = ranges[1];
+    final int start2 = ranges[2];
+    final int len2 = ranges[3];
+
+    final List<int> part1 = preparedPdfBytes.sublist(start1, start1 + len1);
+    final List<int> part2 = preparedPdfBytes.sublist(start2, start2 + len2);
+
+    final String dataToSignPath =
+        '${tempDir.path}/data_to_sign_$fieldName.bin';
+    final IOSink sink = File(dataToSignPath).openWrite();
+    sink.add(part1);
+    sink.add(part2);
+    await sink.close();
+
+    final String sigPath = '${tempDir.path}/signature_$fieldName.p7s';
+    final List<String> args = <String>[
+      'smime',
+      '-sign',
+      '-binary',
+      '-in',
+      dataToSignPath.replaceAll('/', Platform.pathSeparator),
+      '-signer',
+      certPath.replaceAll('/', Platform.pathSeparator),
+      '-inkey',
+      keyPath.replaceAll('/', Platform.pathSeparator),
+      '-out',
+      sigPath.replaceAll('/', Platform.pathSeparator),
+      '-outform',
+      'DER',
+    ];
+    if (chainPath != null) {
+      args.addAll(<String>[
+        '-certfile',
+        chainPath.replaceAll('/', Platform.pathSeparator),
+      ]);
+    }
+
+    await _runCmd('openssl', args);
+
+    final Uint8List sigBytes =
+        Uint8List.fromList(File(sigPath).readAsBytesSync());
+    return PdfExternalSigning.embedSignature(
+      preparedPdfBytes: preparedPdfBytes,
+      pkcs7Bytes: sigBytes,
+    );
+  } finally {
+    await tempDir.delete(recursive: true);
+  }
+}
+

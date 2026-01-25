@@ -191,3 +191,4 @@ class _TtcHeader {
 
 TtfParser _defaultParserFactory(String tag) =>
     tag == 'OTTO' ? OtfParser(isEmbedded: false) : TtfParser(isEmbedded: false);
+

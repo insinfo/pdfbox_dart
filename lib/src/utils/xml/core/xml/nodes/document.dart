@@ -134,3 +134,4 @@ const Set<XmlNodeType> childrenNodeTypes = {
   XmlNodeType.PROCESSING,
   XmlNodeType.TEXT,
 };
+

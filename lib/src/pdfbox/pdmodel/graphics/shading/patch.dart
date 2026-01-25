@@ -536,3 +536,4 @@ class TensorPatch extends Patch {
     return poly;
   }
 }
+

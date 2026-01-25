@@ -9,3 +9,4 @@ class COSNull extends COSBase {
   @override
   String toString() => 'null';
 }
+

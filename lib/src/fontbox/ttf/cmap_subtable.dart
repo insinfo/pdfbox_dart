@@ -887,3 +887,4 @@ class CmapVariationDefaultRange {
 
   bool contains(int codePoint) => codePoint >= start && codePoint <= end;
 }
+

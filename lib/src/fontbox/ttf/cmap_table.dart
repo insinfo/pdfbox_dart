@@ -63,3 +63,4 @@ class CmapTable extends TtfTable {
 abstract class HasGlyphCount {
   int get numberOfGlyphs;
 }
+

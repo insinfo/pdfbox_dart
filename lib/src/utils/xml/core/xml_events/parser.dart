@@ -294,3 +294,4 @@ final XmlCache<XmlEntityMapping, Parser<XmlEvent>> eventParserCache = XmlCache(
   (entityMapping) => XmlEventParser(entityMapping).build(),
   5,
 );
+

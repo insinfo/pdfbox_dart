@@ -7046,3 +7046,4 @@ void _getRecursiveDecomposition(bool canonical, int ch, List<int> builder) {
 int compose(String sequence) {
   return _composeMapping[sequence] ?? 0xFFFF;
 }
+

@@ -19,3 +19,4 @@ class LookupTypeAlternateSubstitutionFormat1 extends LookupSubTable {
   int doSubstitution(int glyphId, int coverageIndex) =>
       throw UnsupportedError('Alternate substitution selects glyph at runtime');
 }
+

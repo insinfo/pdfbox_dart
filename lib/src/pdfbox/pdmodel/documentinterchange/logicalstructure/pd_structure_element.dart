@@ -188,3 +188,4 @@ class PDStructureElement extends PDStructureNode {
     revisionNumber = revisionNumber + 1;
   }
 }
+

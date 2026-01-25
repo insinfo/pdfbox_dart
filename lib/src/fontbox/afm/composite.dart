@@ -14,3 +14,4 @@ class Composite {
 
   List<CompositePart> get parts => UnmodifiableListView(_parts);
 }
+

@@ -18,3 +18,4 @@ class ConstantCharPredicate extends CharacterPredicate {
   @override
   String toString() => '${super.toString()}($constant)';
 }
+

@@ -36,3 +36,4 @@ class PDTransparencyGroupAttributes implements COSObjectable {
   /// Returns true if this group is a knockout.
   bool isKnockout() => _dictionary.getBoolean(COSName.get('K')) ?? false;
 }
+

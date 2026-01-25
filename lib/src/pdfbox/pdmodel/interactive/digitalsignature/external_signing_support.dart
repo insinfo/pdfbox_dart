@@ -13,3 +13,4 @@ abstract class ExternalSigningSupport {
   /// incremental update and writes the final document to the configured sink.
   Future<void> setSignature(Uint8List signature);
 }
+

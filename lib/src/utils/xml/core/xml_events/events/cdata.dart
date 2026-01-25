@@ -24,3 +24,4 @@ class XmlCDATAEvent extends XmlEvent {
   bool operator ==(Object other) =>
       other is XmlCDATAEvent && other.value == value;
 }
+

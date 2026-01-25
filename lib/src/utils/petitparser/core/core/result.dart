@@ -46,3 +46,4 @@ class Failure extends Result<Never> {
   @override
   String toString() => '${super.toString()}: $message';
 }
+
