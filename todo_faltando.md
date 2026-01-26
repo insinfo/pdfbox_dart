@@ -19,6 +19,16 @@ e va atualizando este roteiro com o que for sendo implementado
 
 dart analyze só na pasta onde aplicou modificações para ser mais rapido
 
+## Atualizações recentes
+- LTV: teste `ltv_integration_test.dart` ajustado para validar integridade apenas no save incremental e validar DSS/VRI no save completo.
+- COSWriter: detecção de assinatura limitada a updates incrementais (alinhado ao PDFBox Java).
+- PDDocument: portados `isEncrypted`, `getEncryption()`, `getSignatureFields()`, `getSignatureDictionaries()`, `getLastSignatureDictionary()`.
+- PDDocument/PDDocumentCatalog: portados `getVersion()`/`setVersion()` com lógica do Java e `PDDocumentCatalog.version`.
+- PDDocument: portados `isAllSecurityToBeRemoved`, `setAllSecurityToBeRemoved`, `protect(ProtectionPolicy)`, `getDocumentId()`/`setDocumentId()`.
+- Testes: `dart test test/extra` passou (00:21 +29).
+
+ 
+
 Arquivos FDF portados (29 total):
 
 FDFCatalog ✓

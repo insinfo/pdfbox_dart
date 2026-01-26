@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import '../cos/cos_array.dart';
@@ -16,10 +17,14 @@ import 'encryption/access_permission.dart';
 import 'encryption/pd_encryption.dart';
 import 'encryption/protection_policy.dart';
 import 'encryption/security_handler.dart';
+import 'encryption/security_handler_factory.dart';
 import 'encryption/standard_security_handler.dart';
 import '../pdmodel/interactive/digitalsignature/external_signing_support.dart';
 import '../pdmodel/interactive/digitalsignature/signing_support.dart';
 import '../pdmodel/interactive/documentnavigation/pd_outline_node.dart';
+import '../pdmodel/interactive/digitalsignature/pd_signature.dart';
+import '../pdmodel/interactive/form/pd_signature_field.dart';
+import '../pdmodel/interactive/form/pd_acro_form.dart';
 import '../pdfparser/pdf_parser.dart';
 import 'encryption/decryption_material.dart';
 import 'pd_document_information.dart';
@@ -153,6 +158,8 @@ class PDDocument {
   PDEncryption? _encryption;
   SecurityHandler<ProtectionPolicy>? _securityHandler;
   AccessPermission _accessPermission;
+  bool _allSecurityToBeRemoved = false;
+  int? _documentId;
 
   COSDocument get cosDocument => _document;
 
@@ -172,6 +179,35 @@ class PDDocument {
   set version(String value) {
     _ensureOpen();
     _document.headerVersion = value;
+  }
+
+  /// Returns the effective PDF specification version, considering catalog overrides.
+  double getVersion() {
+    final double headerVersion = _parseVersion(_document.headerVersion) ?? 0.0;
+    if (headerVersion >= 1.4) {
+      final catalogVersion = documentCatalog.version;
+      final double catalogParsed = _parseVersion(catalogVersion) ?? -1.0;
+      return math.max(catalogParsed, headerVersion);
+    }
+    return headerVersion;
+  }
+
+  /// Sets the PDF specification version, following PDFBox rules.
+  void setVersion(double newVersion) {
+    final double current = getVersion();
+    if (newVersion == current) {
+      return;
+    }
+    if (newVersion < current) {
+      return;
+    }
+    final String formatted = _formatVersion(newVersion);
+    final double headerVersion = _parseVersion(_document.headerVersion) ?? 0.0;
+    if (headerVersion >= 1.4) {
+      documentCatalog.version = formatted;
+    } else {
+      _document.headerVersion = formatted;
+    }
   }
 
   int get numberOfPages => documentCatalog.pages.count;
@@ -313,6 +349,22 @@ class PDDocument {
 
   PDEncryption? get encryption => _encryption;
 
+  /// Returns true if the document trailer contains an encryption dictionary.
+  bool get isEncrypted =>
+      _document.trailer.getDictionaryObject(COSName.encrypt) != null;
+
+  /// Returns the encryption dictionary, initializing it from the trailer if needed.
+  PDEncryption? getEncryption() {
+    if (_encryption == null && isEncrypted) {
+      final encDict = _document.trailer.getCOSDictionary(COSName.encrypt);
+      if (encDict != null) {
+        _encryption = PDEncryption(encDict);
+        _securityHandler = _encryption?.securityHandler;
+      }
+    }
+    return _encryption;
+  }
+
   SecurityHandler<ProtectionPolicy>? get securityHandler => _securityHandler;
 
   void setSecurityHandler(SecurityHandler<ProtectionPolicy>? handler) {
@@ -351,6 +403,91 @@ class PDDocument {
 
   void setCurrentAccessPermission(AccessPermission permission) {
     _accessPermission = permission;
+  }
+
+  /// Indicates if all security should be removed when writing the PDF.
+  bool get isAllSecurityToBeRemoved => _allSecurityToBeRemoved;
+
+  /// Activates/deactivates removal of all security when writing the PDF.
+  void setAllSecurityToBeRemoved(bool removeAllSecurity) {
+    _allSecurityToBeRemoved = removeAllSecurity;
+  }
+
+  /// Protects the document with a protection policy (encryption on save).
+  void protect(ProtectionPolicy policy) {
+    if (isAllSecurityToBeRemoved) {
+      setAllSecurityToBeRemoved(false);
+    }
+
+    if (!isEncrypted) {
+      _encryption = PDEncryption();
+    }
+
+    final handler =
+        SecurityHandlerFactory.instance.newSecurityHandlerForPolicy(policy);
+    if (handler == null) {
+      throw StateError('No security handler for policy $policy');
+    }
+
+    getEncryption()?.securityHandler = handler;
+  }
+
+  /// Provides the document ID (not the trailer document ID).
+  int? getDocumentId() => _documentId;
+
+  /// Sets the document ID (not the trailer document ID).
+  void setDocumentId(int? docId) {
+    _documentId = docId;
+  }
+
+  static double? _parseVersion(String? value) {
+    if (value == null || value.isEmpty) {
+      return null;
+    }
+    return double.tryParse(value);
+  }
+
+  static String _formatVersion(double value) {
+    if (value == value.floorToDouble()) {
+      return value.toStringAsFixed(1);
+    }
+    return value.toString();
+  }
+
+  /// Returns the last signature dictionary in the field tree, or null if none.
+  PDSignature? getLastSignatureDictionary() {
+    final signatures = getSignatureDictionaries();
+    if (signatures.isEmpty) {
+      return null;
+    }
+    return signatures.last;
+  }
+
+  /// Retrieves all signature fields in the document.
+  List<PDSignatureField> getSignatureFields() {
+    final List<PDSignatureField> fields = <PDSignatureField>[];
+    final PDAcroForm? acroForm = documentCatalog.acroForm;
+    if (acroForm == null) {
+      return fields;
+    }
+    for (final field in acroForm.fieldTree) {
+      if (field is PDSignatureField) {
+        fields.add(field);
+      }
+    }
+    return fields;
+  }
+
+  /// Retrieves all signature dictionaries from the document.
+  List<PDSignature> getSignatureDictionaries() {
+    final List<PDSignature> signatures = <PDSignature>[];
+    for (final field in getSignatureFields()) {
+      final sig = field.signature;
+      if (sig != null) {
+        signatures.add(sig);
+      }
+    }
+    return signatures;
   }
 }
 

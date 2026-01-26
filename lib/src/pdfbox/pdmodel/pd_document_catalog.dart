@@ -82,6 +82,14 @@ class PDDocumentCatalog {
     }
   }
 
+  /// Returns the PDF specification version declared in the catalog (e.g. "1.4").
+  String? get version => _dictionary.getNameAsString(COSName.version);
+
+  /// Sets the PDF specification version declared in the catalog (e.g. "1.4").
+  set version(String? value) {
+    _dictionary.setName(COSName.version, value);
+  }
+
   /// Returns the page labels dictionary if defined.
   PDPageLabels? get pageLabels {
     if (_pageLabels != null) {

@@ -509,6 +509,12 @@ class COSWriter {
     if (tracking == null || tracking.reachedSignature) {
       return;
     }
+    // Only detect signature placeholders during incremental updates.
+    // Matches PDFBox Java behavior to avoid touching existing signatures
+    // on full document saves.
+    if (tracking.originalLength <= 0) {
+      return;
+    }
     final typeName = _resolveName(dictionary.getDictionaryObject(COSName.type));
     final docTimeStamp = COSName.get('DocTimeStamp');
     if (typeName != COSName.sig && typeName != docTimeStamp) {
