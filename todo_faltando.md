@@ -42,6 +42,20 @@ Ainda faltam (0 arquivos):
 - `COSWriter`: Ajustada a lógica de `_patchByteRangeOnTarget` para usar `setPosition` em vez de criar um novo buffer, permitindo a correção in-place do array ByteRange no arquivo final.
 - `external_signature_test.dart`: Teste passando com sucesso, gerando PDF assinado válido e detectando adulteração (tampering) corretamente.
 
+## Discussão: Comportamento em Validação de PDF Corrompido
+Atualmente em `PdfSignatureValidation._extractSignaturesUsingParser`, capturamos `IOException` ao carregar o documento (`PDDocument.loadFromBytes`).
+- **Comportamento Atual**: Retorna lista vazia de assinaturas. O validador reporta que o documento não contém assinaturas válidas (`documentIntact: false`).
+- **Problema**: Isso mascara o fato de que o arquivo está *corrompido* (estrutura inválida, ex: `startxref` quebrado), fazendo parecer apenas que ele não foi assinado ou que a assinatura sumiu.
+- **Pergunta**: Devemos distinguir "Arquivo Corrompido" de "Arquivo sem Assinatura"?
+- **Comparação**: Outras bibliotecas (Java PDFBox, iText) geralmente lançam a Exception de I/O ou Parsing para sinalizar que o arquivo nem sequer é legível.
+- **Sugestão**: Adicionar um campo `parsingError` no `PdfSignatureValidationResult`.
+- **Status**: Implementado. `validatePdfSignature` agora captura exceções de parsing e retorna um resultado com `parsingError` preenchido, permitindo distinguir arquivo corrompido de arquivo sem assinatura.
+
+## Testes Portados (insinfo_dart_pdf -> pdfbox_dart)
+- `pdf_cms_signer_test.dart`: Portado com sucesso.
+  - Implementado `PdfCmsSigner` em `lib/src/pdfbox/extra/security/pdf_cms_signer.dart` utilizando `Pkcs7Builder`.
+  - Teste verifica a geração de assinatura CMS detached (RSA/SHA256) e validação bem-sucedida.
+
 ## implementado (marcos)
 - PageDrawer: clipping real `W/W*` (mask em device-space), com stack sincronizado com `q/Q`.
 - dart_graphics (recording): suporte a fill-rule em `clipPath` + backend de replay com clipping (`ImageGraphicsBackend`).

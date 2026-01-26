@@ -260,10 +260,6 @@ extension OIName on ASN1ObjectIdentifier {
       Pkcs.sm2WithSM3: 'sm2WithSM3',
     };
 
-    if (names[objectIdentifierAsString] == null) {
-      print('OI not found: $objectIdentifierAsString');
-    }
-
     return names[objectIdentifierAsString] ??
         objectIdentifierAsString ??
         '(unknown)';

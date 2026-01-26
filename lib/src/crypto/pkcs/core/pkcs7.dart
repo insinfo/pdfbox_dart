@@ -6,7 +6,7 @@ import 'package:pointycastle/asn1.dart';
 import 'common.dart';
 import 'crl.dart';
 import 'pkcs7_signer_info.dart';
-import 'x509.dart';
+import '../../x509/core/x509_certificates.dart';
 
 /// A Pkcs7 Message
 class Pkcs7 with Pkcs {
@@ -114,7 +114,7 @@ class Pkcs7 with Pkcs {
   }
 
   /// The certification chain of the message.
-  Iterable<X509> get certificates sync* {
+  Iterable<X509Certificate> get certificates sync* {
     if (_cert == null) {
       return;
     }
@@ -122,7 +122,7 @@ class Pkcs7 with Pkcs {
     var o = 0;
     while (o < _cert.valueByteLength!) {
       final c = ASN1Parser(_cert.valueBytes!.sublist(o)).nextObject();
-      yield X509(c as ASN1Sequence);
+      yield X509Certificate.fromDer(c.encode());
       o += c.encodedBytes!.lengthInBytes;
     }
   }
@@ -154,7 +154,7 @@ class Pkcs7 with Pkcs {
 
   /// Verify the Pkcs7 validity against a list of trusted certificates
   /// and returns the validated signature
-  Pkcs7SignerInfo verify(List<X509> trusted) {
+  Pkcs7SignerInfo verify(List<X509Certificate> trusted) {
     if (contentType.objectIdentifierAsString != Pkcs.signedData) {
       throw Exception(
         'Invalid Pkcs7 message type: ${contentType.objectIdentifierAsString}',
@@ -189,9 +189,7 @@ class Pkcs7 with Pkcs {
             return si;
           }
         }
-      } catch (e) {
-        print('Error: $e');
-      }
+      } catch (_) {}
     }
 
     throw Exception('Unable to validate the message signature');

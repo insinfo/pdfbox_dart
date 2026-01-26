@@ -1,14 +1,16 @@
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:pointycastle/asn1.dart';
 import 'package:pointycastle/asymmetric/api.dart';
+import 'package:pointycastle/export.dart' as pc;
 
+import '../../x509/core/x509_certificates.dart';
 import 'common.dart';
 import 'crl.dart';
 import 'pkcs7.dart';
 import 'pkcs7_signer_info.dart';
 import 'ts.dart';
-import 'x509.dart';
 
 /// A Pkcs7 Message Builder
 class Pkcs7Builder with Pkcs {
@@ -23,14 +25,14 @@ class Pkcs7Builder with Pkcs {
     ],
   );
 
-  final _certificates = <X509>[];
+  final _certificates = <X509Certificate>[];
 
   final _crl = <CertificateRevocationList>[];
 
   final _signerInfos = <Pkcs7SignerInfoBuilder>{};
 
   /// Add an X509 certificate to the Pkcs7 message
-  void addCertificate(X509 certificate) {
+  void addCertificate(X509Certificate certificate) {
     _certificates.add(certificate);
   }
 
@@ -96,15 +98,24 @@ abstract class Pkcs7SignerInfoBuilder with Pkcs {
 
   /// Build an RSA Pkcs7 Signer
   factory Pkcs7SignerInfoBuilder.rsa({
-    required X509 issuer,
+    required X509Certificate issuer,
     HashAlgorithm digestAlgorithm = HashAlgorithm.sha1,
     required RSAPrivateKey privateKey,
   }) {
     return _RSAPkcs7SignerInfoBuilder(issuer, privateKey, digestAlgorithm);
   }
 
+  /// Build an ECDSA Pkcs7 Signer
+  factory Pkcs7SignerInfoBuilder.ecdsa({
+    required X509Certificate issuer,
+    HashAlgorithm digestAlgorithm = HashAlgorithm.sha256,
+    required pc.ECPrivateKey privateKey,
+  }) {
+    return _ECDSAPkcs7SignerInfoBuilder(issuer, privateKey, digestAlgorithm);
+  }
+
   /// Signing X509 Certificate
-  final X509 issuer;
+  final X509Certificate issuer;
 
   /// Digest algorithm to use
   ASN1ObjectIdentifier get digestAlgorithmID;
@@ -237,8 +248,11 @@ abstract class Pkcs7SignerInfoBuilder with Pkcs {
 
 /// A Pkcs7 Signer Info Builder
 class _RSAPkcs7SignerInfoBuilder extends Pkcs7SignerInfoBuilder {
-  _RSAPkcs7SignerInfoBuilder(X509 issuer, this.privateKey, this.digestAlgorithm)
-      : super(issuer);
+  _RSAPkcs7SignerInfoBuilder(
+    X509Certificate issuer,
+    this.privateKey,
+    this.digestAlgorithm,
+  ) : super(issuer);
 
   final RSAPrivateKey privateKey;
 
@@ -262,6 +276,82 @@ class _RSAPkcs7SignerInfoBuilder extends Pkcs7SignerInfoBuilder {
   @override
   Uint8List sign(Uint8List message) {
     return issuer.generateSignature(privateKey, message, digestAlgorithm);
+  }
+}
+
+class _ECDSAPkcs7SignerInfoBuilder extends Pkcs7SignerInfoBuilder {
+  _ECDSAPkcs7SignerInfoBuilder(
+    X509Certificate issuer,
+    this.privateKey,
+    this.digestAlgorithm,
+  ) : super(issuer);
+
+  final pc.ECPrivateKey privateKey;
+
+  final HashAlgorithm digestAlgorithm;
+
+  @override
+  ASN1ObjectIdentifier get digestAlgorithmID =>
+      ASN1ObjectIdentifier(Pkcs.hashAlgorithmIdentifiers[digestAlgorithm]);
+
+  @override
+  ASN1ObjectIdentifier get digestEncryptionAlgorithmID =>
+      ASN1ObjectIdentifier(_ecdsaSigOidForDigest(digestAlgorithm));
+
+  @override
+  Uint8List generateTSQ() {
+    final tsDigest = getDigest(digestAlgorithm);
+    final tsHash = tsDigest.process(signature);
+    return TimestampResponse.generateRequest(digestAlgorithm, tsHash);
+  }
+
+  @override
+  Uint8List sign(Uint8List message) {
+    final pc.Digest digest = getDigest(digestAlgorithm);
+    final Uint8List hash = digest.process(message);
+
+    final pc.ECDSASigner signer = pc.ECDSASigner();
+    signer.init(
+      true,
+      pc.ParametersWithRandom(
+        pc.PrivateKeyParameter<pc.ECPrivateKey>(privateKey),
+        _secureRandom(),
+      ),
+    );
+
+    final pc.ECSignature sig = signer.generateSignature(hash) as pc.ECSignature;
+    final ASN1Sequence seq = ASN1Sequence(
+      elements: [
+        ASN1Integer(sig.r),
+        ASN1Integer(sig.s),
+      ],
+    );
+    return seq.encode();
+  }
+
+  pc.SecureRandom _secureRandom() {
+    final pc.FortunaRandom rnd = pc.FortunaRandom();
+    final Random sys = Random.secure();
+    final Uint8List seed = Uint8List.fromList(
+      List<int>.generate(32, (_) => sys.nextInt(256)),
+    );
+    rnd.seed(pc.KeyParameter(seed));
+    return rnd;
+  }
+
+  List<int> _ecdsaSigOidForDigest(HashAlgorithm digestAlgorithm) {
+    switch (digestAlgorithm) {
+      case HashAlgorithm.sha1:
+        return <int>[1, 2, 840, 10045, 4, 1];
+      case HashAlgorithm.sha256:
+        return <int>[1, 2, 840, 10045, 4, 3, 2];
+      case HashAlgorithm.sha384:
+        return <int>[1, 2, 840, 10045, 4, 3, 3];
+      case HashAlgorithm.sha512:
+        return <int>[1, 2, 840, 10045, 4, 3, 4];
+      case HashAlgorithm.sm3:
+        throw UnimplementedError('SM3 ECDSA not supported');
+    }
   }
 }
 

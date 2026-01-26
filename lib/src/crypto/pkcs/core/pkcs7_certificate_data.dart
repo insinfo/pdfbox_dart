@@ -1,4 +1,4 @@
-import '../x509/x509_certificate_data.dart';
+import '../../x509/model/x509_certificate_data.dart';
 
 class Pkcs7CertificateData {
   /// The syntax version number

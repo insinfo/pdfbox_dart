@@ -28,7 +28,6 @@ class PkiServer {
 
   Future<void> start() async {
     _server = await HttpServer.bind(InternetAddress.loopbackIPv4, port);
-    print('PKI Server listening on port $port');
     _server!.listen(_handleRequest);
   }
 
@@ -49,8 +48,7 @@ class PkiServer {
         request.response.statusCode = HttpStatus.notFound;
         request.response.close();
       }
-    } catch (e, st) {
-      print('Server Error: $e\n$st');
+    } catch (_) {
       request.response.statusCode = HttpStatus.internalServerError;
       request.response.close();
     }

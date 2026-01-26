@@ -382,7 +382,7 @@ class PdfPKCSCertificate {
         }
       }
       final _CertificateIdentifier certId = _CertificateIdentifier(
-        pubKey: certificate.getPublicKey(),
+        pubKey: certificate.getPublicKeyParam(),
       );
       final X509Certificates certificateCollection = X509Certificates(
         certificate,
@@ -468,9 +468,13 @@ class PdfPKCSCertificate {
   static SubjectKeyID createSubjectKeyID(CipherParameter publicKey) {
     SubjectKeyID result;
     if (publicKey is RsaKeyParam) {
+      final BigInt modulus = publicKey.modulus ??
+          (throw ArgumentError.value(publicKey, 'publicKey', 'Missing modulus'));
+      final BigInt exponent = publicKey.exponent ??
+          (throw ArgumentError.value(publicKey, 'publicKey', 'Missing exponent'));
       final PublicKeyInformation information = PublicKeyInformation(
         Algorithms(PkcsObjectId.rsaEncryption, DerNull.value),
-        Asn1RsaPublicKey(publicKey.modulus, publicKey.exponent).getAsn1(),
+        Asn1RsaPublicKey(modulus, exponent).getAsn1(),
       );
       result = SubjectKeyID(information);
     } else {
@@ -3564,14 +3568,14 @@ class _RsaKey extends Asn1Encode {
     return DerSequence(
       array: <Asn1Encode>[
         DerInteger.fromNumber(BigInt.from(0)),
-        DerInteger.fromNumber(_modulus),
-        DerInteger.fromNumber(_publicExponent),
-        DerInteger.fromNumber(_privateExponent),
-        DerInteger.fromNumber(_prime1),
-        DerInteger.fromNumber(_prime2),
-        DerInteger.fromNumber(_exponent1),
-        DerInteger.fromNumber(_exponent2),
-        DerInteger.fromNumber(_coefficient),
+        DerInteger.fromNumber(_modulus!),
+        DerInteger.fromNumber(_publicExponent!),
+        DerInteger.fromNumber(_privateExponent!),
+        DerInteger.fromNumber(_prime1!),
+        DerInteger.fromNumber(_prime2!),
+        DerInteger.fromNumber(_exponent1!),
+        DerInteger.fromNumber(_exponent2!),
+        DerInteger.fromNumber(_coefficient!),
       ],
     );
   }
@@ -3595,9 +3599,13 @@ class SubjectKeyID extends Asn1Encode {
   /// internal method
   static PublicKeyInformation createSubjectKeyID(CipherParameter publicKey) {
     if (publicKey is RsaKeyParam) {
+      final BigInt modulus = publicKey.modulus ??
+          (throw ArgumentError.value(publicKey, 'publicKey', 'Missing modulus'));
+      final BigInt exponent = publicKey.exponent ??
+          (throw ArgumentError.value(publicKey, 'publicKey', 'Missing exponent'));
       final PublicKeyInformation information = PublicKeyInformation(
         Algorithms(PkcsObjectId.rsaEncryption, DerNull.value),
-        Asn1RsaPublicKey(publicKey.modulus, publicKey.exponent).getAsn1(),
+        Asn1RsaPublicKey(modulus, exponent).getAsn1(),
       );
       return information;
     } else {
@@ -3625,16 +3633,16 @@ class CertificateIdentity {
     );
     try {
       final String algorithm = algorithms.id!.id!;
-      final X509Name? issuerName =
-          SingnedCertificate.getCertificate(
-            Asn1.fromByteArray(issuerCert.getTbsCertificate()!),
-          )!.subject;
+      final X509Name? issuerName = issuerCert.c?.subject;
+      if (issuerName == null) {
+        throw StateError('Unable to resolve issuer name');
+      }
       MessageDigestFinder utilities = MessageDigestFinder();
       final List<int> issuerNameHash = utilities.getDigest(
         algorithm,
-        issuerName!.getEncoded()!,
+        issuerName.getEncoded()!,
       );
-      final CipherParameter issuerKey = issuerCert.getPublicKey();
+      final CipherParameter issuerKey = issuerCert.getPublicKeyParam();
       final PublicKeyInformation info = SubjectKeyID.createSubjectKeyID(
         issuerKey,
       );

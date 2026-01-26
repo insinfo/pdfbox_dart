@@ -387,8 +387,8 @@ class StringUtils {
 
     try {
       result = value.substring(0, length) + symbol;
-    } catch (e) {
-      print(e.toString());
+    } catch (_) {
+      return value;
     }
     return result;
   }

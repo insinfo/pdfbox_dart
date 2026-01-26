@@ -15,7 +15,6 @@ import '../pdfwriter/pdf_save_options.dart';
 import '../pdmodel/common/pd_rectangle.dart';
 import '../pdmodel/interactive/annotation/pd_annotation_widget.dart';
 import '../pdmodel/interactive/form/pd_acro_form.dart';
-import '../pdmodel/interactive/form/pd_field.dart';
 import '../pdmodel/interactive/form/pd_signature_field.dart';
 import '../pdmodel/interactive/digitalsignature/pd_signature.dart';
 import '../pdmodel/pd_document.dart';

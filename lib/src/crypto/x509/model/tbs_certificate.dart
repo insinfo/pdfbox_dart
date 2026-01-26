@@ -1,4 +1,4 @@
-import '../csr/subject_public_key_info.dart';
+import '../../basic_utils/core/model/csr/subject_public_key_info.dart';
 import 'x509_certificate_data_extensions.dart';
 import 'x509_certificate_validity.dart';
 

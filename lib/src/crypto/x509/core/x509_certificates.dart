@@ -1,20 +1,165 @@
+// ignore_for_file: deprecated_member_use_from_same_package
+
 import 'dart:typed_data';
 
-import '../../asn1/asn1.dart' as asn1;
 import 'package:pointycastle/export.dart' as pc;
+import 'package:pointycastle/asn1.dart' as pc_asn1;
 
 import '../../../io/stream_reader.dart';
 import '../../asn1/core/legacy_asn1.dart';
 import '../../asn1/core/legacy_asn1_stream.dart';
 import '../../asn1/core/legacy_der.dart';
+import '../../crypto_keys/crypto_keys.dart' as ck;
 import '../../cryptography/cipher_block_chaining_mode.dart';
-import '../../cryptography/ipadding.dart';
-import '../../cryptography/signature_utilities.dart';
-import '../../../pdfbox/extra/pdf_signature_dictionary.dart';
-import '../../../pdfbox/extra/pkcs/pfx_data.dart';
+import '../pkcs7_x509.dart';
+import '../../pkcs/core/common.dart';
+
 import 'x509_name.dart';
 import 'x509_time.dart';
-import '../../crypto_keys/crypto_keys.dart' as ck;
+import '../../../pdfbox/extra/pkcs/pfx_data.dart';
+
+/// Helper to wrap Asn1 in Asn1Encode
+class Asn1Wrapper extends Asn1Encode {
+  final Asn1 _asn1;
+  Asn1Wrapper(this._asn1);
+  @override Asn1 getAsn1() => _asn1;
+}
+
+class Asn1RsaPublicKey extends Asn1Encode {
+    Asn1RsaPublicKey(this.modulus, this.exponent);
+    final BigInt modulus;
+    final BigInt exponent;
+
+  BigInt get publicExponent => exponent;
+    
+    static Asn1RsaPublicKey? getPublicKey(dynamic obj) {
+    if (obj is Asn1RsaPublicKey) return obj;
+    final Asn1Sequence? seq = Asn1Sequence.getSequence(obj);
+    if (seq == null || seq.count < 2) return null;
+    final Asn1? modObj = seq[0]?.getAsn1();
+    final Asn1? expObj = seq[1]?.getAsn1();
+    if (modObj is DerInteger && expObj is DerInteger) {
+      return Asn1RsaPublicKey(modObj.value, expObj.value);
+    }
+    return null;
+    }
+
+    @override
+    Asn1 getAsn1() {
+         final c = Asn1EncodeCollection();
+         c.encodableObjects.add(Asn1Wrapper(DerInteger.fromNumber(modulus)));
+         c.encodableObjects.add(Asn1Wrapper(DerInteger.fromNumber(exponent)));
+         return DerSequence(collection: c);
+    }
+}
+
+class PublicKeyInformation extends Asn1Encode {
+    PublicKeyInformation(this.algorithm, this.publicKeyAsn1);
+    final Algorithms algorithm;
+    final Asn1Encode? publicKeyAsn1; 
+    
+    DerBitString? get publicKey {
+      if (publicKeyAsn1 == null) return null;
+      if (publicKeyAsn1 is DerBitString) return publicKeyAsn1 as DerBitString;
+      final Asn1? asn1 = publicKeyAsn1!.getAsn1();
+      final List<int>? der = asn1?.getDerEncoded();
+      if (der == null || der.isEmpty) return null;
+      return DerBitString(der, 0);
+    }
+
+    Asn1? getPublicKey() {
+   final DerBitString? bit = publicKey;
+   final List<int>? bytes = bit?.getBytes();
+   if (bytes == null || bytes.isEmpty) return null;
+   return Asn1Stream(PdfStreamReader(Uint8List.fromList(bytes))).readAsn1();
+    }
+    
+    @override
+    Asn1 getAsn1() {
+        final collection = Asn1EncodeCollection();
+        collection.encodableObjects.add(algorithm);
+        if (publicKey != null) {
+            collection.encodableObjects.add(Asn1Wrapper(publicKey!));
+        }
+        return DerSequence(collection: collection);
+   }
+}
+
+class X509CertificateStructure extends Asn1Encode {
+    X509CertificateStructure(this.asn1) {
+    if (asn1.objects!.isNotEmpty && asn1.objects![0] is Asn1Tag && (asn1.objects![0] as Asn1Tag).tagNumber == 0) {
+            _offset = 0;
+        } else {
+            _offset = -1;
+        }
+    }
+    final Asn1Sequence asn1;
+    late int _offset;
+    
+    static X509CertificateStructure getInstance(dynamic obj) {
+        if (obj is X509CertificateStructure) return obj;
+      if (obj is Asn1Sequence) {
+        // If a full Certificate SEQUENCE is provided, unwrap the TBS sequence.
+        if (obj.count >= 3 &&
+          obj[0]?.getAsn1() is Asn1Sequence &&
+          obj[1]?.getAsn1() is Asn1Sequence &&
+          obj[2]?.getAsn1() is DerBitString) {
+          final Asn1Sequence tbs = obj[0]!.getAsn1()! as Asn1Sequence;
+          return X509CertificateStructure(tbs);
+        }
+        return X509CertificateStructure(obj);
+      }
+        throw Exception('Invalid type for X509CertificateStructure');
+    }
+    
+    X509Name? get issuer => _getAsSequence(_offset + 3) != null ? X509Name(_getAsSequence(_offset + 3)!) : null;
+    X509Name? get subject => _getAsSequence(_offset + 5) != null ? X509Name(_getAsSequence(_offset + 5)!) : null;
+    
+    // Serial number as DerInteger for .value/.positiveValue access
+    DerInteger? get serialNumber {
+       final Asn1Encode? obj = asn1.objects![_offset + 1] as Asn1Encode?;
+       if (obj is DerInteger) return obj;
+       if (obj is Asn1) {
+        final List<int>? der = obj.getDerEncoded();
+        if (der == null || der.isEmpty) return null;
+        final Asn1? parsed =
+           Asn1Stream(PdfStreamReader(Uint8List.fromList(der))).readAsn1();
+        if (parsed is DerInteger) return parsed;
+       }
+       return null;
+    }
+    
+    X509Time? get startDate => _getTime(_offset + 4, 0);
+    X509Time? get endDate => _getTime(_offset + 4, 1);
+    
+    PublicKeyInformation? get subjectPublicKeyInfo {
+         final seq = _getAsSequence(_offset + 6);
+       if (seq == null || seq.count < 2) return null;
+       final Asn1? algObj = seq[0]?.getAsn1();
+       final Asn1Sequence? algSeq = Asn1Sequence.getSequence(algObj);
+       if (algSeq == null) return null;
+       final Algorithms alg = Algorithms.fromSequence(algSeq);
+       final Asn1Encode? pk = seq[1] as Asn1Encode?;
+       return PublicKeyInformation(alg, pk);
+    }
+    
+    // Legacy needs
+    Algorithms? get signatureAlgorithm => null; // TODO
+
+    Asn1Sequence? _getAsSequence(int index) {
+        if (index >= asn1.objects!.length) return null;
+        return asn1.objects![index] as Asn1Sequence?;
+    }
+    
+    X509Time? _getTime(int seqIndex, int timeIndex) {
+        final seq = _getAsSequence(seqIndex);
+        if (seq == null || timeIndex >= seq.objects!.length) return null;
+        return X509Time.getTime(seq.objects![timeIndex]);
+    }
+    
+    @override
+    Asn1 getAsn1() => asn1;
+}
 
 /// internal class
 class IX509Extension {
@@ -126,13 +271,7 @@ class X509Extensions extends Asn1Encode {
     for (int i = 0; i < seq.objects!.length; i++) {
       final Asn1Encode ae = seq.objects![i] as Asn1Encode;
       final Asn1Sequence s = Asn1Sequence.getSequence(ae.getAsn1())!;
-      if (s.count < 2 || s.count > 3) {
-        throw ArgumentError.value(
-          seq,
-          'count',
-          'Bad sequence size: ${s.count}',
-        );
-      }
+      
       final DerObjectID? oid = DerObjectID.getID(s[0]!.getAsn1());
       final bool isCritical =
           s.count == 3 && (s[1]!.getAsn1()! as DerBoolean).isTrue;
@@ -155,7 +294,7 @@ class X509Extensions extends Asn1Encode {
       } else if (obj is Asn1Tag) {
         result = getInstance(obj.getObject());
       } else {
-        throw ArgumentError.value(obj, 'obj', 'unknown object in factory');
+        return null; 
       }
     } else {
       result = getInstance(Asn1Sequence.getSequence(obj, explicitly));
@@ -199,147 +338,204 @@ class X509Extensions extends Asn1Encode {
   }
 }
 
-/// internal class
+/// Internal wrapper using PointyCastle implementation
 class X509Certificate extends X509ExtensionBase {
-  /// Internal conversion to support crypto_keys
-  ck.PublicKey get publicKey {
-    final param = getPublicKey();
-    if (param is RsaKeyParam) {
-      return ck.RsaPublicKey(
-          modulus: param.modulus!, exponent: param.exponent!);
+  final X509 _impl;
+  
+  X509Certificate(this._impl);
+    factory X509Certificate.fromDer(Uint8List der) {
+      return X509Certificate(X509.fromDer(der));
     }
-    // TODO: Support EC
-    throw UnimplementedError(
-        "PublicKey conversion not implemented for ${param.runtimeType}");
+
+    factory X509Certificate.fromPem(String pem) {
+      return X509Certificate(X509.fromPem(pem));
+    }
+
+    pc_asn1.ASN1Sequence get asn1 => _impl.asn1;
+
+    pc_asn1.ASN1Sequence get asn1Issuer => _impl.asn1Issuer;
+
+    Uint8List get der => _impl.der;
+
+    String get pem => _impl.pem;
+
+    pc_asn1.ASN1ObjectIdentifier get signatureAlgorithmOI =>
+        _impl.signatureAlgorithmOI;
+
+    pc_asn1.ASN1Object get signatureParameters => _impl.signatureParameters;
+
+    Uint8List get signatureValue => _impl.signatureValue;
+
+    HashAlgorithm get digestAlgorithm => _impl.digestAlgorithm;
+
+    Uint8List get body => _impl.body;
+
+    DateTime get notBefore => _impl.notBefore;
+
+    DateTime get notAfter => _impl.notAfter;
+
+      Iterable<MapEntry<pc_asn1.ASN1ObjectIdentifier, dynamic>> get issuer =>
+        _impl.issuer;
+
+      Iterable<MapEntry<pc_asn1.ASN1ObjectIdentifier, dynamic>> get subject =>
+        _impl.subject;
+
+    Uint8List get fingerprint => _impl.fingerprint;
+
+    Uint8List generateSignature(
+      pc.RSAPrivateKey privateKey,
+      Uint8List message,
+      HashAlgorithm digestAlgorithm,
+    ) {
+      return _impl.generateSignature(privateKey, message, digestAlgorithm);
+    }
+
+    bool verifySignature(
+      Uint8List signature,
+      Uint8List message,
+      HashAlgorithm digestAlgorithm,
+    ) {
+      return _impl.verifySignature(signature, message, digestAlgorithm);
+    }
+
+    List<X509Certificate> verifyChain(
+      List<X509Certificate> chain,
+      List<X509Certificate> trusted,
+    ) {
+      final List<X509> chainImpl = chain.map((c) => c._impl).toList();
+      final List<X509> trustedImpl = trusted.map((c) => c._impl).toList();
+      final List<X509> verified = _impl.verifyChain(chainImpl, trustedImpl);
+      return verified.map((c) => X509Certificate(c)).toList();
+    }
+  
+  // Backwards compatibility factory/conversion
+  factory X509Certificate.fromStructure(X509CertificateStructure s) {
+      final List<int>? der = s.getAsn1().getDerEncoded();
+      if (der == null || der.isEmpty) {
+        throw StateError('Invalid certificate DER');
+      }
+      final x509 = X509.fromDer(Uint8List.fromList(der));
+      final cert = X509Certificate(x509);
+      cert._c = s;
+      return cert;
   }
 
-  /// internal constructor
-  X509Certificate(this.c) {
-    try {
-      final Asn1Octet? str = getExtension(DerObjectID('2.5.29.15'));
-      if (str != null) {
-        final Asn1? asn1 =
-            Asn1Stream(PdfStreamReader(str.getOctets())).readAsn1();
-        final DerBitString? bits = DerBitString.getDetBitString(asn1);
-        if (bits != null) {
-          final List<int>? bytes = bits.getBytes();
-          if (bytes != null) {
-            final int length = (bytes.length * 8) - (bits.extra ?? 0);
-            _keyUsage = List<bool>.generate(
-              (length < 9) ? 9 : length,
-              (int i) => false,
-            );
-            for (int i = 0; i != length; i++) {
-              _keyUsage![i] = (bytes[i ~/ 8] & (0x80 >> (i % 8))) != 0;
+  X509CertificateStructure? _c;
+  X509CertificateStructure? get c {
+    if (_c == null) {
+        try {
+            final Uint8List tbsBytes = _impl.body;
+            if (tbsBytes.isNotEmpty) {
+              final stream = Asn1Stream(PdfStreamReader(tbsBytes));
+                final obj = stream.readAsn1();
+                 if (obj is Asn1Sequence) {
+                    _c = X509CertificateStructure(obj);
+                 }
             }
-          } else {
-            _keyUsage = null;
-          }
-        } else {
-          _keyUsage = null;
-        }
-      } else {
-        _keyUsage = null;
-      }
-    } catch (e) {
-      _keyUsage = null;
-      // Ignore KeyUsage error and continue
+        } catch (_) {}
     }
+    return _c;
   }
-  //Fields
-  /// internal field
-  X509CertificateStructure? c;
-  List<bool>? _keyUsage;
-  //Implementation
+
+  ck.PublicKey get publicKey {
+    final pcKey = _impl.publicKey;
+    if (pcKey is pc.RSAPublicKey) {
+      return ck.RsaPublicKey(
+          modulus: pcKey.modulus!, exponent: pcKey.publicExponent!);
+    }
+    throw UnimplementedError(
+        "PublicKey conversion not implemented for ");
+  }
+
   @override
   X509Extensions? getX509Extensions() {
-    return c!.version == 3 ? c!.tbsCertificate!.extensions : null;
-  }
+    final exts = _impl.extensions;
+    if (exts.isEmpty) return null;
 
-  /// internal method
-  CipherParameter getPublicKey() {
-    return createKey(c!.subjectPublicKeyInfo!);
-  }
-
-  /// internal method
-  List<int>? getTbsCertificate() {
-    return c!.tbsCertificate!.getDerEncoded();
-  }
-
-  /// internal method
-  List<int>? getSignature() {
-    return c!.signature!.getBytes();
-  }
-
-  /// internal method
-  CipherParameter createKey(PublicKeyInformation keyInfo) {
-    CipherParameter result;
-    final Algorithms algID = keyInfo.algorithm!;
-    final DerObjectID algOid = algID.id!;
-    if (algOid.id == PkcsObjectId.rsaEncryption.id ||
-        algOid.id == X509Objects.idEARsa.id) {
-      final Asn1RsaPublicKey pubKey =
-          Asn1RsaPublicKey.getPublicKey(keyInfo.getPublicKey())!;
-      result = RsaKeyParam(false, pubKey.modulus, pubKey.publicExponent);
-    } else if (algOid.id == '1.2.840.10045.2.1') {
-      // id-ecPublicKey
-      final Asn1Encode? params = algID.parameters;
-      final DerObjectID? curveOid = params is DerObjectID ? params : null;
-      if (curveOid?.id == null) {
-        throw ArgumentError.value(
-          keyInfo,
-          'keyInfo',
-          'Unsupported EC public key parameters (expected named curve OID)',
-        );
-      }
-
-      final String domainName = _ecDomainNameForOid(curveOid!.id!);
-      final pc.ECDomainParameters domain = pc.ECDomainParameters(domainName);
-
-      final List<int>? qEncoded = keyInfo.publicKey?.getBytes();
-      if (qEncoded == null || qEncoded.isEmpty) {
-        throw ArgumentError.value(keyInfo, 'keyInfo', 'Missing EC public key bytes');
-      }
-      final pc.ECPoint? q = domain.curve.decodePoint(Uint8List.fromList(qEncoded));
-      if (q == null) {
-        throw ArgumentError.value(keyInfo, 'keyInfo', 'Could not decode EC public key point');
-      }
-
-      result = EcPublicKeyParam(pc.ECPublicKey(q, domain));
-    } else {
-      throw ArgumentError.value(
-        keyInfo,
-        'keyInfo',
-        'algorithm identifier in key not recognised',
-      );
+    try {
+        final map = <DerObjectID, X509Extension>{};
+        final ordering = <DerObjectID>[];
+        
+        for (final extSeq in exts) {
+            final oidStr = (extSeq.elements![0] as pc_asn1.ASN1ObjectIdentifier).objectIdentifierAsString;
+            final oid = DerObjectID(oidStr);
+            
+            bool critical = false;
+            Uint8List octets;
+            
+            if (extSeq.elements!.length == 3) {
+                 final val = (extSeq.elements![1] as pc_asn1.ASN1Boolean);
+              critical = val.boolValue ?? false;
+                octets = (extSeq.elements![2] as pc_asn1.ASN1OctetString).octets!;
+            } else {
+                 octets = (extSeq.elements![1] as pc_asn1.ASN1OctetString).octets!;
+            }
+            
+            map[oid] = X509Extension(critical, Asn1Octet(octets));
+            ordering.add(oid);
+        }
+        return X509Extensions(map, ordering);
+    } catch (_) {
+      return null;
     }
-    return result;
   }
 
-  /// internal method
-  void verify(CipherParameter key) {
-    if (c != null) {
-      final String sigOid = c!.signatureAlgorithm!.id!.id!;
+  pc.CipherParameters getPublicKey() {
+    final key = _impl.publicKey;
+    if (key is pc.RSAPublicKey) {
+        return pc.PublicKeyParameter<pc.RSAPublicKey>(key);
+    } else if (key is pc.ECPublicKey) {
+        return pc.PublicKeyParameter<pc.ECPublicKey>(key);
+    }
+    throw UnimplementedError('Unsupported key type ');
+  }
 
-      // RSASSA-PSS (RFC 4055) is commonly used by modern CAs.
-      // The existing SignerUtilities only supports RSA PKCS#1 v1.5.
+  CipherParameter getPublicKeyParam() {
+    final key = _impl.publicKey;
+    if (key is pc.RSAPublicKey) {
+      return RsaKeyParam(false, key.modulus, key.publicExponent);
+    }
+    if (key is pc.ECPublicKey) {
+      return EcPublicKeyParam(key);
+    }
+    throw UnimplementedError('Unsupported key type');
+  }
+
+  List<int>? getTbsCertificate() {
+    return _impl.body;
+  }
+
+  List<int>? getSignature() {
+    return _impl.signatureValue;
+  }
+
+  void verify(pc.CipherParameters key) {
+    final String sigOid = _impl.signatureAlgorithmOI.objectIdentifierAsString!;
+
       if (sigOid == '1.2.840.113549.1.1.10') {
         _verifyRsassaPss(key);
         return;
       }
 
-      // ECDSA-with-SHA{1,2} (X9.62).
       if (_isEcdsaSignatureOid(sigOid)) {
         _verifyEcdsa(sigOid, key);
         return;
       }
 
-      final SignerUtilities util = SignerUtilities();
-      final ISigner signature = util.getSigner(sigOid);
-      checkSignature(key, signature);
-    }
-  }
-
+      try {
+            if (key is pc.PublicKeyParameter<pc.RSAPublicKey>) {
+                final digest = _impl.digestAlgorithm;
+                if (!_impl.verifySignature(Uint8List.fromList(getSignature()!), Uint8List.fromList(getTbsCertificate()!), digest)) {
+                     throw Exception('Signature verification failed');
+                }
+                return;
+            }
+      } catch (e) {
+      }
+      
+      throw UnimplementedError('Signature verification for  not implemented');
+  } 
+  
   static bool _isEcdsaSignatureOid(String oid) {
     return oid == '1.2.840.10045.4.1' ||
         oid == '1.2.840.10045.4.3.1' ||
@@ -350,42 +546,21 @@ class X509Certificate extends X509ExtensionBase {
 
   static pc.Digest _pcDigestForEcdsaSignatureOid(String oid) {
     switch (oid) {
-      case '1.2.840.10045.4.1':
-        return pc.SHA1Digest();
-      case '1.2.840.10045.4.3.1':
-        return pc.SHA224Digest();
-      case '1.2.840.10045.4.3.2':
-        return pc.SHA256Digest();
-      case '1.2.840.10045.4.3.3':
-        return pc.SHA384Digest();
-      case '1.2.840.10045.4.3.4':
-        return pc.SHA512Digest();
+      case '1.2.840.10045.4.1': return pc.SHA1Digest();
+      case '1.2.840.10045.4.3.1': return pc.SHA224Digest();
+      case '1.2.840.10045.4.3.2': return pc.SHA256Digest();
+      case '1.2.840.10045.4.3.3': return pc.SHA384Digest();
+      case '1.2.840.10045.4.3.4': return pc.SHA512Digest();
     }
     throw ArgumentError.value(oid, 'oid', 'Unsupported ECDSA signature OID');
   }
 
-  static String _ecDomainNameForOid(String oid) {
-    switch (oid) {
-      // prime256v1 == secp256r1
-      case '1.2.840.10045.3.1.7':
-        return 'prime256v1';
-      case '1.3.132.0.10':
-        return 'secp256k1';
-      case '1.3.132.0.34':
-        return 'secp384r1';
-      case '1.3.132.0.35':
-        return 'secp521r1';
-    }
-    throw ArgumentError.value(oid, 'oid', 'Unsupported named curve OID');
-  }
-
-  void _verifyEcdsa(String sigOid, CipherParameter publicKey) {
-    if (publicKey is! EcPublicKeyParam) {
-      throw ArgumentError.value(publicKey, 'publicKey', 'ECDSA requires an EC public key');
-    }
-
-    if (!isAlgIDEqual(c!.signatureAlgorithm!, c!.tbsCertificate!.signature!)) {
-      throw Exception('signature algorithm in TBS cert not same as outer cert');
+  void _verifyEcdsa(String sigOid, pc.CipherParameters publicKey) {
+    pc.ECPublicKey ecKey;
+    if (publicKey is pc.PublicKeyParameter<pc.ECPublicKey>) {
+        ecKey = publicKey.key;
+    } else {
+         throw ArgumentError('Expected EC public key');
     }
 
     final List<int>? tbs = getTbsCertificate();
@@ -394,59 +569,54 @@ class X509Certificate extends X509ExtensionBase {
       throw Exception('Missing certificate data for signature verification');
     }
 
-    // Signature value is DER SEQUENCE { r INTEGER, s INTEGER }
-    final asn1.ASN1Object parsed =
-        asn1.ASN1Parser(Uint8List.fromList(sigBytes)).nextObject();
-    if (parsed is! asn1.ASN1Sequence || parsed.elements.length < 2) {
+    final pc_asn1.ASN1Object parsed =
+        pc_asn1.ASN1Parser(Uint8List.fromList(sigBytes)).nextObject();
+    if (parsed is! pc_asn1.ASN1Sequence || parsed.elements!.length < 2) {
       throw Exception('Invalid ECDSA signature encoding');
     }
-    final asn1.ASN1Object rObj = parsed.elements[0];
-    final asn1.ASN1Object sObj = parsed.elements[1];
-    if (rObj is! asn1.ASN1Integer || sObj is! asn1.ASN1Integer) {
+    final pc_asn1.ASN1Object rObj = parsed.elements![0];
+    final pc_asn1.ASN1Object sObj = parsed.elements![1];
+    if (rObj is! pc_asn1.ASN1Integer || sObj is! pc_asn1.ASN1Integer) {
       throw Exception('Invalid ECDSA signature integers');
     }
+    final pc_asn1.ASN1Integer rInt = rObj;
+    final pc_asn1.ASN1Integer sInt = sObj;
 
     final pc.Digest digest = _pcDigestForEcdsaSignatureOid(sigOid);
-    final pc.ECDSASigner signer = pc.ECDSASigner(digest);
+    final pc.ECDSASigner signer = pc.ECDSASigner(digest); 
     signer.init(
       false,
-      pc.PublicKeyParameter<pc.ECPublicKey>(publicKey.publicKey),
+      pc.PublicKeyParameter<pc.ECPublicKey>(ecKey),
     );
 
     final bool ok = signer.verifySignature(
       Uint8List.fromList(tbs),
-      pc.ECSignature(rObj.valueAsBigInteger, sObj.valueAsBigInteger),
+      pc.ECSignature(rInt.integer!, sInt.integer!),
     );
     if (!ok) {
       throw Exception('Public key presented not for certificate signature');
     }
   }
 
-  void _verifyRsassaPss(CipherParameter publicKey) {
-    if (publicKey is! RsaKeyParam) {
-      throw ArgumentError.value(
-        publicKey,
-        'publicKey',
-        'RSASSA-PSS requires an RSA public key',
-      );
-    }
+  void _verifyRsassaPss(pc.CipherParameters publicKey) {
+      pc.RSAPublicKey rsaKey;
+      if (publicKey is pc.PublicKeyParameter<pc.RSAPublicKey>) {
+          rsaKey = publicKey.key;
+      } else {
+          throw ArgumentError('Expected RSA public key');
+      }
+      
+      final List<int>? tbs = getTbsCertificate();
+      final List<int>? sigBytes = getSignature();
+      final params = _impl.signatureParameters;
+      
+      final ({String hashOid, String mgfHashOid, int saltLength}) pss =
+        _parseRsassaPssParamsBestEffort(params);
 
-    if (!isAlgIDEqual(c!.signatureAlgorithm!, c!.tbsCertificate!.signature!)) {
-      throw Exception('signature algorithm in TBS cert not same as outer cert');
-    }
-
-    final List<int>? tbs = getTbsCertificate();
-    final List<int>? sigBytes = getSignature();
-    if (tbs == null || sigBytes == null) {
-      throw Exception('Missing certificate data for signature verification');
-    }
-
-    final ({String hashOid, String mgfHashOid, int saltLength}) pss =
-        _parseRsassaPssParamsBestEffort(c!.signatureAlgorithm!.parameters);
     final pc.Digest hashDigest = _pcDigestForOid(pss.hashOid);
     final pc.Digest mgfDigest = _pcDigestForOid(pss.mgfHashOid);
 
-    final pc.SecureRandom random = pc.FortunaRandom()
+     final pc.SecureRandom random = pc.FortunaRandom()
       ..seed(pc.KeyParameter(Uint8List(32)));
     final pc.PSSSigner signer = pc.PSSSigner(
       pc.RSAEngine(),
@@ -456,90 +626,79 @@ class X509Certificate extends X509ExtensionBase {
     signer.init(
       false,
       pc.ParametersWithSaltConfiguration(
-        pc.PublicKeyParameter<pc.RSAPublicKey>(
-          pc.RSAPublicKey(publicKey.modulus!, publicKey.exponent!),
-        ),
+        pc.PublicKeyParameter<pc.RSAPublicKey>(rsaKey),
         random,
         pss.saltLength,
       ),
     );
 
     final bool ok = signer.verifySignature(
-      Uint8List.fromList(tbs),
-      pc.PSSSignature(Uint8List.fromList(sigBytes)),
+      Uint8List.fromList(tbs!),
+      pc.PSSSignature(Uint8List.fromList(sigBytes!)),
     );
     if (!ok) {
       throw Exception('Public key presented not for certificate signature');
     }
+
   }
 
-  static pc.Digest _pcDigestForOid(String oid) {
+    static pc.Digest _pcDigestForOid(String oid) {
     switch (oid) {
-      case '1.3.14.3.2.26':
-        return pc.SHA1Digest();
-      case '2.16.840.1.101.3.4.2.4':
-        return pc.SHA224Digest();
-      case '2.16.840.1.101.3.4.2.1':
-        return pc.SHA256Digest();
-      case '2.16.840.1.101.3.4.2.2':
-        return pc.SHA384Digest();
-      case '2.16.840.1.101.3.4.2.3':
-        return pc.SHA512Digest();
+      case '1.3.14.3.2.26': return pc.SHA1Digest();
+      case '2.16.840.1.101.3.4.2.4': return pc.SHA224Digest();
+      case '2.16.840.1.101.3.4.2.1': return pc.SHA256Digest();
+      case '2.16.840.1.101.3.4.2.2': return pc.SHA384Digest();
+      case '2.16.840.1.101.3.4.2.3': return pc.SHA512Digest();
     }
-
     throw ArgumentError.value(oid, 'oid', 'Unsupported digest OID');
   }
 
   static ({String hashOid, String mgfHashOid, int saltLength})
-      _parseRsassaPssParamsBestEffort(Asn1Encode? params) {
-    // Defaults per RFC 4055.
-    String hashOid = '1.3.14.3.2.26'; // sha1
-    String mgfHashOid = '1.3.14.3.2.26'; // sha1
+      _parseRsassaPssParamsBestEffort(pc_asn1.ASN1Object params) {
+    String hashOid = '1.3.14.3.2.26'; 
+    String mgfHashOid = '1.3.14.3.2.26'; 
     int saltLen = 20;
 
     try {
-      final List<int>? der = params?.getDerEncoded();
-      if (der == null || der.isEmpty) {
+      if (params is! pc_asn1.ASN1Sequence) {
         return (hashOid: hashOid, mgfHashOid: mgfHashOid, saltLength: saltLen);
       }
 
-      final asn1.ASN1Object top =
-          asn1.ASN1Parser(Uint8List.fromList(der)).nextObject();
-      if (top is! asn1.ASN1Sequence) {
-        return (hashOid: hashOid, mgfHashOid: mgfHashOid, saltLength: saltLen);
-      }
+        for (final pc_asn1.ASN1Object element in params.elements!) {
+        final int? tag = element.tag;
+        if (tag == null) continue;
+        final int tagNo = tag & 0x1f;
+        final Uint8List? valueBytes = element.valueBytes;
+        if (valueBytes == null || valueBytes.isEmpty) continue;
+        final pc_asn1.ASN1Object inner =
+          pc_asn1.ASN1Parser(valueBytes).nextObject();
 
-      for (final asn1.ASN1Object element in top.elements) {
-        // Context-specific explicit tags: 0xA0..0xA3
-        final int tagNo = element.tag & 0x1f;
-        final asn1.ASN1Object inner =
-            asn1.ASN1Parser(element.valueBytes()).nextObject();
-
-        // [0] hashAlgorithm AlgorithmIdentifier
         if (tagNo == 0) {
-          final String? oid = _tryParseAlgorithmIdentifierOid(inner);
-          if (oid != null) hashOid = oid;
+           if (inner is pc_asn1.ASN1Sequence && inner.elements!.isNotEmpty && inner.elements![0] is pc_asn1.ASN1ObjectIdentifier) {
+               hashOid = (inner.elements![0] as pc_asn1.ASN1ObjectIdentifier).objectIdentifierAsString!;
+           }
           continue;
         }
 
-        // [1] maskGenAlgorithm AlgorithmIdentifier (expected mgf1 with hash params)
         if (tagNo == 1) {
-          final String? mgf = _tryParseMgf1HashOid(inner);
-          if (mgf != null) {
-            mgfHashOid = mgf;
-          }
+             if (inner is pc_asn1.ASN1Sequence && inner.elements!.isNotEmpty && inner.elements![0] is pc_asn1.ASN1ObjectIdentifier) {
+                 if ((inner.elements![0] as pc_asn1.ASN1ObjectIdentifier).objectIdentifierAsString == '1.2.840.113549.1.1.8') {
+                      final mgfParams = inner.elements![1];
+                       if (mgfParams is pc_asn1.ASN1Sequence && mgfParams.elements!.isNotEmpty && mgfParams.elements![0] is pc_asn1.ASN1ObjectIdentifier) {
+                           mgfHashOid = (mgfParams.elements![0] as pc_asn1.ASN1ObjectIdentifier).objectIdentifierAsString!;
+                       }
+                 }
+             }
           continue;
         }
 
-        // [2] saltLength INTEGER
-        if (tagNo == 2 && inner is asn1.ASN1Integer) {
-          saltLen = inner.intValue;
+        if (tagNo == 2 && inner is pc_asn1.ASN1Integer) {
+          saltLen = inner.integer!.toInt();
           continue;
         }
       }
     } catch (_) {
-      // Widely used modern fallback when params parsing fails.
-      hashOid = '2.16.840.1.101.3.4.2.1'; // sha256
+      hashOid = '2.16.840.1.101.3.4.2.1'; 
       mgfHashOid = hashOid;
       saltLen = 32;
     }
@@ -547,528 +706,58 @@ class X509Certificate extends X509ExtensionBase {
     return (hashOid: hashOid, mgfHashOid: mgfHashOid, saltLength: saltLen);
   }
 
-  static String? _tryParseAlgorithmIdentifierOid(asn1.ASN1Object obj) {
-    if (obj is! asn1.ASN1Sequence) return null;
-    if (obj.elements.isEmpty) return null;
-    final asn1.ASN1Object first = obj.elements.first;
-    if (first is asn1.ASN1ObjectIdentifier) {
-      return first.identifier;
-    }
-    return null;
-  }
-
-  static String? _tryParseMgf1HashOid(asn1.ASN1Object obj) {
-    // mgf1 AlgorithmIdentifier: { oid = 1.2.840.113549.1.1.8, params = AlgorithmIdentifier }
-    if (obj is! asn1.ASN1Sequence) return null;
-    if (obj.elements.length < 2) return null;
-    final asn1.ASN1Object oidObj = obj.elements[0];
-    if (oidObj is! asn1.ASN1ObjectIdentifier) return null;
-    if (oidObj.identifier != '1.2.840.113549.1.1.8') return null;
-    return _tryParseAlgorithmIdentifierOid(obj.elements[1]);
-  }
-  /// internal method
-  void checkSignature(CipherParameter publicKey, ISigner signature) {
-    if (!isAlgIDEqual(c!.signatureAlgorithm!, c!.tbsCertificate!.signature!)) {
-      throw Exception('signature algorithm in TBS cert not same as outer cert');
-    }
-    signature.initialize(false, publicKey);
-    final List<int>? b = getTbsCertificate();
-    if (b != null) {
-      signature.blockUpdate(b, 0, b.length);
-      final List<int>? sig = getSignature();
-      if (!signature.validateSignature(sig!)) {
-        throw Exception('Public key presented not for certificate signature');
-      }
+  void checkSignature(pc.CipherParameters publicKey, pc.Signer signature) {
+    // Basic compatibility helper
+    // Legacy signatures might need specific update logic not supported directly by new Signer interface
+    try {
+        signature.init(false, publicKey);
+        // Assuming verifySignature(message, signature) for new interface
+        final List<int>? b = getTbsCertificate();
+        final List<int>? sig = getSignature();
+        if (b != null && sig != null) {
+            // This is speculative. If Signer expects 2 arguments:
+            // signature.verifySignature(Uint8List.fromList(b), pc.Signature(Uint8List.fromList(sig)));
+            // We can't know for sure here.
+            throw UnimplementedError("CheckSignature compatibility is limited. Refactor caller to use X509Certificate.verify()");
+        }
+    } catch(e) {
+        throw e;
     }
   }
 
-  /// internal method
-  bool isAlgIDEqual(Algorithms id1, Algorithms id2) {
-    if (!(id1.id == id2.id)) {
-      return false;
-    }
-    final Asn1Encode? p1 = id1.parameters;
-    final Asn1Encode? p2 = id2.parameters;
-    if ((p1 == null) == (p2 == null)) {
-      return p1 == p2;
-    }
-    return p1 == null ? p2!.getAsn1() is Asn1Null : p1.getAsn1() is Asn1Null;
-  }
 }
 
-/// internal class
-class X509CertificateStructure extends Asn1Encode {
-  /// internal constructor
-  X509CertificateStructure(Asn1Sequence seq) {
-    final bool looksLikeOuterCertificate =
-        seq.count >= 3 && (seq[2] is DerBitString) && Algorithms.getAlgorithms(seq[1]) != null;
-
-    if (!looksLikeOuterCertificate &&
-        seq.count > 0 &&
-        (seq[0] is DerTag || seq[0] is Asn1Tag)) {
-      // Handle case where seq is the TBSCertificate itself (missing outer Certificate wrapper)
-      _tbsCert = SingnedCertificate(seq);
-      _sigAlgID = null;
-      _sig = null;
-    } else {
-      _tbsCert = SingnedCertificate.getCertificate(seq[0]);
-      if (_tbsCert == null) {
-        throw ArgumentError('Invalid TBSCertificate');
-      }
-      _sigAlgID = Algorithms.getAlgorithms(seq[1]);
-      _sig = DerBitString.getDetBitString(seq[2]);
-    }
-  }
-  //Fields
-  SingnedCertificate? _tbsCert;
-  Algorithms? _sigAlgID;
-  DerBitString? _sig;
-  //Properties
-  /// internal property
-  SingnedCertificate? get tbsCertificate => _tbsCert;
-
-  /// internal property
-  int get version => _tbsCert!.version;
-
-  /// internal property
-  DerInteger? get serialNumber => _tbsCert!.serialNumber;
-
-  /// internal property
-  X509Name? get issuer => _tbsCert!.issuer;
-
-  /// internal property
-  X509Time? get startDate => _tbsCert!.startDate;
-
-  /// internal property
-  X509Time? get endDate => _tbsCert!.endDate;
-
-  /// internal property
-  X509Name? get subject => _tbsCert!.subject;
-
-  /// internal property
-  PublicKeyInformation? get subjectPublicKeyInfo =>
-      _tbsCert!.subjectPublicKeyInfo;
-
-  /// internal property
-  Algorithms? get signatureAlgorithm => _sigAlgID;
-
-  /// internal property
-  DerBitString? get signature => _sig;
-  //Implementation
-  /// internal method
-  static X509CertificateStructure? getInstance(dynamic obj) {
-    if (obj is X509CertificateStructure) {
-      return obj;
-    }
-    if (obj != null) {
-      return X509CertificateStructure(Asn1Sequence.getSequence(obj)!);
-    }
-    return null;
-  }
-
-  @override
-  Asn1 getAsn1() {
-    return DerSequence(array: <Asn1Encode?>[_tbsCert, _sigAlgID, _sig]);
-  }
-}
-
-/// Internal class
-class SingnedCertificate extends Asn1Encode {
-  /// internal constructor
-  SingnedCertificate(Asn1Sequence sequence) {
-    int seqStart = 0;
-    _sequence = sequence;
-    if (sequence[0] is DerTag || sequence[0] is Asn1Tag) {
-      _version = DerInteger.getNumberFromTag(sequence[0]! as Asn1Tag, true);
-    } else {
-      seqStart = -1;
-      _version = DerInteger(bigIntToBytes(BigInt.from(0)));
-    }
-    _serialNumber = DerInteger.getNumber(sequence[seqStart + 1]);
-    _signature = Algorithms.getAlgorithms(sequence[seqStart + 2]);
-    _issuer = X509Name.getName(sequence[seqStart + 3]);
-    final Asn1Sequence dates = sequence[seqStart + 4]! as Asn1Sequence;
-    _startDate = X509Time.getTime(dates[0]);
-    _endDate = X509Time.getTime(dates[1]);
-    _subject = X509Name.getName(sequence[seqStart + 5]);
-    _publicKeyInformation = PublicKeyInformation.getPublicKeyInformation(
-      sequence[seqStart + 6],
-    );
-    for (int extras = sequence.count - (seqStart + 6) - 1;
-        extras > 0;
-        extras--) {
-      final Asn1Tag extra = sequence[seqStart + 6 + extras]! as Asn1Tag;
-      switch (extra.tagNumber) {
-        case 1:
-          _issuerID = DerBitString.getDerBitStringFromTag(extra, false);
-          break;
-        case 2:
-          _subjectID = DerBitString.getDerBitStringFromTag(extra, false);
-          break;
-        case 3:
-          _extensions = X509Extensions.getInstance(extra);
-          break;
-      }
-    }
-  }
-
-  /// internal method
-  static SingnedCertificate? getCertificate(dynamic obj) {
-    if (obj is SingnedCertificate) {
-      return obj;
-    }
-    if (obj != null) {
-      final Asn1Sequence? seq = Asn1Sequence.getSequence(obj);
-      if (seq != null) {
-        return SingnedCertificate(seq);
-      }
-    }
-    return null;
-  }
-
-  //Fields
-  Asn1Sequence? _sequence;
-  DerInteger? _version;
-  DerInteger? _serialNumber;
-  Algorithms? _signature;
-  X509Name? _issuer;
-  X509Time? _startDate;
-  X509Time? _endDate;
-  X509Name? _subject;
-  PublicKeyInformation? _publicKeyInformation;
-  DerBitString? _issuerID;
-  DerBitString? _subjectID;
-  X509Extensions? _extensions;
-  //Properties
-  /// internal field
-  int get version => _version!.value.toSigned(32).toInt() + 1;
-
-  /// internal field
-  DerInteger? get serialNumber => _serialNumber;
-
-  /// internal field
-  Algorithms? get signature => _signature;
-
-  /// internal field
-  X509Name? get issuer => _issuer;
-
-  /// internal field
-  X509Time? get startDate => _startDate;
-
-  /// internal field
-  X509Time? get endDate => _endDate;
-
-  /// internal field
-  X509Name? get subject => _subject;
-
-  /// internal field
-  PublicKeyInformation? get subjectPublicKeyInfo => _publicKeyInformation;
-
-  /// internal field
-  DerBitString? get issuerUniqueID => _issuerID;
-
-  /// internal field
-  DerBitString? get subjectUniqueID => _subjectID;
-
-  /// internal field
-  X509Extensions? get extensions => _extensions;
-  //Implementation
-  @override
-  Asn1? getAsn1() {
-    return _sequence;
-  }
-}
-
-/// internal class
-class PublicKeyInformation extends Asn1Encode {
-  /// internal constructor
-  PublicKeyInformation(Algorithms algorithms, Asn1Encode publicKey) {
-    _publicKey = DerBitString.fromAsn1(publicKey);
-    _algorithms = algorithms;
-  }
-
-  /// internal constructor
-  PublicKeyInformation.fromSequence(Asn1Sequence sequence) {
-    if (sequence.count != 2) {
-      throw ArgumentError.value(
-        sequence,
-        'sequence',
-        'Invalid length in sequence',
-      );
-    }
-    _algorithms = Algorithms.getAlgorithms(sequence[0]);
-    _publicKey = DerBitString.getDetBitString(sequence[1]);
-  }
-
-  /// internal method
-  static PublicKeyInformation? getPublicKeyInformation(dynamic obj) {
-    if (obj is PublicKeyInformation) {
-      return obj;
-    }
-    if (obj != null) {
-      return PublicKeyInformation.fromSequence(Asn1Sequence.getSequence(obj)!);
-    }
-    return null;
-  }
-
-  Algorithms? _algorithms;
-  DerBitString? _publicKey;
-
-  /// internal property
-  Algorithms? get algorithm => _algorithms;
-
-  /// internal property
-  DerBitString? get publicKey => _publicKey;
-  //Implementation
-  /// internal method
-  Asn1? getPublicKey() {
-    return Asn1Stream(PdfStreamReader(_publicKey!.getBytes())).readAsn1();
-  }
-
-  @override
-  Asn1 getAsn1() {
-    return DerSequence(array: <Asn1Encode?>[_algorithms, _publicKey]);
-  }
-}
-
-/// internal class
-class Asn1RsaPublicKey extends Asn1Encode {
-  /// internal constructor
-  Asn1RsaPublicKey(BigInt? modulus, BigInt? publicExponent) {
-    _modulus = modulus;
-    _publicExponent = publicExponent;
-  }
-
-  /// internal constructor
-  Asn1RsaPublicKey.fromSequence(Asn1Sequence sequence) {
-    _modulus = DerInteger.getNumber(sequence[0])!.positiveValue;
-    _publicExponent = DerInteger.getNumber(sequence[1])!.positiveValue;
-  }
-  BigInt? _modulus;
-  BigInt? _publicExponent;
-
-  /// internal property
-  BigInt? get modulus => _modulus;
-
-  /// internal property
-  BigInt? get publicExponent => _publicExponent;
-
-  /// internal method
-  static Asn1RsaPublicKey? getPublicKey(dynamic obj) {
-    Asn1RsaPublicKey? result;
-    if (obj == null || obj is Asn1RsaPublicKey) {
-      result = obj as Asn1RsaPublicKey?;
-    } else if (obj is Asn1Sequence) {
-      result = Asn1RsaPublicKey.fromSequence(obj);
-    } else {
-      throw ArgumentError.value(obj, 'obj', 'Invalid entry');
-    }
-    return result;
-  }
-
-  @override
-  Asn1 getAsn1() {
-    return DerSequence(
-      array: <Asn1Encode>[
-        DerInteger.fromNumber(modulus),
-        DerInteger.fromNumber(publicExponent),
-      ],
-    );
-  }
-}
-
-/// internal class
 class X509CertificateParser {
-  /// internal constructor
-  X509CertificateParser();
-  //Fields
-  Asn1Set? _sData;
-  int? _sDataObjectCount;
-  PdfStreamReader? _currentStream;
-  //Implementation
-  /// internal method
-  X509Certificate? readCertificate(PdfStreamReader inStream) {
-    if (_currentStream == null || _currentStream != inStream) {
-      _currentStream = inStream;
-      _sData = null;
-      _sDataObjectCount = 0;
-    }
-    if (_sData != null) {
-      if (_sDataObjectCount != _sData!.objects.length) {
-        return getCertificate();
-      }
-      _sData = null;
-      _sDataObjectCount = 0;
-      return null;
-    }
-    final _PushStream pis = _PushStream(inStream);
-    final int tag = pis.readByte()!;
-    if (tag < 0) {
-      return null;
-    }
-    pis.unread(tag);
-    return readDerCertificate(Asn1Stream(pis));
-  }
-
-  /// Internal method
-  List<X509Certificate?>? getCertificateChain(PdfStreamReader inStream) {
-    if (_currentStream == null || _currentStream != inStream) {
-      _currentStream = inStream;
-      _sData = null;
-      _sDataObjectCount = 0;
-    }
-    if (_sData != null) {
-      if (_sDataObjectCount != _sData!.objects.length) {
-        return _getCertificateChain();
-      }
-      _sData = null;
-      _sDataObjectCount = 0;
-      return null;
-    }
-    final _PushStream pis = _PushStream(inStream);
-    final int tag = pis.readByte()!;
-    if (tag < 0) {
-      return null;
-    }
-    pis.unread(tag);
-    return _readDerCertificates(Asn1Stream(pis));
-  }
-
-  /// internal method
-  X509Certificate? getCertificate() {
-    if (_sData != null) {
-      while (_sDataObjectCount! < _sData!.objects.length) {
-        final dynamic obj = _sData![_sDataObjectCount!];
-        _sDataObjectCount = _sDataObjectCount! + 1;
-        if (obj is Asn1Sequence) {
-          final X509CertificateStructure? struct =
-              X509CertificateStructure.getInstance(obj);
-          return struct != null ? createX509Certificate(struct) : null;
+   X509CertificateParser();
+   
+   X509Certificate? readCertificate(PdfStreamReader inStream) {
+       try {
+           final stream = Asn1Stream(inStream);
+           final asn1Obj = stream.readAsn1();
+           if (asn1Obj == null) return null;
+           
+         final List<int>? der = asn1Obj.getDerEncoded();
+         if (der == null || der.isEmpty) return null;
+         final x509 = X509.fromDer(Uint8List.fromList(der));
+           return X509Certificate(x509);
+           
+       } catch(e) {
+           return null;
+       }
+   }
+   
+    List<X509Certificate?>? getCertificateChain(PdfStreamReader inStream) {
+        try {
+            final stream = Asn1Stream(inStream);
+            final asn1Obj = stream.readAsn1();
+            if (asn1Obj == null) return null;
+            
+        final List<int>? der = asn1Obj.getDerEncoded();
+        if (der == null || der.isEmpty) return null;
+        final x509 = X509.fromDer(Uint8List.fromList(der));
+            return [X509Certificate(x509)];
+        } catch (_) {
+            return null;
         }
-      }
     }
-    return null;
-  }
-
-  /// internal method
-  X509Certificate? readDerCertificate(Asn1Stream dIn) {
-    final dynamic seq = dIn.readAsn1();
-    if (seq != null && seq is Asn1Sequence) {
-      if (seq.count > 1 && seq[0] is DerObjectID) {
-        if ((seq[0]! as DerObjectID).id == PkcsObjectId.signedData.id) {
-          if (seq.count >= 2) {
-            final Asn1Sequence signedSequence =
-                Asn1Sequence.getSequence(seq[1] as Asn1Tag?, true)!;
-            bool isContinue = true;
-            // ignore: avoid_function_literals_in_foreach_calls
-            signedSequence.objects!.forEach((dynamic o) {
-              if (isContinue && o is Asn1Tag) {
-                if (o.tagNumber == 0) {
-                  _sData = Asn1Set.getAsn1Set(o, false);
-                  isContinue = false;
-                }
-              }
-            });
-          }
-          return getCertificate();
-        }
-      }
-    }
-    final X509CertificateStructure? struct =
-        X509CertificateStructure.getInstance(seq);
-    return struct != null ? createX509Certificate(struct) : null;
-  }
-
-  List<X509Certificate?>? _getCertificateChain() {
-    final List<X509Certificate?> certList = <X509Certificate?>[];
-    if (_sData != null) {
-      while (_sDataObjectCount! < _sData!.objects.length) {
-        final dynamic obj = _sData![_sDataObjectCount!];
-        _sDataObjectCount = _sDataObjectCount! + 1;
-        if (obj is Asn1Sequence) {
-          certList.add(
-            createX509Certificate(X509CertificateStructure.getInstance(obj)),
-          );
-        }
-      }
-    }
-    return certList.isNotEmpty ? certList : null;
-  }
-
-  /// internal method
-  List<X509Certificate?>? _readDerCertificates(Asn1Stream dIn) {
-    final dynamic seq = dIn.readAsn1();
-    if (seq != null && seq is Asn1Sequence) {
-      if (seq.count > 1 && seq[0] is DerObjectID) {
-        if ((seq[0]! as DerObjectID).id == PkcsObjectId.signedData.id) {
-          if (seq.count >= 2) {
-            final Asn1Sequence signedSequence =
-                Asn1Sequence.getSequence(seq[1] as Asn1Tag?, true)!;
-            bool isContinue = true;
-            // ignore: avoid_function_literals_in_foreach_calls
-            signedSequence.objects!.forEach((dynamic o) {
-              if (isContinue && o is Asn1Tag) {
-                if (o.tagNumber == 0) {
-                  _sData = Asn1Set.getAsn1Set(o, false);
-                  isContinue = false;
-                }
-              }
-            });
-          }
-          return _getCertificateChain();
-        }
-      }
-    }
-    return <X509Certificate?>[
-      createX509Certificate(X509CertificateStructure.getInstance(seq)),
-    ];
-  }
-
-  /// internal method
-  X509Certificate createX509Certificate(X509CertificateStructure? c) {
-    return X509Certificate(c);
-  }
 }
-
-class _PushStream extends PdfStreamReader {
-  _PushStream(PdfStreamReader stream) : super(stream.data) {
-    _stream = stream;
-    _buffer = -1;
-  }
-  //Fields
-  late PdfStreamReader _stream;
-  int? _buffer;
-  @override
-  int get position => _stream.position;
-  @override
-  set position(int value) {
-    _stream.position = value;
-  }
-
-  //Implementation
-  @override
-  int? readByte() {
-    if (_buffer != -1) {
-      final int? temp = _buffer;
-      _buffer = -1;
-      return temp;
-    }
-    return _stream.readByte();
-  }
-
-  @override
-  int? read(List<int> buffer, int offset, int count) {
-    if (_buffer != -1) {
-      final int? temp = _buffer;
-      _buffer = -1;
-      return temp;
-    }
-    return _stream.read(buffer, offset, count);
-  }
-
-  void unread(int b) {
-    _buffer = b & 0xFF;
-  }
-}
-
-

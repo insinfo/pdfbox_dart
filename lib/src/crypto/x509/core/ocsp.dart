@@ -388,9 +388,9 @@ _BasicOcspParsed? _parseBasic(List<int> bytes) {
           for (int i = 0; i < certSeq.count; i++) {
             final Asn1? c = certSeq[i]?.getAsn1();
             if (c is! Asn1Sequence) continue;
-            final X509CertificateStructure? s = X509CertificateStructure.getInstance(c);
-            if (s == null) continue;
-            certs.add(X509Certificate(s));
+            final List<int>? der = c.getDerEncoded();
+            if (der == null || der.isEmpty) continue;
+            certs.add(X509Certificate.fromDer(Uint8List.fromList(der)));
           }
         }
       }

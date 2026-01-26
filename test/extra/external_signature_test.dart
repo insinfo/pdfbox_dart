@@ -155,19 +155,6 @@ void main() {
           tempFilePath: tempPdfPath,
           p7sHex: sigHex,
         );
-        
-        // Debug gap location
-        final rangesFinal = PdfExternalSigning.extractByteRange(finalizedBytes);
-        print('Final ByteRange: $rangesFinal');
-        print('Total size: ${finalizedBytes.length}');
-        
-        // DEBUG: Dump tail of finalized bytes
-        if (finalizedBytes.length > 200) {
-            final tail = finalizedBytes.sublist(finalizedBytes.length - 200);
-            print('Tail of finalized PDF (${finalizedBytes.length} bytes):');
-            print(String.fromCharCodes(tail));
-            print('Hex: ${_hex(tail)}');
-        }
 
         final PdfSignatureValidationResult validation =
             PdfSignatureValidation().validatePdfSignature(finalizedBytes);

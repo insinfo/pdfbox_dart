@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:pdfbox_dart/src/pdfbox/pdmodel/pd_document.dart';
-import 'package:pdfbox_dart/src/pdfbox/pdmodel/interactive/form/pd_field.dart';
 import 'package:pdfbox_dart/src/pdfbox/cos/cos_name.dart';
 import 'package:pdfbox_dart/src/pdfbox/pdmodel/interactive/form/pd_signature_field.dart';
 

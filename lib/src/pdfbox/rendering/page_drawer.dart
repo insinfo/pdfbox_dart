@@ -405,8 +405,6 @@ class PageDrawer extends PDFGraphicsStreamEngine {
       _log.fine('Unable to decode image XObject ${name.name}');
       return;
     }
-    print(
-        'Image XObject ${name.name}: ${image.width}x${image.height} decoded=${decoded.width}x${decoded.height} stencil=${image.isStencil}');
 
     // PDFBox draws images in a unit square in user space. The CTM maps the
     // unit square into place. We also flip the image vertically to match PDF's
@@ -1229,8 +1227,6 @@ class PageDrawer extends PDFGraphicsStreamEngine {
       return;
     }
 
-    print(
-        'showTextString: font=${font.runtimeType} size=${textState.fontSize} bytes=${text.bytes.length}');
 
     final fontSize = textState.fontSize;
     if (fontSize == 0) {
@@ -2382,7 +2378,6 @@ class PageDrawer extends PDFGraphicsStreamEngine {
     final vectorFont = resolved.vectorFont;
     final renderFont = resolved.renderFont;
     if (!vectorFont.hasGlyph(code)) {
-      print('drawGlyph: missing glyph code=$code for ${font.runtimeType}');
       return;
     }
 
@@ -2390,7 +2385,6 @@ class PageDrawer extends PDFGraphicsStreamEngine {
         _glyphCaches.putIfAbsent(renderFont, () => GlyphCache(vectorFont));
     final outline = cache.getPathForCharacterCode(code);
     if (outline.vertices().isEmpty) {
-      print('drawGlyph: empty outline for code=$code ${font.runtimeType}');
       return;
     }
 
@@ -2941,12 +2935,6 @@ class PageDrawer extends PDFGraphicsStreamEngine {
       return buffer;
     }
 
-    if (buffer.width == 1 && buffer.height == 1) {
-      final buf = buffer.getBuffer();
-      print(
-          'Image before SMask: (r:${buf[0]}, g:${buf[1]}, b:${buf[2]}, a:${buf[3]})');
-    }
-
     final maskStream = image.softMask ?? image.imageMaskStream;
     if (maskStream == null) {
       return buffer;
@@ -2956,29 +2944,15 @@ class PageDrawer extends PDFGraphicsStreamEngine {
       maskStream.cosStream,
       resources: currentResources,
     );
-    print(
-        'SMask present: ${maskStream.cosStream.getInt(COSName.width)}x${maskStream.cosStream.getInt(COSName.height)}');
-    print(
-        'SMask BPC: ${maskStream.cosStream.getInt(COSName.bitsPerComponent)}');
-    print(
-        'SMask ColorSpace: ${maskStream.cosStream.getItem(COSName.colorSpace)}');
     final maskBuffer = _decodeImage(
       maskImage,
       ignoreSoftMask: true,
       forMask: true,
     );
     if (maskBuffer == null) {
-      print('SMask decode failed: maskBuffer is null');
       return buffer;
     }
-    print('SMask decoded buffer: ${maskBuffer.width}x${maskBuffer.height}');
-
     _applyImageMask(buffer, maskBuffer);
-    if (buffer.width == 1 && buffer.height == 1) {
-      final buf = buffer.getBuffer();
-      print(
-          'Image after SMask: (r:${buf[0]}, g:${buf[1]}, b:${buf[2]}, a:${buf[3]})');
-    }
     return buffer;
   }
 
@@ -3075,16 +3049,10 @@ class PageDrawer extends PDFGraphicsStreamEngine {
 
   void _applyImageMask(ImageBuffer image, ImageBuffer mask) {
     if (image.width != mask.width || image.height != mask.height) {
-      print(
-          'SMask size mismatch: image=${image.width}x${image.height} mask=${mask.width}x${mask.height}');
       return;
     }
     final imgBuf = image.getBuffer();
     final maskBuf = mask.getBuffer();
-    if (image.width > 0 && image.height > 0) {
-      final ma0 = maskBuf[3];
-      print('SMask first alpha: $ma0');
-    }
     for (var i = 0; i < image.width * image.height; i++) {
       final o = i * 4;
       final ma = maskBuf[o + 3];

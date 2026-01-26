@@ -1,12 +1,14 @@
 import 'dart:typed_data';
 
-import '../../pem/pem.dart';
+import '../pem/pem.dart';
 import 'package:pointycastle/asn1.dart';
+import 'package:pointycastle/api.dart';
 import 'package:pointycastle/asymmetric/api.dart';
 
-import 'common.dart';
+import '../pkcs/core/common.dart';
 
 /// An X.509 Certificate
+@Deprecated('Use X509Certificate in x509/core/x509_certificates.dart')
 class X509Tbs with Pkcs {
   /// Creates a certificate from an [ASN1Sequence].
   X509Tbs(this._tbs) : _offset = _tbs.elements![1] is ASN1Integer ? 0 : -1;
@@ -41,15 +43,15 @@ class X509Tbs with Pkcs {
   }
 
   /// The Public Key Algorithm of the certificate.
-  RSAPublicKey get publicKey {
-    switch (publicKeyAlgorithmOI.objectIdentifierAsString) {
-      case Pkcs.rsaEncryption:
-        final s = ASN1Parser(publicKeyBytes).nextObject() as ASN1Sequence;
-        final asn1Modulus = s.elements![0] as ASN1Integer;
-        final modulus = asn1Modulus.integer!;
-        final asn1Exponent = s.elements![1] as ASN1Integer;
-        final exponent = asn1Exponent.integer!;
-        return RSAPublicKey(modulus, exponent);
+  PublicKey get publicKey {
+    final oid = publicKeyAlgorithmOI.objectIdentifierAsString;
+    if (oid == Pkcs.rsaEncryption) {
+      final s = ASN1Parser(publicKeyBytes).nextObject() as ASN1Sequence;
+      final asn1Modulus = s.elements![0] as ASN1Integer;
+      final modulus = asn1Modulus.integer!;
+      final asn1Exponent = s.elements![1] as ASN1Integer;
+      final exponent = asn1Exponent.integer!;
+      return RSAPublicKey(modulus, exponent);
     }
     throw UnimplementedError('Unknown algorithm ${publicKeyAlgorithmOI.name}');
   }
@@ -128,6 +130,41 @@ class X509Tbs with Pkcs {
   /// The subject of the certificate.
   Iterable<MapEntry<ASN1ObjectIdentifier, dynamic>> get subject {
     return namesFromAsn1(_tbs.elements![_offset + 5] as ASN1Sequence);
+  }
+
+  /// The extensions of the certificate
+  Iterable<ASN1Sequence> get extensions {
+    for (var i = _offset + 7; i < _tbs.elements!.length; i++) {
+      final el = _tbs.elements![i];
+      if (el.tag == 0xA3) {
+        final seq = ASN1Parser(el.valueBytes).nextObject();
+        if (seq is ASN1Sequence) {
+          return seq.elements!.cast<ASN1Sequence>();
+        }
+      }
+    }
+    return [];
+  }
+
+  /// Get an extension by OID
+  ASN1Object? getExtension(ASN1ObjectIdentifier oid) {
+    for (final ext in extensions) {
+      if (ext.elements![0] == oid) {
+        // Extension ::= SEQUENCE {
+        //      extnID      OBJECT IDENTIFIER,
+        //      critical    BOOLEAN DEFAULT FALSE,
+        //      extnValue   OCTET STRING
+        // }
+        // If critical is missing, value is at [1]. If present, value is at [2].
+        if (ext.elements!.length == 3) {
+          return ASN1Parser((ext.elements![2] as ASN1OctetString).octets)
+              .nextObject();
+        }
+        return ASN1Parser((ext.elements![1] as ASN1OctetString).octets)
+            .nextObject();
+      }
+    }
+    return null;
   }
 
   /// The digest Algorithm

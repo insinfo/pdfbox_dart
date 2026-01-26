@@ -1,16 +1,18 @@
 import 'dart:typed_data';
 
-import '../../pem/pem.dart';
+import '../pem/pem.dart';
 import 'package:pointycastle/api.dart';
 import 'package:pointycastle/asn1.dart';
 import 'package:pointycastle/asymmetric/api.dart';
 import 'package:pointycastle/asymmetric/pkcs1.dart';
 import 'package:pointycastle/asymmetric/rsa.dart';
 
-import 'common.dart';
-import 'x509_tbs.dart';
+
+import '../pkcs/core/common.dart';
+import 'pkcs7_x509_tbs.dart';
 
 /// An X.509 Certificate
+@Deprecated('Use X509Certificate in x509/core/x509_certificates.dart')
 class X509 extends X509Tbs {
   /// Creates a certificate from an [ASN1Sequence].
   factory X509(ASN1Sequence asn1) {

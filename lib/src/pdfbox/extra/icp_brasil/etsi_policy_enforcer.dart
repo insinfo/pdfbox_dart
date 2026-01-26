@@ -1,6 +1,7 @@
-import '../../../crypto/cryptography/cipher_block_chaining_mode.dart' show RsaKeyParam, EcPublicKeyParam;
+
 import '../pdf_signature_validation.dart' show CmsSignedDataValidationResult;
 import '../../../crypto/x509/core/x509_utils.dart';
+import '../../../../crypto_keys.dart' as ck;
 import 'etsi_policy.dart';
 import 'policy_engine.dart';
 
@@ -99,18 +100,25 @@ class EtsiPolicyEnforcer {
     if (chainPem.isEmpty) return null;
     try {
       final cert = X509Utils.parsePemCertificate(chainPem.first);
-      final key = cert.getPublicKey();
-      if (key is RsaKeyParam) {
-        return key.modulus?.bitLength;
+      final ck.PublicKey key = cert.publicKey;
+      if (key is ck.RsaPublicKey) {
+        return key.modulus.bitLength;
       }
-      if (key is EcPublicKeyParam) {
-        // fieldSize is the best approximation for EC public key size.
-        return key.publicKey.parameters?.curve.fieldSize;
+      if (key is ck.EcPublicKey) {
+        return _ecKeyBits(key.curve);
       }
       return null;
     } catch (_) {
       return null;
     }
+  }
+
+  static int? _ecKeyBits(ck.Identifier curve) {
+    if (curve == ck.curves.p256) return 256;
+    if (curve == ck.curves.p256k) return 256;
+    if (curve == ck.curves.p384) return 384;
+    if (curve == ck.curves.p521) return 521;
+    return null;
   }
 
   static String? _normalizeCmsToToken({

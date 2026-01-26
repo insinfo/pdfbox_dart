@@ -108,8 +108,8 @@ class RevocationSignatureVerifier {
 
       final internal_asn1.Asn1? pk = spki?.getPublicKey();
       final Asn1RsaPublicKey? rsa = pk == null ? null : Asn1RsaPublicKey.getPublicKey(pk);
-      if (rsa?.modulus == null || rsa?.publicExponent == null) return null;
-      return pc.RSAPublicKey(rsa!.modulus!, rsa.publicExponent!);
+      if (rsa == null) return null;
+      return pc.RSAPublicKey(rsa.modulus, rsa.publicExponent);
     } catch (_) {
       return null;
     }

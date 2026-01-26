@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:math' as math;
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart' as crypto;
@@ -26,7 +27,8 @@ import 'package:test/test.dart';
 import 'package:pointycastle/export.dart' as pc;
 
 X509Certificate _buildDummyCertificate() {
-  return X509Certificate(null);
+  final pem = File('test/resources/user.crt').readAsStringSync();
+  return X509Certificate.fromPem(pem);
 }
 
 void main() {

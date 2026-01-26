@@ -99,16 +99,7 @@ class X509Utils {
 
   static X509Certificate parsePemCertificate(String pem) {
     final Uint8List der = pemToDer(pem);
-    final Asn1? parsed = Asn1Stream(PdfStreamReader(der)).readAsn1();
-    if (parsed is! Asn1Sequence) {
-      throw StateError('Invalid certificate DER');
-    }
-    final X509CertificateStructure? s =
-        X509CertificateStructure.getInstance(parsed);
-    if (s == null) {
-      throw StateError('Could not parse certificate');
-    }
-    return X509Certificate(s);
+    return X509Certificate.fromDer(der);
   }
 
   static bool checkX509SignaturePem({
@@ -211,7 +202,8 @@ class X509Utils {
         final String? curSubject = current.c?.subject?.toString();
         final String? curIssuer = current.c?.issuer?.toString();
         final String? curSigOid = current.c?.signatureAlgorithm?.id?.id;
-        final String? curSpkiAlgOid = current.c?.subjectPublicKeyInfo?.algorithm?.id?.id;
+        final String? curSpkiAlgOid =
+            current.c?.subjectPublicKeyInfo?.algorithm.id?.id;
         final Uint8List? curAki = _tryGetAuthorityKeyIdentifierKeyId(current);
         errors.add('issuer_not_found');
         if (curSubject != null) {
@@ -268,13 +260,16 @@ class X509Utils {
           errors.add('issuer_not_found_aki_matches_chain=$akiMatchesChain');
           errors.add('issuer_not_found_aki_matches_extra=$akiMatchesExtra');
           if (akiMatchRootsSubjects.isNotEmpty) {
-            errors.add('issuer_not_found_aki_match_roots_subjects=${akiMatchRootsSubjects.join('|')}');
+            errors.add(
+                'issuer_not_found_aki_match_roots_subjects=${akiMatchRootsSubjects.join('|')}');
           }
           if (akiMatchChainSubjects.isNotEmpty) {
-            errors.add('issuer_not_found_aki_match_chain_subjects=${akiMatchChainSubjects.join('|')}');
+            errors.add(
+                'issuer_not_found_aki_match_chain_subjects=${akiMatchChainSubjects.join('|')}');
           }
           if (akiMatchExtraSubjects.isNotEmpty) {
-            errors.add('issuer_not_found_aki_match_extra_subjects=${akiMatchExtraSubjects.join('|')}');
+            errors.add(
+                'issuer_not_found_aki_match_extra_subjects=${akiMatchExtraSubjects.join('|')}');
           }
 
           // If we have at least one AKI match, try to verify against the first
@@ -290,11 +285,14 @@ class X509Utils {
               if (firstMatch != null) {
                 try {
                   current.verify(firstMatch.getPublicKey());
-                  errors.add('issuer_not_found_aki_match_extra_verify_unexpectedly_ok');
+                  errors.add(
+                      'issuer_not_found_aki_match_extra_verify_unexpectedly_ok');
                 } catch (e) {
                   final String msg = e.toString();
-                  final String shortMsg = msg.length > 160 ? msg.substring(0, 160) : msg;
-                  errors.add('issuer_not_found_aki_match_extra_verify_error=${e.runtimeType}:$shortMsg');
+                  final String shortMsg =
+                      msg.length > 160 ? msg.substring(0, 160) : msg;
+                  errors.add(
+                      'issuer_not_found_aki_match_extra_verify_error=${e.runtimeType}:$shortMsg');
                 }
               }
             } catch (_) {
@@ -304,8 +302,21 @@ class X509Utils {
         }
         errors.add('issuer_not_found_candidates_roots=${roots.length}');
         errors.add('issuer_not_found_candidates_chain=${chain.length}');
-        errors.add('issuer_not_found_candidates_extra=${extraCandidates.length}');
-        return X509ChainValidationResult(trusted: false, errors: errors);
+        errors.add(
+            'issuer_not_found_candidates_extra=${extraCandidates.length}');
+
+        // Fallback: try the legacy chain validation which can be more permissive
+        // about ordering and matching.
+        try {
+          final List<X509Certificate> chainCandidates = <X509Certificate>[
+            ...chain.skip(1),
+            ...extraCandidates,
+          ];
+          current.verifyChain(chainCandidates, roots);
+          return X509ChainValidationResult(trusted: true, errors: errors);
+        } catch (_) {
+          return X509ChainValidationResult(trusted: false, errors: errors);
+        }
       }
 
       try {
