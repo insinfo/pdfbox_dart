@@ -190,7 +190,32 @@ abstract class Pkcs7SignerInfoBuilder with Pkcs {
   }
 
   /// Message to be signed
-  Uint8List get message => ASN1Set(elements: _authenticatedAttributes).encode();
+  Uint8List get message => _encodeSignedAttributesForSigning();
+
+  Uint8List _encodeSignedAttributesForSigning() {
+    if (_authenticatedAttributes.isEmpty) {
+      return ASN1Set(elements: _authenticatedAttributes).encode();
+    }
+    final List<int> content = _authenticatedAttributes
+        .map((x) => x.encode())
+        .expand((x) => x)
+        .toList();
+    final List<int> len = _encodeDerLength(content.length);
+    return Uint8List.fromList(<int>[0x31, ...len, ...content]);
+  }
+
+  List<int> _encodeDerLength(int length) {
+    if (length < 128) {
+      return <int>[length];
+    }
+    final List<int> bytes = <int>[];
+    int value = length;
+    while (value > 0) {
+      bytes.insert(0, value & 0xff);
+      value >>= 8;
+    }
+    return <int>[0x80 | bytes.length, ...bytes];
+  }
 
   /// Build the Pkcs7SignerInfo
   Pkcs7SignerInfo build() {

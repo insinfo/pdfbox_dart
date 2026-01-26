@@ -116,7 +116,6 @@ void main() {
       }
       final outputPath = '${outputDir.path}/font_fallback_test.png';
       renderer.renderImageToPngFile(0, outputPath, scale: 1.0);
-      print('Saved PNG to: $outputPath');
     });
      });
 }

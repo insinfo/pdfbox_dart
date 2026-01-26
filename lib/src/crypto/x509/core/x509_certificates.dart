@@ -9,6 +9,7 @@ import '../../../io/stream_reader.dart';
 import '../../asn1/core/legacy_asn1.dart';
 import '../../asn1/core/legacy_asn1_stream.dart';
 import '../../asn1/core/legacy_der.dart';
+import '../../basic_utils/core/crypto_utils.dart';
 import '../../crypto_keys/crypto_keys.dart' as ck;
 import '../../cryptography/cipher_block_chaining_mode.dart';
 import '../pkcs7_x509.dart';
@@ -438,13 +439,23 @@ class X509Certificate extends X509ExtensionBase {
   }
 
   ck.PublicKey get publicKey {
-    final pcKey = _impl.publicKey;
-    if (pcKey is pc.RSAPublicKey) {
-      return ck.RsaPublicKey(
-          modulus: pcKey.modulus!, exponent: pcKey.publicExponent!);
-    }
-    throw UnimplementedError(
-        "PublicKey conversion not implemented for ");
+    try {
+      final pcKey = _impl.publicKey;
+      if (pcKey is pc.RSAPublicKey) {
+        return ck.RsaPublicKey(
+            modulus: pcKey.modulus!, exponent: pcKey.publicExponent!);
+      }
+      if (pcKey is pc.ECPublicKey) {
+        final String? domainName = pcKey.parameters?.domainName;
+        final ck.Identifier curve = _curveFromDomainName(domainName);
+        return ck.EcPublicKey(
+          xCoordinate: pcKey.Q!.x!.toBigInteger()!,
+          yCoordinate: pcKey.Q!.y!.toBigInteger()!,
+          curve: curve,
+        );
+      }
+    } catch (_) {}
+    throw UnimplementedError('PublicKey conversion not implemented');
   }
 
   @override
@@ -491,14 +502,48 @@ class X509Certificate extends X509ExtensionBase {
   }
 
   CipherParameter getPublicKeyParam() {
-    final key = _impl.publicKey;
-    if (key is pc.RSAPublicKey) {
-      return RsaKeyParam(false, key.modulus, key.publicExponent);
+    try {
+      final key = _impl.publicKey;
+      if (key is pc.RSAPublicKey) {
+        return RsaKeyParam(false, key.modulus, key.publicExponent);
+      }
+      if (key is pc.ECPublicKey) {
+        return EcPublicKeyParam(key);
+      }
+    } catch (_) {
+      // ignore, fall through to SPKI parsing
     }
-    if (key is pc.ECPublicKey) {
-      return EcPublicKeyParam(key);
+
+    final PublicKeyInformation? spki = c?.subjectPublicKeyInfo;
+    final List<int>? spkiDer = spki?.getAsn1().getDerEncoded();
+    if (spkiDer == null || spkiDer.isEmpty) {
+      throw UnimplementedError('Unsupported key type');
     }
+
+    // Try EC from SubjectPublicKeyInfo DER
+    try {
+      final pc.ECPublicKey ec = CryptoUtils.ecPublicKeyFromDerBytes(
+        Uint8List.fromList(spkiDer),
+      );
+      return EcPublicKeyParam(ec);
+    } catch (_) {}
+
     throw UnimplementedError('Unsupported key type');
+  }
+
+  ck.Identifier _curveFromDomainName(String? domainName) {
+    switch (domainName) {
+      case 'prime256v1':
+      case 'secp256r1':
+        return ck.curves.p256;
+      case 'secp256k1':
+        return ck.curves.p256k;
+      case 'secp384r1':
+        return ck.curves.p384;
+      case 'secp521r1':
+        return ck.curves.p521;
+    }
+    return ck.curves.p256;
   }
 
   List<int>? getTbsCertificate() {

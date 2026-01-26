@@ -112,27 +112,22 @@ void main() {
 
       final renderer = PDFRenderer(doc);
       final img = renderer.renderImageWithScale(0, 1.0);
-      print('Rendered size: ${img.width}x${img.height}');
       final outputDir = Directory('test/tmp/actual');
       if (!outputDir.existsSync()) {
         outputDir.createSync(recursive: true);
       }
       final outputPath = '${outputDir.path}/image_soft_mask_actual.png';
       renderer.renderImageToPngFile(0, outputPath, scale: 1.0);
-      print('Saved PNG to: $outputPath');
       final inside = _getPixel(img, 100, _pxY(img, 100));
       final outside = _getPixel(img, 50, _pxY(img, 50));
       final origin = _getPixel(img, 0, 0);
-      print('Origin pixel @ (0,0): $origin');
       final expectedX = 100;
       final expectedY = _pxY(img, 100);
-      print('Expected image pixel @ ($expectedX,$expectedY)');
       for (var dy = -1; dy <= 1; dy++) {
         for (var dx = -1; dx <= 1; dx++) {
           final px = (expectedX + dx).clamp(0, img.width - 1);
           final py = (expectedY + dy).clamp(0, img.height - 1);
           final p = _getPixel(img, px, py);
-          print('Neighbor pixel @ ($px,$py): $p');
         }
       }
       var nonWhiteCount = 0;
@@ -151,10 +146,6 @@ void main() {
             if (y > maxY) maxY = y;
           }
         }
-      }
-      print('Non-white pixels: $nonWhiteCount');
-      if (nonWhiteCount > 0) {
-        print('Non-white bounds: ($minX,$minY) - ($maxX,$maxY)');
       }
       
       // Find the red blended pixel (should be around 100, 691-692)
@@ -175,10 +166,8 @@ void main() {
         }
         if (redBlendedPixel != null) break;
       }
-      print('Red blended pixel found @ ($redX,$redY): $redBlendedPixel');
       
       final insideSample = redBlendedPixel ?? inside;
-      print('Inside sample: $insideSample');
 
       // Scan a small region where the text should appear.
       final textMinX = 190;
@@ -195,9 +184,6 @@ void main() {
           }
         }
       }
-      print('Text region non-white pixels: $textPixels');
-      print('Inside pixel @ (100,100): $inside');
-      print('Outside pixel @ (50,50): $outside');
 
       expect(outside.r, greaterThan(240));
       expect(outside.g, greaterThan(240));

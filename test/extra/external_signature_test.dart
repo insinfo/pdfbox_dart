@@ -178,9 +178,6 @@ void main() {
         File(signedPdfPath).writeAsBytesSync(finalizedBytes);
         expect(finalizedBytes, isNotEmpty);
       } catch (e) {
-        if (e is IOException) {
-           print('Caught IOException: $e');
-        }
         rethrow;
       } finally {
         await testDir.delete(recursive: true);

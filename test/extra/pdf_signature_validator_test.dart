@@ -276,22 +276,6 @@ Future<Uint8List> _externallySignWithOpenSsl({
     verifiedOutPath.replaceAll('/', Platform.pathSeparator),
   ]);
 
-  // Debug aid: show a small ASN.1 parse snippet.
-  if (_verbose && fieldName == 'Sig1') {
-    final ProcessResult asn1 = await Process.run('openssl', [
-      'asn1parse',
-      '-inform',
-      'DER',
-      '-in',
-      p7sPath.replaceAll('/', Platform.pathSeparator),
-    ]);
-    if (asn1.exitCode == 0) {
-      final String out = (asn1.stdout ?? '').toString();
-      // ignore: avoid_print
-      print(out.split(RegExp(r'\r?\n')).take(140).join('\n'));
-    }
-  }
-
   final Uint8List sigBytes = Uint8List.fromList(File(p7sPath).readAsBytesSync());
   return PdfExternalSigning.embedSignature(
     preparedPdfBytes: preparedBytes,

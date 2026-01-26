@@ -40,8 +40,6 @@ void main() {
             actualIndex < actualArray.length) {
           if (expectedArray[expectedIndex] != actualArray[actualIndex]) {
             equals = false;
-            print(
-                "Lines differ at index expected: $expectedIndex-${expectedArray[expectedIndex]} actual: $actualIndex-${actualArray[actualIndex]}");
             break;
           }
           expectedIndex = skipWhitespace(expectedArray, expectedIndex);
@@ -52,16 +50,12 @@ void main() {
         if (equals) {
           if (expectedIndex != expectedArray.length) {
             equals = false;
-            print("Expected line is longer at: $expectedIndex");
           }
           if (actualIndex != actualArray.length) {
             equals = false;
-            print("Actual line is longer at: $actualIndex");
           }
           if (expectedArray.length != actualArray.length) {
             equals = false;
-            print(
-                "Expected lines: ${expectedArray.length}, actual lines: ${actualArray.length}");
           }
         }
       } else {
@@ -95,17 +89,11 @@ void main() {
 
         if (!stringsEqual(expectedLine, actualLine)) {
           localFail = true;
-          print(
-              "FAILURE: Line mismatch for file ${expectedFile.path} (sort = $bSort) at line $i");
-          print("expected line was: \"$expectedLine\"");
-          print("actual line was: \"$actualLine\"");
         }
       }
 
       if (!localFail) {
         await outFile.delete();
-      } else {
-        print("Diff file would be generated at ${diffFile.path}");
       }
       
       if (localFail) {
@@ -116,9 +104,7 @@ void main() {
     Future<void> doTestFile(
         File inFile, Directory outDir, bool bLogResult, bool bSort) async {
       if (bSort) {
-        print("Preparing to parse ${inFile.path} for sorted test");
       } else {
-        print("Preparing to parse ${inFile.path} for standard test");
       }
 
       if (!await outDir.exists()) {
@@ -157,13 +143,9 @@ void main() {
         await sink.close();
 
         if (bLogResult) {
-          print("Text for $filename:");
-          print(await stripper.getText(document));
         }
 
         if (!await expectedFile.exists()) {
-          print(
-              "FAILURE: Input verification file: ${expectedFile.path} does not exist");
           fail("Input verification file does not exist");
         } else {
           await compareResult(expectedFile, outFile, inFile, bSort, diffFile);
