@@ -11,8 +11,6 @@ import 'package:pdfbox_dart/src/pdfbox/pdmodel/pd_page.dart';
 import 'package:pdfbox_dart/src/pdfbox/extra/security/chain/trusted_roots_provider.dart';
 import 'package:test/test.dart';
 
-const bool _verbose = bool.fromEnvironment('DART_PDF_TEST_VERBOSE');
-
 void main() {
   final bool hasOpenSsl = _hasOpenSsl();
 
@@ -70,19 +68,6 @@ void main() {
           signedTwice,
           trustedRootsPem: <String>[File(certPath).readAsStringSync()],
         );
-
-        if (_verbose && report.signatures.isNotEmpty) {
-          for (final PdfSignatureValidationItem item in report.signatures) {
-            // ignore: avoid_print
-            print(
-              '${item.fieldName}: cms=${item.validation.cmsSignatureValid} '
-              'digest=${item.validation.byteRangeDigestOk} '
-              'intact=${item.validation.documentIntact} '
-              'certs=${item.validation.certsPem.length} '
-              'chain=${item.chainTrusted}',
-            );
-          }
-        }
 
         expect(report.signatures.length, 2);
 

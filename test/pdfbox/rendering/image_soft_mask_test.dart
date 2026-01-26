@@ -120,17 +120,15 @@ void main() {
       renderer.renderImageToPngFile(0, outputPath, scale: 1.0);
       final inside = _getPixel(img, 100, _pxY(img, 100));
       final outside = _getPixel(img, 50, _pxY(img, 50));
-      final origin = _getPixel(img, 0, 0);
       final expectedX = 100;
       final expectedY = _pxY(img, 100);
       for (var dy = -1; dy <= 1; dy++) {
         for (var dx = -1; dx <= 1; dx++) {
           final px = (expectedX + dx).clamp(0, img.width - 1);
           final py = (expectedY + dy).clamp(0, img.height - 1);
-          final p = _getPixel(img, px, py);
+          _getPixel(img, px, py);
         }
       }
-      var nonWhiteCount = 0;
       var minX = img.width;
       var minY = img.height;
       var maxX = -1;
@@ -139,7 +137,6 @@ void main() {
         for (var x = 0; x < img.width; x++) {
           final p = _getPixel(img, x, y);
           if (p.r < 250 || p.g < 250 || p.b < 250) {
-            nonWhiteCount++;
             if (x < minX) minX = x;
             if (y < minY) minY = y;
             if (x > maxX) maxX = x;
@@ -152,15 +149,12 @@ void main() {
       // The SMask causes red (255,0,0) with alpha 128 to blend with white
       // Result: r=255, g=127, b=127 (blended over white)
       ({int r, int g, int b, int a})? redBlendedPixel;
-      int redX = 0, redY = 0;
       for (var y = _pxY(img, 101); y <= _pxY(img, 99); y++) {
         for (var x = 99; x <= 101; x++) {
           final p = _getPixel(img, x.clamp(0, img.width - 1), y.clamp(0, img.height - 1));
           // Looking for red blended with white: high R, medium G, medium B
           if (p.r > 200 && p.g > 100 && p.g < 180 && p.b > 100 && p.b < 180) {
             redBlendedPixel = p;
-            redX = x;
-            redY = y;
             break;
           }
         }
@@ -174,13 +168,11 @@ void main() {
       final textMaxX = 260;
       final textMinY = _pxY(img, 420);
       final textMaxY = _pxY(img, 360);
-      var textPixels = 0;
       for (var y = textMaxY; y <= textMinY; y++) {
         for (var x = textMinX; x <= textMaxX; x++) {
           final p = _getPixel(img, x.clamp(0, img.width - 1),
               y.clamp(0, img.height - 1));
           if (p.r < 250 || p.g < 250 || p.b < 250) {
-            textPixels++;
           }
         }
       }
