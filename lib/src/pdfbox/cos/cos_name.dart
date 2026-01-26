@@ -380,6 +380,7 @@ class COSName extends COSBase implements Comparable<COSName> {
   static final COSName dr = COSName('DR');
   static final COSName needAppearances = COSName('NeedAppearances');
   static final COSName fields = COSName('Fields');
+  static final COSName sigFlags = COSName('SigFlags');
   static final COSName t = COSName('T');
   static final COSName acroForm = COSName('AcroForm');
   static final COSName q = COSName('Q');

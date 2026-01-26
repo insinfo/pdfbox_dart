@@ -65,6 +65,9 @@ class FDFField implements COSObjectable {
     _field.setString(COSName.t, partial);
   }
 
+  /// Convenience helper to read raw strings from the underlying COS dictionary.
+  String? getString(COSName key) => _field.getString(key);
+
   /// This will get the value for the field. The return type will either be:
   /// - String: for Checkboxes, Radio Button, Textfields
   /// - List<String>: for a Choice Field
@@ -84,14 +87,7 @@ class FDFField implements COSObjectable {
     } else if (value is COSString) {
       return value.string;
     } else if (value is COSStream) {
-      try {
-        final bytes = value.decode();
-        if (bytes != null) {
-          return utf8.decode(bytes);
-        }
-      } catch (e) {
-        return null;
-      }
+      return _decodeStreamText(value);
     }
     return null;
   }
@@ -141,9 +137,7 @@ class FDFField implements COSObjectable {
     } else if (rv is COSString) {
       return rv.string;
     } else if (rv is COSStream) {
-      // Assuming COSStream handles string conversion or we read bytes.
-      // Ideally should decode using encoding but for now simple string.
-      return ""; // TODO: Implement stream to text decoding properly
+      return _decodeStreamText(rv);
  
     }
     return null;
@@ -225,6 +219,22 @@ class FDFField implements COSObjectable {
         .replaceAll('>', '&gt;')
         .replaceAll('"', '&quot;')
         .replaceAll("'", '&apos;');
+  }
+
+  String? _decodeStreamText(COSStream stream) {
+    try {
+      final bytes = stream.decode() ?? stream.data;
+      if (bytes == null || bytes.isEmpty) {
+        return null;
+      }
+      try {
+        return utf8.decode(bytes);
+      } catch (_) {
+        return latin1.decode(bytes);
+      }
+    } catch (_) {
+      return null;
+    }
   }
 }
 

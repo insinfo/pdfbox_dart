@@ -120,5 +120,10 @@ abstract class PDFont {
       }
       return width;
   }
+
+  /// Performs font subsetting when supported.
+  ///
+  /// Default implementation is a no-op.
+  void subset() {}
 }
 

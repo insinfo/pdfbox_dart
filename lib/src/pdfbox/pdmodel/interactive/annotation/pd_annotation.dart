@@ -26,6 +26,14 @@ abstract class PDAnnotation {
      return null; 
   }
 
+  void setPage(COSDictionary? page) {
+    if (page == null) {
+      dictionary.removeItem(COSName.p);
+    } else {
+      dictionary.setItem(COSName.p, page);
+    }
+  }
+
   static final Expando<PDAnnotation> _annotationCache =
       Expando<PDAnnotation>('pdfbox_annotation_cache');
 
@@ -232,10 +240,29 @@ abstract class PDAnnotation {
     return (flags & 0x04) != 0; // Print flag
   }
 
+  /// Sets whether the annotation should be printed.
+  void setPrinted(bool value) {
+    _setFlag(0x04, value);
+  }
+
   /// Returns true if the annotation should not rotate.
   bool get isNoRotate {
     final flags = dictionary.getInt(COSName.f) ?? 0;
     return (flags & 0x10) != 0; // NoRotate flag
+  }
+
+  void _setFlag(int flag, bool value) {
+    var current = dictionary.getInt(COSName.f) ?? 0;
+    if (value) {
+      current |= flag;
+    } else {
+      current &= ~flag;
+    }
+    if (current == 0) {
+      dictionary.removeItem(COSName.f);
+    } else {
+      dictionary.setInt(COSName.f, current);
+    }
   }
 }
 

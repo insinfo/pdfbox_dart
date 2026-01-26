@@ -56,19 +56,14 @@ void main() {
 
       expect(fields, isNotNull);
       expect(fields!.length, equals(2));
-      
-      // We need to inspect the dictionaries manually as we don't have FDFField wrapper fully used yet for getFields() return (it returns List<COSDictionary>)
-      // But we can wrap them.
-      // Wait, I can't easily wrap them if FDFField.fromDictionary is not exported or if I don't use it.
-      // I can check the COS dictionary content directly.
-      
-      final db0 = fields[0];
-      expect(db0.getString(COSName.t), equals('txtField'));
-      expect(db0.getString(COSName.v), equals('Hello World'));
-      
-      final db1 = fields[1];
-      expect(db1.getString(COSName.t), equals('chkField'));
-      expect(db1.getString(COSName.v), equals('Yes'));
+
+      final field0 = fields[0];
+      expect(field0.getPartialFieldName(), equals('txtField'));
+      expect(field0.getValue(), equals('Hello World'));
+
+      final field1 = fields[1];
+      expect(field1.getPartialFieldName(), equals('chkField'));
+      expect(field1.getValue(), equals('Yes'));
     });
 
     test('Parse Annotations: Text and Caret', () {

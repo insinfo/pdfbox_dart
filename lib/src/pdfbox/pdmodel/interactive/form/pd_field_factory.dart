@@ -54,7 +54,6 @@ class PDFieldFactory {
       case _fieldTypeSignature:
         return PDSignatureField(acroForm, field, parent);
       default:
-        // TODO: Handle unknown types or fallback
         return null;
     }
   }

@@ -14,6 +14,9 @@ import 'pd_non_terminal_field.dart';
 
 /// Contains the AcroForm dictionary.
 class PDAcroForm implements COSObjectable {
+  static const int _flagSignaturesExist = 1;
+  static const int _flagAppendOnly = 1 << 1;
+
   final COSDocument _document;
   final ResourceCache _resourceCache;
   final COSDictionary _dictionary;
@@ -53,6 +56,24 @@ class PDAcroForm implements COSObjectable {
 
   set needAppearances(bool value) {
     _dictionary.setBoolean(COSName.needAppearances, value);
+  }
+
+  /// Determines if SignaturesExist is set.
+  bool get isSignaturesExist =>
+      _dictionary.getFlag(COSName.sigFlags, _flagSignaturesExist);
+
+  /// Set the SignaturesExist bit.
+  void setSignaturesExist(bool signaturesExist) {
+    _dictionary.setFlag(COSName.sigFlags, _flagSignaturesExist, signaturesExist);
+  }
+
+  /// Determines if AppendOnly is set.
+  bool get isAppendOnly =>
+      _dictionary.getFlag(COSName.sigFlags, _flagAppendOnly);
+
+  /// Set the AppendOnly bit.
+  void setAppendOnly(bool appendOnly) {
+    _dictionary.setFlag(COSName.sigFlags, _flagAppendOnly, appendOnly);
   }
 
   /// Returns true if the XFA entry is present.

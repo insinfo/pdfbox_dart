@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:logging/logging.dart';
 import 'package:pdfbox_dart/src/io/export.dart';
 import 'package:pdfbox_dart/src/pdfbox/util/pdf_date.dart';
@@ -611,13 +613,25 @@ abstract class FDFAnnotation implements COSObjectable {
     } else if (base is COSString) {
       return base.string;
     } else if (base is COSStream) {
-      // TODO: Implement proper text decoding if needed, for now using ASCII/Latin1 assumption or empty
-      if (base.data != null) {
-          return String.fromCharCodes(base.data!);
-      }
-      return "";
+      return _decodeStreamText(base) ?? "";
     } else {
       return "";
+    }
+  }
+
+  String? _decodeStreamText(COSStream stream) {
+    try {
+      final bytes = stream.decode() ?? stream.data;
+      if (bytes == null || bytes.isEmpty) {
+        return null;
+      }
+      try {
+        return utf8.decode(bytes);
+      } catch (_) {
+        return latin1.decode(bytes);
+      }
+    } catch (_) {
+      return null;
     }
   }
 

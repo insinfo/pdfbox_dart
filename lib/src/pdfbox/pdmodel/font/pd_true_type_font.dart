@@ -245,6 +245,11 @@ class PDTrueTypeFont extends PDSimpleFont implements PDVectorFont {
   }
 
   @override
+  void subset() {
+    buildSubset(updateBaseFontName: true);
+  }
+
+  @override
   double getWidthFromFont(int code) {
     if (code >= _firstChar && code <= _lastChar) {
       return _widths[code - _firstChar];

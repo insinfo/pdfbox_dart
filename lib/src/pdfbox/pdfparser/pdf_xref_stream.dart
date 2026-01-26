@@ -10,8 +10,6 @@ import 'xref/free_x_reference.dart';
 import 'xref/x_reference_entry.dart';
 
 /// Builder for cross-reference streams mirroring PDFBox's PDFXRefStream.
-///
-/// TODO: integrate with the writer once the remaining COSWriter parity tasks are ported.
 class PDFXRefStream {
   PDFXRefStream() : _stream = COSStream();
 

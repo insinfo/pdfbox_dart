@@ -1,9 +1,14 @@
 import 'dart:io' as io;
+import 'dart:typed_data';
 import '../../../io/exceptions.dart';
 import '../../cos/cos_dictionary.dart';
 import '../../cos/cos_document.dart';
 import '../../cos/cos_name.dart';
 import '../../../io/random_access_read.dart';
+import '../../../io/random_access_read_buffer.dart';
+import '../../pdfwriter/cos_writer.dart';
+import '../../pdfwriter/pdf_save_options.dart';
+import '../pd_document.dart';
 import 'fdf_catalog.dart';
 // TODO tem que completar o port antes de remover este TODO o modulo lib\src\pdfbox\pdmodel\fdf ainda esta bem incompleto
 /// In-memory representation of the FDF document.
@@ -49,14 +54,16 @@ class FDFDocument {
 
   bool get isClosed => _closed;
 
-  /// This will save this document to the filesystem as XFDF.
-  /// Binary FDF format not yet supported - COSWriter needs extension.
+  /// This will save this document to the filesystem as FDF.
   /// [fileName] The file to save as.
   /// Throws IOException if there is an error saving the document.
   Future<void> save(String fileName) async {
-    // TODO: Implement binary FDF save when COSWriter is extended to support FDFDocument
-    // For now, save as XFDF which is the XML-based format
-    await saveXFDF(fileName);
+    await _saveBinaryFdf(fileName);
+  }
+
+  /// Saves the FDF document to the provided file.
+  Future<void> saveFile(io.File file) async {
+    await _saveBinaryFdf(file.path);
   }
 
   /// This will save this document as XFDF to the filesystem.
@@ -86,6 +93,39 @@ class FDFDocument {
     catalog.writeXML(buffer);
     buffer.write('</xfdf>\n');
     return buffer.toString();
+  }
+
+  Future<void> _saveBinaryFdf(String fileName) async {
+    final pdDocument = PDDocument.fromCOSDocument(_cosDocument);
+    final buffer = RandomAccessReadWriteBuffer();
+    final writer = COSWriter(buffer, const PDFSaveOptions());
+    writer.writeDocument(pdDocument);
+
+    final length = buffer.length;
+    buffer.seek(0);
+    final bytes = Uint8List(length);
+    if (length > 0) {
+      buffer.readFully(bytes);
+    }
+    buffer.close();
+
+    _patchFdfHeader(bytes);
+    final file = io.File(fileName);
+    await file.writeAsBytes(bytes, flush: true);
+  }
+
+  void _patchFdfHeader(Uint8List bytes) {
+    if (bytes.length < 8) {
+      return;
+    }
+    if (bytes[0] == 0x25 /* % */ &&
+        bytes[1] == 0x50 /* P */ &&
+        bytes[2] == 0x44 /* D */ &&
+        bytes[3] == 0x46 /* F */) {
+      bytes[1] = 0x46; // F
+      bytes[2] = 0x44; // D
+      bytes[3] = 0x46; // F
+    }
   }
 
   /// This will close the underlying COSDocument object.

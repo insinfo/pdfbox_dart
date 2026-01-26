@@ -145,7 +145,11 @@ class X509CertificateStructure extends Asn1Encode {
     }
     
     // Legacy needs
-    Algorithms? get signatureAlgorithm => null; // TODO
+    Algorithms? get signatureAlgorithm {
+      final seq = _getAsSequence(_offset + 2);
+      if (seq == null) return null;
+      return Algorithms.fromSequence(seq);
+    }
 
     Asn1Sequence? _getAsSequence(int index) {
         if (index >= asn1.objects!.length) return null;

@@ -23,9 +23,22 @@ dart analyze só na pasta onde aplicou modificações para ser mais rapido
 - LTV: teste `ltv_integration_test.dart` ajustado para validar integridade apenas no save incremental e validar DSS/VRI no save completo.
 - COSWriter: detecção de assinatura limitada a updates incrementais (alinhado ao PDFBox Java).
 - PDDocument: portados `isEncrypted`, `getEncryption()`, `getSignatureFields()`, `getSignatureDictionaries()`, `getLastSignatureDictionary()`.
+- PDDocument: portado `addSignature()` com fluxo de assinatura visível/invisível, helpers e reserva de ByteRange.
+- PDDocument: `addSignature()` agora aceita `SignatureOptions` opcional (equivalente aos overloads do Java).
+- PDDocument: adicionados helpers `addSignatureWithOptions()` e `addSignatureWithInterface()`.
+- PDFieldFactory: alinhado ao PDFBox Java (retorna null para tipos desconhecidos).
+- X509CertificateStructure: `signatureAlgorithm` implementado.
+- FDF: `FDFDictionary.getFields()` agora retorna `FDFField` e decoding de texto em streams (FDFField/FDFAnnotation).
+- FDFDocument: `save()` agora grava FDF binário (COSWriter + header %FDF).
+- PDFXRefStream: TODO removido (integrado com COSWriter).
+- PDAcroForm: adicionados `setSignaturesExist()`/`setAppendOnly()` via `SigFlags`.
+- PDAnnotation: adicionados `setPrinted()` e `setPage()` para widgets de assinatura.
+- PDDocument: adicionado tracking de fontes (`registerTrueTypeFontForClosing`, `getFontsToSubset`) com subsetting ao salvar e fechamento de fontes no `close()`.
+- PDDocument: adicionados helpers `saveToFile()`/`saveToFileObject()` e validação de `ByteRange` em `saveIncrementalForExternalSigning()`.
+- PDDocument: portados `setResourceCache()` e `importPage()`.
 - PDDocument/PDDocumentCatalog: portados `getVersion()`/`setVersion()` com lógica do Java e `PDDocumentCatalog.version`.
 - PDDocument: portados `isAllSecurityToBeRemoved`, `setAllSecurityToBeRemoved`, `protect(ProtectionPolicy)`, `getDocumentId()`/`setDocumentId()`.
-- Testes: `dart test test/extra` passou (00:21 +29).
+- Testes: `dart test test/extra` passou 
 
  
 

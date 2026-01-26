@@ -118,31 +118,30 @@ class FDFDictionary implements COSObjectable {
   }
 
   /// This will get the list of FDF Fields.
-  /// Returns a list of FDFField dictionaries or null if not set.
-  /// TODO Note: FDFField class not yet ported, returns raw COSDictionary list.
-  List<COSDictionary>? getFields() {
+  /// Returns a list of FDFField objects or null if not set.
+  List<FDFField>? getFields() {
     final fieldArray = _dictionary.getCOSArray(COSName.fields);
     if (fieldArray == null) return null;
     
-    final fields = <COSDictionary>[];
+    final fields = <FDFField>[];
     for (int i = 0; i < fieldArray.length; i++) {
       final obj = fieldArray.getObject(i);
       if (obj is COSDictionary) {
-        fields.add(obj);
+        fields.add(FDFField.fromDictionary(obj));
       }
     }
     return fields;
   }
 
   /// This will set the list of fields.
-  /// [fields] The list of field dictionaries.
-  void setFields(List<COSDictionary>? fields) {
+  /// [fields] The list of field objects.
+  void setFields(List<FDFField>? fields) {
     if (fields == null) {
       _dictionary.removeItem(COSName.fields);
     } else {
       final array = COSArray();
       for (final field in fields) {
-        array.add(field);
+        array.addObject(field.cosObject);
       }
       _dictionary.setItem(COSName.fields, array);
     }
@@ -290,11 +289,11 @@ class FDFDictionary implements COSObjectable {
             id = ids;
             break;
           case 'fields':
-            List<COSDictionary> fieldList = [];
+            List<FDFField> fieldList = [];
             for (var fieldNode in child.children) {
               if (fieldNode is XmlElement && fieldNode.name.local == 'field') {
                  try {
-                   fieldList.add(FDFField.fromXml(fieldNode).cosObject);
+                   fieldList.add(FDFField.fromXml(fieldNode));
                  } catch(e) {
                    // Log warning ignored
                  }
@@ -396,8 +395,8 @@ class FDFDictionary implements COSObjectable {
       final fields = getFields();
       if (fields != null && fields.isNotEmpty) {
         output.write('<fields>\n');
-        for (final fieldDict in fields) {
-            FDFField.fromDictionary(fieldDict).writeXML(output);
+        for (final field in fields) {
+            field.writeXML(output);
         }
         output.write('</fields>\n');
       }
