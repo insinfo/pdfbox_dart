@@ -250,15 +250,15 @@ class PDType0Font extends PDFont implements PDVectorFont, PDCIDFontParent {
     bool vertical = false,
     int? collectionIndex,
     String? collectionFontName,
+    TtfParser? parser,
   }) {
-    final parser = TtfParser();
+    final effectiveParser = parser ?? TtfParser();
     final data = bytes is Uint8List ? bytes : Uint8List.fromList(bytes);
     final randomAccess = RandomAccessReadBuffer.fromBytes(data);
     try {
-      // TODO: Support incremental TrueType edits when parser is ported.
       return _embedFromRandomAccessRead(
         randomAccess,
-        parser: parser,
+        parser: effectiveParser,
         codePoints: codePoints,
         embedSubset: embedSubset,
         vertical: vertical,

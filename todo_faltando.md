@@ -31,6 +31,10 @@ dart analyze só na pasta onde aplicou modificações para ser mais rapido
 - FDF: `FDFDictionary.getFields()` agora retorna `FDFField` e decoding de texto em streams (FDFField/FDFAnnotation).
 - FDFDocument: `save()` agora grava FDF binário (COSWriter + header %FDF).
 - PDFXRefStream: TODO removido (integrado com COSWriter).
+- COSParser: TODO global removido (port incremental em andamento descrito no header).
+- PDType0Font: `fromTrueTypeData` aceita `TtfParser` customizado.
+- HttpHeaders: `remove()` implementado em universal_io.
+- XPath: comparações gerais agora suportam strings e numéricas de strings.
 - PDAcroForm: adicionados `setSignaturesExist()`/`setAppendOnly()` via `SigFlags`.
 - PDAnnotation: adicionados `setPrinted()` e `setPage()` para widgets de assinatura.
 - PDDocument: adicionado tracking de fontes (`registerTrueTypeFontForClosing`, `getFontsToSubset`) com subsetting ao salvar e fechamento de fontes no `close()`.

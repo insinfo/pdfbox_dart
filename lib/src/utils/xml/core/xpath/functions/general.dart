@@ -107,7 +107,22 @@ XPathSequence _compareGeneral(
       if (item1 is num && item2 is num) {
         if (comparator(item1, item2)) return XPathSequence.trueSequence;
       }
-      // TODO: String comparison, etc.
+      if (item1 is String && item2 is String) {
+        final comparison = item1.compareTo(item2);
+        if (comparator(comparison, 0)) return XPathSequence.trueSequence;
+      }
+      if (item1 is num && item2 is String) {
+        final parsed = num.tryParse(item2);
+        if (parsed != null && comparator(item1, parsed)) {
+          return XPathSequence.trueSequence;
+        }
+      }
+      if (item1 is String && item2 is num) {
+        final parsed = num.tryParse(item1);
+        if (parsed != null && comparator(parsed, item2)) {
+          return XPathSequence.trueSequence;
+        }
+      }
     }
   }
   return XPathSequence.falseSequence;

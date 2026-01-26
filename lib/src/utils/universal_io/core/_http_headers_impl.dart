@@ -367,21 +367,21 @@ class HttpHeadersImpl implements HttpHeaders {
 
   @override
   void remove(String name, Object value) {
-    // TODO
-    // _checkMutable();
-    // name = _validateField(name);
-    // value = _validateValue(value);
-    // List<String>? values = _headers[name];
-    // if (values != null) {
-    //   values.remove(_valueToString(value));
-    //   if (values.isEmpty) {
-    //     _headers.remove(name);
-    //     _originalHeaderNames?.remove(name);
-    //   }
-    // }
-    // if (name == HttpHeaders.transferEncodingHeader && value == "chunked") {
-    //   _chunkedTransferEncoding = false;
-    // }
+    _checkMutable();
+    name = _validateField(name);
+    final valueString = _valueToString(value);
+    final values = _headers[name];
+    if (values != null) {
+      values.remove(valueString);
+      if (values.isEmpty) {
+        _headers.remove(name);
+        _originalHeaderNames?.remove(name);
+      }
+    }
+    if (name == HttpHeaders.transferEncodingHeader &&
+        valueString == 'chunked') {
+      _chunkedTransferEncoding = false;
+    }
   }
 
   @override

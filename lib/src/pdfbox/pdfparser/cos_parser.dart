@@ -33,7 +33,6 @@ import 'pdf_object_stream_parser.dart';
 import 'xref_parser.dart';
 
 /// Incremental Dart port of PDFBox's COSParser focused on object/xref handling.
-/// TODO concluir port
 /// Supports direct object parsing (scalars, arrays, dictionaries, streams),
 /// indirect object hydration, stream decoding, classical xref tables with
 /// trailer merging, and document loading into a [COSDocument].
