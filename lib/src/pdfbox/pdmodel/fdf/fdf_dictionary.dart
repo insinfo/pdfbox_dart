@@ -6,7 +6,7 @@ import '../../cos/cos_name.dart';
 import '../../cos/cos_stream.dart';
 import '../../cos/cos_string.dart';
 import '../common/pd_file_specification.dart';
-import 'fdf_field.dart';
+import 'fdf_annotation.dart';
 import 'fdf_annotation_text.dart';
 import 'fdf_annotation_caret.dart';
 import 'fdf_annotation_free_text.dart';
@@ -24,6 +24,9 @@ import 'fdf_annotation_squiggly.dart';
 import 'fdf_annotation_stamp.dart';
 import 'fdf_annotation_strike_out.dart';
 import 'fdf_annotation_underline.dart';
+import 'fdf_field.dart';
+import 'fdf_javascript.dart';
+import 'fdf_page.dart';
 import 'package:pdfbox_dart/src/utils/xml/xml.dart';
 
 
@@ -148,63 +151,64 @@ class FDFDictionary implements COSObjectable {
   }
 
   /// This will get the list of FDF Pages.
-  /// Returns a list of FDFPage dictionaries or null if not set.
-  /// Note: FDFPage class not yet ported, returns raw COSDictionary list.
-  List<COSDictionary>? getPages() {
+  /// Returns a list of FDFPage objects or null if not set.
+  List<FDFPage>? getPages() {
     final pageArray = _dictionary.getCOSArray(COSName.pages);
     if (pageArray == null) return null;
-    
-    final pages = <COSDictionary>[];
+
+    final pages = <FDFPage>[];
     for (int i = 0; i < pageArray.length; i++) {
       final obj = pageArray.getObject(i);
       if (obj is COSDictionary) {
-        pages.add(obj);
+        pages.add(FDFPage(obj));
       }
     }
     return pages;
   }
 
   /// This will set the list of pages.
-  /// [pages] The list of page dictionaries.
-  void setPages(List<COSDictionary>? pages) {
+  /// [pages] The list of page objects.
+  void setPages(List<FDFPage>? pages) {
     if (pages == null) {
       _dictionary.removeItem(COSName.pages);
     } else {
       final array = COSArray();
       for (final page in pages) {
-        array.add(page);
+        array.add(page.cosObject);
       }
       _dictionary.setItem(COSName.pages, array);
     }
   }
 
   /// This will get the list of FDF Annotations.
-  /// Returns a list of FDFAnnotation dictionaries or null if not set.
-  /// Note: FDFAnnotation class not yet ported, returns raw COSDictionary list.
+  /// Returns a list of FDFAnnotation objects or null if not set.
   /// Throws IOException if there is an error creating the annotation list.
-  List<COSDictionary>? getAnnotations() {
+  List<FDFAnnotation>? getAnnotations() {
     final annotArray = _dictionary.getCOSArray(COSName.annots);
     if (annotArray == null) return null;
-    
-    final annots = <COSDictionary>[];
+
+    final annots = <FDFAnnotation>[];
     for (int i = 0; i < annotArray.length; i++) {
       final obj = annotArray.getObject(i);
       if (obj is COSDictionary) {
-        annots.add(obj);
+        final annot = FDFAnnotation.create(obj);
+        if (annot != null) {
+          annots.add(annot);
+        }
       }
     }
     return annots;
   }
 
   /// This will set the list of annotations.
-  /// [annots] The list of annotation dictionaries.
-  void setAnnotations(List<COSDictionary>? annots) {
+  /// [annots] The list of annotation objects.
+  void setAnnotations(List<FDFAnnotation>? annots) {
     if (annots == null) {
       _dictionary.removeItem(COSName.annots);
     } else {
       final array = COSArray();
       for (final annot in annots) {
-        array.add(annot);
+        array.add(annot.cosObject);
       }
       _dictionary.setItem(COSName.annots, array);
     }
@@ -246,15 +250,15 @@ class FDFDictionary implements COSObjectable {
   }
 
   /// This will get the java script entry.
-  /// Returns the java script dictionary or null if not set.
-  /// Note: FDFJavaScript class not yet ported, returns raw COSDictionary.
-  COSDictionary? getJavaScript() {
-    return _dictionary.getCOSDictionary(COSName.javaScript);
+  /// Returns the java script entry or null if not set.
+  FDFJavaScript? getJavaScript() {
+    final dic = _dictionary.getCOSDictionary(COSName.javaScript);
+    return dic != null ? FDFJavaScript(dic) : null;
   }
 
   /// This will set the JavaScript entry.
-  /// [js] The javascript dictionary.
-  void setJavaScript(COSDictionary? js) {
+  /// [js] The javascript entries.
+  void setJavaScript(FDFJavaScript? js) {
     _dictionary.setItem(COSName.javaScript, js);
   }
 
@@ -302,62 +306,62 @@ class FDFDictionary implements COSObjectable {
             setFields(fieldList);
             break;
           case 'annots':
-            List<COSDictionary> annotList = [];
+            List<FDFAnnotation> annotList = [];
             for (var annotNode in child.children) {
               if (annotNode is XmlElement) {
                 String annotationName = annotNode.name.local;
                 try {
                    switch (annotationName) {
                     case "text":
-                      annotList.add(FDFAnnotationText.fromXml(annotNode).cosObject);
+                      annotList.add(FDFAnnotationText.fromXml(annotNode));
                       break;
                     case "caret":
-                      annotList.add(FDFAnnotationCaret.fromXml(annotNode).cosObject);
+                      annotList.add(FDFAnnotationCaret.fromXml(annotNode));
                       break;
                     case "freetext":
-                      annotList.add(FDFAnnotationFreeText.fromXml(annotNode).cosObject);
+                      annotList.add(FDFAnnotationFreeText.fromXml(annotNode));
                       break;
                     case "fileattachment":
-                      annotList.add(FDFAnnotationFileAttachment.fromXml(annotNode).cosObject);
+                      annotList.add(FDFAnnotationFileAttachment.fromXml(annotNode));
                       break;
                     case "highlight":
-                      annotList.add(FDFAnnotationHighlight.fromXml(annotNode).cosObject);
+                      annotList.add(FDFAnnotationHighlight.fromXml(annotNode));
                       break;
                     case "ink":
-                      annotList.add(FDFAnnotationInk.fromXml(annotNode).cosObject);
+                      annotList.add(FDFAnnotationInk.fromXml(annotNode));
                       break;
                     case "line":
-                      annotList.add(FDFAnnotationLine.fromXml(annotNode).cosObject);
+                      annotList.add(FDFAnnotationLine.fromXml(annotNode));
                       break;
                     case "link":
-                      annotList.add(FDFAnnotationLink.fromXml(annotNode).cosObject);
+                      annotList.add(FDFAnnotationLink.fromXml(annotNode));
                       break;
                     case "circle":
-                      annotList.add(FDFAnnotationCircle.fromXml(annotNode).cosObject);
+                      annotList.add(FDFAnnotationCircle.fromXml(annotNode));
                       break;
                     case "square":
-                      annotList.add(FDFAnnotationSquare.fromXml(annotNode).cosObject);
+                      annotList.add(FDFAnnotationSquare.fromXml(annotNode));
                       break;
                     case "polygon":
-                      annotList.add(FDFAnnotationPolygon.fromXml(annotNode).cosObject);
+                      annotList.add(FDFAnnotationPolygon.fromXml(annotNode));
                       break;
                     case "polyline":
-                      annotList.add(FDFAnnotationPolyline.fromXml(annotNode).cosObject);
+                      annotList.add(FDFAnnotationPolyline.fromXml(annotNode));
                       break;
                     case "sound":
-                      annotList.add(FDFAnnotationSound.fromXml(annotNode).cosObject);
+                      annotList.add(FDFAnnotationSound.fromXml(annotNode));
                       break;
                     case "squiggly":
-                      annotList.add(FDFAnnotationSquiggly.fromXml(annotNode).cosObject);
+                      annotList.add(FDFAnnotationSquiggly.fromXml(annotNode));
                       break;
                     case "stamp":
-                      annotList.add(FDFAnnotationStamp.fromXml(annotNode).cosObject);
+                      annotList.add(FDFAnnotationStamp.fromXml(annotNode));
                       break;
                     case "strikeout":
-                      annotList.add(FDFAnnotationStrikeOut.fromXml(annotNode).cosObject);
+                      annotList.add(FDFAnnotationStrikeOut.fromXml(annotNode));
                       break;
                     case "underline":
-                      annotList.add(FDFAnnotationUnderline.fromXml(annotNode).cosObject);
+                      annotList.add(FDFAnnotationUnderline.fromXml(annotNode));
                       break;
                    }
                 } catch (e) {
