@@ -4,12 +4,19 @@ import '../../cos/cos_dictionary.dart';
 import '../../cos/cos_name.dart';
 import '../interactive/digitalsignature/pd_signature.dart';
 import 'fdf_dictionary.dart';
+import 'package:pdfbox_dart/src/utils/xml/xml.dart';
 
 /// FDF catalog that is part of the FDF document.
 /// Ported from org.apache.pdfbox.pdmodel.fdf.FDFCatalog
 class FDFCatalog implements COSObjectable {
   FDFCatalog([COSDictionary? dictionary])
       : _dictionary = dictionary ?? COSDictionary();
+
+  /// Constructor from XFDF XML root element.
+  FDFCatalog.fromXml(XmlElement element) : _dictionary = COSDictionary() {
+    final fdfDict = FDFDictionary.fromXml(element);
+    setFdf(fdfDict);
+  }
 
   final COSDictionary _dictionary;
 

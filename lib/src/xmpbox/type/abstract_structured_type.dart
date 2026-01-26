@@ -1,7 +1,12 @@
+import '../xmp_constants.dart';
+import '../xmp_metadata_base.dart';
 import 'abstract_complex_property.dart';
-import 'text_type.dart';
-import 'date_type.dart';
+import 'abstract_field.dart';
+import 'abstract_simple_property.dart';
+import 'attribute.dart';
 import 'cardinality.dart';
+import 'date_type.dart';
+import 'text_type.dart';
 
 /// Abstract class for structured XMP types.
 /// Ported from org.apache.xmpbox.type.AbstractStructuredType
@@ -20,12 +25,15 @@ abstract class AbstractStructuredType extends AbstractComplexProperty {
     String? fieldPrefix,
     String? propertyName,
   ) : super(metadata, propertyName) {
-    // In Java, annotation-based initialization is used.
-    // In Dart, we rely on parameters or subclass overrides.
-    // TODO: Use mirrors or manual registration for structured type metadata.
     if (namespaceURI != null) {
       _namespace = namespaceURI;
       _preferedPrefix = fieldPrefix;
+    } else if (metadata is XMPMetadataBase) {
+      final info = metadata.typeMapping.getStructuredTypeInfo(runtimeType);
+      if (info != null) {
+        _namespace = info.namespace;
+        _preferedPrefix = info.prefix;
+      }
     }
     _prefix = fieldPrefix ?? _preferedPrefix;
   }
@@ -43,9 +51,19 @@ abstract class AbstractStructuredType extends AbstractComplexProperty {
   String? get preferedPrefix => _preferedPrefix;
 
   void addSimpleProperty(String propertyName, Object value) {
-    // TODO: Use TypeMapping to instantiate the correct property type.
-    // For now, assume text type.
-    TextType prop = TextType(metadata, namespace, prefix, propertyName, value);
+    AbstractSimpleProperty prop;
+    final metadataBase = metadata;
+    if (metadataBase is XMPMetadataBase) {
+      prop = metadataBase.typeMapping.createSimplePropertyFromValue(
+        metadataBase,
+        namespace,
+        prefix,
+        propertyName,
+        value,
+      );
+    } else {
+      prop = TextType(metadata, namespace, prefix, propertyName, value);
+    }
     addProperty(prop);
   }
 
@@ -54,9 +72,10 @@ abstract class AbstractStructuredType extends AbstractComplexProperty {
     if (prop == null) {
       return null;
     }
-    // Assuming it's a simple property
-    // TODO: Proper type checking
-    return prop.toString();
+    if (prop is AbstractSimpleProperty) {
+      return prop.stringValue;
+    }
+    return null;
   }
 
   DateTime? getDatePropertyAsCalendar(String fieldName) {
@@ -77,19 +96,17 @@ abstract class AbstractStructuredType extends AbstractComplexProperty {
 }
 
 /// Basic ArrayProperty implementation.
-/// TODO: Complete implementation with full XMP array support.
 class ArrayPropertyImpl extends ArrayProperty {
   final String _namespace;
   final String _prefix;
-  final Cardinality cardinality;
 
   ArrayPropertyImpl(
     dynamic metadata,
     this._namespace,
     this._prefix,
     String propertyName,
-    this.cardinality,
-  ) : super(metadata, propertyName);
+    Cardinality cardinality,
+  ) : super(metadata, propertyName, cardinality);
 
   @override
   String get namespace => _namespace;
@@ -110,5 +127,27 @@ class ArrayPropertyImpl extends ArrayProperty {
     }
     return result;
   }
+
+  TextType addTextValue(String value, {String? language}) {
+    final item = TextType(metadata, namespace, prefix, XmpConstants.listName, value);
+    if (language != null) {
+      item.setAttribute(Attribute('http://www.w3.org/XML/1998/namespace', 'xml:lang', language));
+    }
+    addItem(item);
+    return item;
+  }
+
+  void removeTextValue(String value, {String? language}) {
+    final items = getItems().whereType<TextType>().toList(growable: false);
+    for (final item in items) {
+      final matchesValue = item.stringValue == value;
+      final matchesLang = language == null || item.getAttribute('xml:lang')?.value == language;
+      if (matchesValue && matchesLang) {
+        removeItem(item);
+      }
+    }
+  }
+
+  List<AbstractField> getItems() => getContainer().getAllProperties();
 }
 

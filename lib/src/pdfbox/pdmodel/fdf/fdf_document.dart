@@ -10,7 +10,7 @@ import '../../pdfwriter/cos_writer.dart';
 import '../../pdfwriter/pdf_save_options.dart';
 import '../pd_document.dart';
 import 'fdf_catalog.dart';
-// TODO tem que completar o port antes de remover este TODO o modulo lib\src\pdfbox\pdmodel\fdf ainda esta bem incompleto
+import 'package:pdfbox_dart/src/utils/xml/xml.dart';
 /// In-memory representation of the FDF document.
 /// Ported from org.apache.pdfbox.pdmodel.fdf.FDFDocument
 /// Note: You need to call close() on this object when you are done using it.
@@ -24,6 +24,25 @@ class FDFDocument {
     _cosDocument.headerVersion = '1.2';
     _cosDocument.setTrailer(COSDictionary());
     catalog = FDFCatalog();
+  }
+
+  /// Creates an FDF document from an XFDF XML string.
+  factory FDFDocument.fromXmlString(String xml) {
+    final document = XmlDocument.parse(xml);
+    return FDFDocument.fromXmlDocument(document);
+  }
+
+  /// Creates an FDF document from an XFDF XML document.
+  factory FDFDocument.fromXmlDocument(XmlDocument document) {
+    final root = document.rootElement;
+    if (root.name.local != 'xfdf') {
+      throw IOException(
+        "Error while importing xfdf document, root should be 'xfdf' and not '${root.name.local}'",
+      );
+    }
+    final fdfDocument = FDFDocument.create();
+    fdfDocument.catalog = FDFCatalog.fromXml(root);
+    return fdfDocument;
   }
 
   final COSDocument _cosDocument;
@@ -61,9 +80,33 @@ class FDFDocument {
     await _saveBinaryFdf(fileName);
   }
 
+  /// Save this document to a binary FDF byte buffer.
+  Uint8List saveToBytes() {
+    final buffer = RandomAccessReadWriteBuffer();
+    final pdDocument = PDDocument.fromCOSDocument(_cosDocument);
+    final writer = COSWriter(buffer, const PDFSaveOptions());
+    writer.writeDocument(pdDocument);
+
+    final length = buffer.length;
+    buffer.seek(0);
+    final bytes = Uint8List(length);
+    if (length > 0) {
+      buffer.readFully(bytes);
+    }
+    buffer.close();
+    _patchFdfHeader(bytes);
+    return bytes;
+  }
+
   /// Saves the FDF document to the provided file.
   Future<void> saveFile(io.File file) async {
     await _saveBinaryFdf(file.path);
+  }
+
+  /// Saves the FDF document to an output sink.
+  Future<void> saveToSink(io.IOSink output) async {
+    output.add(saveToBytes());
+    await output.flush();
   }
 
   /// This will save this document as XFDF to the filesystem.
@@ -72,6 +115,12 @@ class FDFDocument {
   Future<void> saveXFDF(String fileName) async {
     final file = io.File(fileName);
     await file.writeAsString(_buildXFDFXML());
+  }
+
+  /// Saves the XFDF document to an output sink.
+  Future<void> saveXFDFToSink(io.IOSink output) async {
+    output.write(_buildXFDFXML());
+    await output.flush();
   }
 
   /// This will write this element as an XML document.
@@ -96,20 +145,7 @@ class FDFDocument {
   }
 
   Future<void> _saveBinaryFdf(String fileName) async {
-    final pdDocument = PDDocument.fromCOSDocument(_cosDocument);
-    final buffer = RandomAccessReadWriteBuffer();
-    final writer = COSWriter(buffer, const PDFSaveOptions());
-    writer.writeDocument(pdDocument);
-
-    final length = buffer.length;
-    buffer.seek(0);
-    final bytes = Uint8List(length);
-    if (length > 0) {
-      buffer.readFully(bytes);
-    }
-    buffer.close();
-
-    _patchFdfHeader(bytes);
+    final bytes = saveToBytes();
     final file = io.File(fileName);
     await file.writeAsBytes(bytes, flush: true);
   }

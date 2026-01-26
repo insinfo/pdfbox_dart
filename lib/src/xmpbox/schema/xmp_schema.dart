@@ -19,6 +19,8 @@ import '../type/cardinality.dart';
 /// 
 /// Ported from org.apache.xmpbox.schema.XMPSchema
 class XMPSchema extends AbstractStructuredType {
+  static const String _xmlLangAttrName = 'xml:lang';
+  static const String _xmlNamespace = 'http://www.w3.org/XML/1998/namespace';
   
   /// Create a new blank schema that can be populated.
   XMPSchema(XMPMetadata metadata) : this.full(metadata, null, null, null);
@@ -299,6 +301,72 @@ class XMPSchema extends AbstractStructuredType {
   /// Set a simple Integer property on the schema, using the current prefix.
   void setIntegerPropertyValueAsSimple(String simpleName, int? intValue) {
     setIntegerPropertyValue(simpleName, intValue);
+  }
+
+  // --- Language alternative (alt-text) helpers ---
+
+  ArrayPropertyImpl _getOrCreateAltArray(String propertyName) {
+    ArrayPropertyImpl? array = getAbstractProperty(propertyName) as ArrayPropertyImpl?;
+    if (array == null) {
+      array = createArrayProperty(propertyName, Cardinality.alt);
+      addProperty(array);
+    }
+    return array;
+  }
+
+  TextType? _findLangAltItem(ArrayPropertyImpl array, String lang) {
+    for (final prop in array.getAllProperties()) {
+      if (prop is TextType) {
+        final attr = prop.getAttribute(_xmlLangAttrName);
+        if (attr != null && attr.value == lang) {
+          return prop;
+        }
+      }
+    }
+    return null;
+  }
+
+  void setUnqualifiedLanguagePropertyValue(
+    String propertyName,
+    String? lang,
+    String value,
+  ) {
+    final langValue = lang ?? XmpConstants.xDefault;
+    final array = _getOrCreateAltArray(propertyName);
+
+    final existing = _findLangAltItem(array, langValue);
+    if (existing != null) {
+      existing.setValue(value);
+      return;
+    }
+
+    final item = createTextType(XmpConstants.listName, value);
+    item.setAttribute(Attribute(_xmlNamespace, _xmlLangAttrName, langValue));
+    array.getContainer().addProperty(item);
+  }
+
+  String? getUnqualifiedLanguagePropertyValue(
+    String propertyName, {
+    String? lang,
+  }) {
+    final array = getAbstractProperty(propertyName) as ArrayPropertyImpl?;
+    if (array == null) return null;
+
+    if (lang != null) {
+      return _findLangAltItem(array, lang)?.stringValue;
+    }
+
+    final defaultItem = _findLangAltItem(array, XmpConstants.xDefault);
+    if (defaultItem != null) {
+      return defaultItem.stringValue;
+    }
+
+    for (final prop in array.getAllProperties()) {
+      if (prop is TextType) {
+        return prop.stringValue;
+      }
+    }
+    return null;
   }
 
   // --- Array (Bag/Seq) methods ---

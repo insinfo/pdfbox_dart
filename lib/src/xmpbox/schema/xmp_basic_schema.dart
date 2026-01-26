@@ -1,8 +1,10 @@
 import '../xmp_metadata.dart';
 import '../type/abstract_structured_type.dart';
+import '../type/cardinality.dart';
 import '../type/date_type.dart';
 import '../type/integer_type.dart';
 import '../type/text_type.dart';
+import '../type/thumbnail_type.dart';
 import 'xmp_schema.dart';
 
 /// Representation of XMPBasic Schema.
@@ -27,8 +29,6 @@ class XMPBasicSchema extends XMPSchema {
   static const String thumbnails = "Thumbnails";
   static const String modifierDate = "ModifierDate";
 
-  // TODO: _altThumbs will be used when addThumbnails is implemented.
-  // ignore: unused_field
   ArrayPropertyImpl? _altThumbs;
 
   /// Constructor of XMPBasic schema with preferred prefix.
@@ -39,7 +39,31 @@ class XMPBasicSchema extends XMPSchema {
   XMPBasicSchema.withPrefix(XMPMetadata metadata, String ownPrefix)
       : super.withNsAndPrefix(metadata, defaultNamespace, ownPrefix);
 
-  // TODO: addThumbnails when ThumbnailType is implemented.
+  /// Add a thumbnail entry.
+  void addThumbnail(ThumbnailType thumbnail) {
+    final array = _getOrCreateThumbnailArray();
+    array.getContainer().addProperty(thumbnail);
+  }
+
+  /// Add multiple thumbnail entries.
+  void addThumbnails(Iterable<ThumbnailType> thumbnails) {
+    for (final thumb in thumbnails) {
+      addThumbnail(thumb);
+    }
+  }
+
+  ArrayPropertyImpl _getOrCreateThumbnailArray() {
+    if (_altThumbs != null) return _altThumbs!;
+    final existing = getProperty(thumbnails) as ArrayPropertyImpl?;
+    if (existing != null) {
+      _altThumbs = existing;
+      return existing;
+    }
+    final created = createArrayProperty(thumbnails, Cardinality.alt);
+    addProperty(created);
+    _altThumbs = created;
+    return created;
+  }
 
   /// Add a property specification that were edited outside the authoring application.
   void addAdvisory(String xpath) {
@@ -275,6 +299,22 @@ class XMPBasicSchema extends XMPSchema {
     return it?.value;
   }
 
-  // TODO: getThumbnailsProperty when ThumbnailType is implemented.
+  /// Get the thumbnails property.
+  ArrayPropertyImpl? getThumbnailsProperty() {
+    return getProperty(thumbnails) as ArrayPropertyImpl?;
+  }
+
+  /// Get the list of thumbnails.
+  List<ThumbnailType>? getThumbnails() {
+    final array = getThumbnailsProperty();
+    if (array == null) return null;
+    final result = <ThumbnailType>[];
+    for (final item in array.getContainer().getAllProperties()) {
+      if (item is ThumbnailType) {
+        result.add(item);
+      }
+    }
+    return result.isEmpty ? null : result;
+  }
 }
 

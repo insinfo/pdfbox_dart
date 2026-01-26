@@ -159,7 +159,12 @@ class XmpSerializer {
           nest: () {
             for (AbstractField item in array.getAllProperties()) {
               if (item is AbstractSimpleProperty) {
+                final attrs = <String, String>{};
+                for (Attribute attr in item.getAllAttributes()) {
+                  attrs[attr.name] = attr.value;
+                }
                 builder.element('rdf:li',
+                  attributes: attrs,
                   nest: () {
                     final value = item.stringValue;
                     if (value != null) {
@@ -167,8 +172,16 @@ class XmpSerializer {
                     }
                   }
                 );
+              } else if (item is AbstractStructuredType) {
+                builder.element('rdf:li',
+                  attributes: {'rdf:parseType': 'Resource'},
+                  nest: () {
+                    for (AbstractField field in item.getAllProperties()) {
+                      _serializeField(builder, field, item.prefix);
+                    }
+                  }
+                );
               } else {
-                // Structured items
                 _serializeField(builder, item, defaultPrefix);
               }
             }

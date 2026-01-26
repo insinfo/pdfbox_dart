@@ -20,6 +20,8 @@ e va atualizando este roteiro com o que for sendo implementado
 dart analyze só na pasta onde aplicou modificações para ser mais rapido
 
 ## Atualizações recentes
+- FDF: adicionados construtores XFDF em `FDFDocument`/`FDFCatalog`, `saveToBytes()` e `saveToSink()` com header %FDF, e writer XFDF em sink.
+- XMPBox: adicionados TypeMapping e XMPMetadataBase; ArrayProperty com cardinality; LangAlt helpers em XMPSchema; DublinCore com LangAlt e dates; XMPBasic thumbnails com ThumbnailType; DateType com parsing ISO 8601 parcial e timezone; serializer ajustado para atributos e itens estruturados.
 - LTV: teste `ltv_integration_test.dart` ajustado para validar integridade apenas no save incremental e validar DSS/VRI no save completo.
 - COSWriter: detecção de assinatura limitada a updates incrementais (alinhado ao PDFBox Java).
 - PDDocument: portados `isEncrypted`, `getEncryption()`, `getSignatureFields()`, `getSignatureDictionaries()`, `getLastSignatureDictionary()`.

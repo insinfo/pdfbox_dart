@@ -1,4 +1,5 @@
 import 'abstract_field.dart';
+import 'cardinality.dart';
 import 'complex_property_container.dart';
 
 /// Abstract class for complex XMP properties (arrays and structures).
@@ -66,10 +67,21 @@ abstract class AbstractComplexProperty extends AbstractField {
   }
 }
 
-/// Placeholder for ArrayProperty - will be implemented separately.
-/// TODO: Implement full ArrayProperty
+/// XMP array property base.
 abstract class ArrayProperty extends AbstractComplexProperty {
-  ArrayProperty(dynamic metadata, String? propertyName)
+  final Cardinality cardinality;
+
+  ArrayProperty(dynamic metadata, String? propertyName, this.cardinality)
       : super(metadata, propertyName);
+
+  void addItem(AbstractField item) => getContainer().addProperty(item);
+
+  void removeItem(AbstractField item) => getContainer().removeProperty(item);
+
+  List<AbstractField> getItems() => getContainer().getAllProperties();
+
+  int get length => getContainer().getAllProperties().length;
+
+  bool get isEmpty => getContainer().getAllProperties().isEmpty;
 }
 

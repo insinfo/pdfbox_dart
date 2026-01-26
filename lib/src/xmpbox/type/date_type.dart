@@ -44,16 +44,71 @@ class DateType extends AbstractSimpleProperty {
     return _toISO8601(_dateValue!);
   }
 
-  /// Parse ISO 8601 date string.
-  /// TODO: Full ISO 8601 parsing with timezone support
+  /// Parse ISO 8601 date string with support for partial dates and timezones.
   static DateTime? _parseISO8601(String value) {
-    try {
-      return DateTime.parse(value);
-    } catch (e) {
-      // Try alternative formats
-      // TODO: Support more XMP date formats
-      return null;
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return null;
+
+    final regex = RegExp(
+      r'^(\d{4})'
+      r'(?:-(\d{2})'
+      r'(?:-(\d{2})'
+      r'(?:[Tt\s](\d{2})'
+      r'(?::(\d{2})'
+      r'(?::(\d{2})'
+      r'(?:\.(\d{1,9}))?'
+      r')?'
+      r')?'
+      r'(Z|[+-]\d{2}:?\d{2})?'
+      r')?'
+      r')?'
+      r')?'
+      r'$',
+    );
+
+    final match = regex.firstMatch(trimmed);
+    if (match == null) {
+      try {
+        return DateTime.parse(trimmed);
+      } catch (_) {
+        return null;
+      }
     }
+
+    int year = int.parse(match.group(1)!);
+    int month = match.group(2) != null ? int.parse(match.group(2)!) : 1;
+    int day = match.group(3) != null ? int.parse(match.group(3)!) : 1;
+    int hour = match.group(4) != null ? int.parse(match.group(4)!) : 0;
+    int minute = match.group(5) != null ? int.parse(match.group(5)!) : 0;
+    int second = match.group(6) != null ? int.parse(match.group(6)!) : 0;
+    int microsecond = 0;
+
+    final fraction = match.group(7);
+    if (fraction != null && fraction.isNotEmpty) {
+      final padded = fraction.padRight(6, '0');
+      microsecond = int.parse(padded.substring(0, 6));
+    }
+
+    final timezone = match.group(8);
+    if (timezone == null || timezone.isEmpty) {
+      return DateTime(year, month, day, hour, minute, second, 0, microsecond);
+    }
+
+    if (timezone == 'Z') {
+      return DateTime.utc(year, month, day, hour, minute, second, 0, microsecond);
+    }
+
+    final tz = timezone.replaceAll(':', '');
+    final sign = tz.startsWith('-') ? -1 : 1;
+    final tzHours = int.parse(tz.substring(1, 3));
+    final tzMinutes = int.parse(tz.substring(3, 5));
+    final offset = Duration(
+      hours: tzHours * sign,
+      minutes: tzMinutes * sign,
+    );
+
+    final utc = DateTime.utc(year, month, day, hour, minute, second, 0, microsecond);
+    return utc.subtract(offset);
   }
 
   /// Convert DateTime to ISO 8601 string.

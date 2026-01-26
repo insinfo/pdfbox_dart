@@ -1,6 +1,9 @@
+import '../xmp_constants.dart';
 import '../xmp_metadata.dart';
 import '../type/abstract_field.dart';
 import '../type/abstract_structured_type.dart';
+import '../type/cardinality.dart';
+import '../type/date_type.dart';
 import '../type/text_type.dart';
 import 'xmp_schema.dart';
 
@@ -65,15 +68,33 @@ class DublinCoreSchema extends XMPSchema {
     removeUnqualifiedSequenceValue(creator, name);
   }
 
-  // TODO: Add date handling methods when DateType sequence support is implemented.
-  // void addDate(DateTime date)
-  // void removeDate(DateTime date)
+  /// Add a date value to the dc:date sequence.
+  void addDate(DateTime dateValue) {
+    ArrayPropertyImpl? seq = getAbstractProperty(date) as ArrayPropertyImpl?;
+    final li = DateType(metadata, namespace, prefix, XmpConstants.listName, dateValue);
+    if (seq != null) {
+      seq.getContainer().addProperty(li);
+    } else {
+      final newSeq = createArrayProperty(date, Cardinality.seq);
+      newSeq.getContainer().addProperty(li);
+      addProperty(newSeq);
+    }
+  }
+
+  void removeDate(DateTime dateValue) {
+    final seq = getAbstractProperty(date) as ArrayPropertyImpl?;
+    if (seq == null) return;
+    final items = seq.getContainer().getAllProperties();
+    for (final item in List<AbstractField>.from(items)) {
+      if (item is DateType && item.value == dateValue) {
+        seq.getContainer().removeProperty(item);
+      }
+    }
+  }
 
   /// Add a textual description of the content of the resource (multiple values may be present for different languages).
-  /// TODO: Implement language-aware property when LangAlt is implemented.
   void addDescription(String? lang, String value) {
-    // TODO: setUnqualifiedLanguagePropertyValue(description, lang, value);
-    addProperty(createTextType(description, value));
+    setUnqualifiedLanguagePropertyValue(description, lang, value);
   }
 
   /// Set the default value for the description.
@@ -124,10 +145,8 @@ class DublinCoreSchema extends XMPSchema {
   }
 
   /// Add informal rights statement, by language.
-  /// TODO: Implement language-aware property when LangAlt is implemented.
   void addRights(String? lang, String value) {
-    // TODO: setUnqualifiedLanguagePropertyValue(rights, lang, value);
-    addProperty(createTextType(rights, value));
+    setUnqualifiedLanguagePropertyValue(rights, lang, value);
   }
 
   /// Set the unique identifier of the work from which this resource was derived.
@@ -150,10 +169,8 @@ class DublinCoreSchema extends XMPSchema {
   }
 
   /// Set the title of the document, or the name given to the resource (by language).
-  /// TODO: Implement language-aware property when LangAlt is implemented.
   void setTitle(String? lang, String value) {
-    // TODO: setUnqualifiedLanguagePropertyValue(title, lang, value);
-    addProperty(createTextType(title, value));
+    setUnqualifiedLanguagePropertyValue(title, lang, value);
   }
 
   /// Set default title.
@@ -213,7 +230,18 @@ class DublinCoreSchema extends XMPSchema {
     return getProperty(date) as ArrayPropertyImpl?;
   }
 
-  // TODO: getDates() when date sequence is implemented.
+  /// Return the list of dates for dc:date.
+  List<DateTime>? getDates() {
+    final seq = getDatesProperty();
+    if (seq == null) return null;
+    final result = <DateTime>[];
+    for (final item in seq.getContainer().getAllProperties()) {
+      if (item is DateType && item.value != null) {
+        result.add(item.value!);
+      }
+    }
+    return result.isEmpty ? null : result;
+  }
 
   /// Return the Lang alt Description.
   AbstractField? getDescriptionProperty() {
@@ -221,13 +249,8 @@ class DublinCoreSchema extends XMPSchema {
   }
 
   /// Get the description value.
-  /// TODO: Implement proper language-aware getter.
   String? getDescription() {
-    AbstractField? prop = getProperty(description);
-    if (prop is TextType) {
-      return prop.stringValue;
-    }
-    return null;
+    return getUnqualifiedLanguagePropertyValue(description);
   }
 
   /// Return the file format property.
@@ -288,13 +311,8 @@ class DublinCoreSchema extends XMPSchema {
   }
 
   /// Return the rights value.
-  /// TODO: Implement proper language-aware getter.
   String? getRights() {
-    AbstractField? prop = getProperty(rights);
-    if (prop is TextType) {
-      return prop.stringValue;
-    }
-    return null;
+    return getUnqualifiedLanguagePropertyValue(rights);
   }
 
   /// Return the source property of this resource.
@@ -324,13 +342,8 @@ class DublinCoreSchema extends XMPSchema {
   }
 
   /// Return the title value.
-  /// TODO: Implement proper language-aware getter.
   String? getTitle() {
-    AbstractField? prop = getProperty(title);
-    if (prop is TextType) {
-      return prop.stringValue;
-    }
-    return null;
+    return getUnqualifiedLanguagePropertyValue(title);
   }
 
   /// Return the bag DC Type.

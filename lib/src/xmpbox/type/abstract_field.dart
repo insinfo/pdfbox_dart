@@ -1,11 +1,11 @@
+import '../xmp_metadata_base.dart';
 import 'attribute.dart';
 
 /// Abstract Object representation of a XMP 'field' (-> Properties and specific Schemas).
 /// Ported from org.apache.xmpbox.type.AbstractField
 abstract class AbstractField {
-  // Reference to XMPMetadata is dynamic to avoid circular dependency.
-  // TODO: Properly type this when XMPMetadata is implemented.
-  final dynamic metadata;
+  // Reference to XMPMetadataBase to avoid circular dependency.
+  final XMPMetadataBase? metadata;
   
   String _propertyName;
   final Map<String, Attribute> _attributes = {};

@@ -1,9 +1,12 @@
 import 'xmp_constants.dart';
+import 'xmp_metadata_base.dart';
 import 'schema/xmp_schema.dart';
 import 'schema/adobe_pdf_schema.dart';
 import 'schema/dublin_core_schema.dart';
 import 'schema/xmp_basic_schema.dart';
 import 'schema/pdfa_identification_schema.dart';
+import 'type/thumbnail_type.dart';
+import 'type/type_mapping.dart';
 
 /// Object representation of XMPMetaData.
 /// 
@@ -12,7 +15,7 @@ import 'schema/pdfa_identification_schema.dart';
 /// type encountered. However, XmpBox allow you to place schemas of same type with different prefix.
 /// 
 /// Ported from org.apache.xmpbox.XMPMetadata
-class XMPMetadata {
+class XMPMetadata implements XMPMetadataBase {
   String? _xpacketId;
   String? _xpacketBegin;
   String? _xpacketBytes;
@@ -21,8 +24,7 @@ class XMPMetadata {
 
   final List<XMPSchema> _schemas = [];
 
-  // TODO: Implement TypeMapping
-  // final TypeMapping _typeMapping;
+  final TypeMapping _typeMapping;
 
   /// Constructor of an empty default XMPMetaData.
   XMPMetadata._() : this._full(
@@ -38,7 +40,15 @@ class XMPMetadata {
     this._xpacketId,
     this._xpacketBytes,
     this._xpacketEncoding,
-  );
+  ) : _typeMapping = TypeMapping() {
+    _typeMapping.registerStructuredType(
+      ThumbnailType,
+      const StructuredTypeInfo(
+        ThumbnailType.defaultNamespace,
+        ThumbnailType.defaultPrefix,
+      ),
+    );
+  }
 
   /// Creates blank XMP doc with default parameters.
   factory XMPMetadata.create() {
@@ -55,8 +65,8 @@ class XMPMetadata {
     return XMPMetadata._full(xpacketBegin, xpacketId, xpacketBytes, xpacketEncoding);
   }
 
-  // TODO: Implement TypeMapping
-  // TypeMapping get typeMapping => _typeMapping;
+  @override
+  TypeMapping get typeMapping => _typeMapping;
 
   /// Get xpacketBytes.
   String? get xpacketBytes => _xpacketBytes;
