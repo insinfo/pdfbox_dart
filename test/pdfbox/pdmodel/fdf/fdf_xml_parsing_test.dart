@@ -84,10 +84,10 @@ void main() {
       expect(annots, isNotNull);
       expect(annots!.length, equals(2));
       
-      final textAnnot = FDFAnnotationText.fromDictionary(annots[0]);
+      final textAnnot = annots[0] as FDFAnnotationText;
       expect(textAnnot.getContents(), equals('This is a note'));
       
-      final caretAnnot = FDFAnnotationCaret.fromDictionary(annots[1]);
+      final caretAnnot = annots[1] as FDFAnnotationCaret;
       expect(caretAnnot.getSymbol(), equals('P'));
       final fringe = caretAnnot.getFringe();
       expect(fringe, isNotNull);
@@ -109,7 +109,7 @@ void main() {
       final annots = fdf.getAnnotations();
       
       expect(annots, isNotNull);
-      final freeText = FDFAnnotationFreeText.fromDictionary(annots![0]);
+      final freeText = annots![0] as FDFAnnotationFreeText;
       
       expect(freeText.getFreeTextRotation(), equals('90')); 
       expect(freeText.getJustification(), equals('1')); 
@@ -133,7 +133,7 @@ void main() {
       final fdf = FDFDictionary.fromXml(root);
       final annots = fdf.getAnnotations();
       expect(annots, isNotNull);
-      expect(annots![0].getNameAsString(COSName.subtype), equals('Ink'));
+      expect(annots![0].annot.getNameAsString(COSName.subtype), equals('Ink'));
     });
 
      test('Parse Annotations: Line', () {
@@ -148,7 +148,7 @@ void main() {
       final fdf = FDFDictionary.fromXml(root);
       final annots = fdf.getAnnotations();
       
-      final line = FDFAnnotationLine.fromDictionary(annots![0]);
+      final line = annots![0] as FDFAnnotationLine;
       
       // Check start/end points
       final l = line.getLine();
@@ -175,11 +175,11 @@ void main() {
       final fdf = FDFDictionary.fromXml(root);
       final annots = fdf.getAnnotations();
       
-      final square = FDFAnnotationSquare.fromDictionary(annots![0]);
+      final square = annots![0] as FDFAnnotationSquare;
       expect(square.getInteriorColor(), equals([0.0, 1.0, 0.0]));
       expect(square.getFringe(), isNotNull);
 
-      final circle = FDFAnnotationCircle.fromDictionary(annots[1]);
+      final circle = annots[1] as FDFAnnotationCircle;
       expect(circle.getInteriorColor(), equals([0.0, 0.0, 1.0]));
       expect(circle.getFringe(), isNotNull);
     });
@@ -197,11 +197,11 @@ void main() {
       final fdf = FDFDictionary.fromXml(root);
       final annots = fdf.getAnnotations();
       
-      final poly = FDFAnnotationPolygon.fromDictionary(annots![0]);
+      final poly = annots![0] as FDFAnnotationPolygon;
       expect(poly.getVertices(), equals([0.0, 0.0, 10.0, 0.0, 5.0, 5.0]));
       expect(poly.getInteriorColor(), equals([1.0, 1.0, 1.0]));
 
-      final polyline = FDFAnnotationPolyline.fromDictionary(annots[1]);
+      final polyline = annots[1] as FDFAnnotationPolyline;
       expect(polyline.getVertices(), equals([0.0, 0.0, 10.0, 10.0]));
       expect(polyline.getStartPointEndingStyle(), equals('Square'));
       expect(polyline.getEndPointEndingStyle(), equals('Circle'));
