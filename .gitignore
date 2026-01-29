@@ -7,5 +7,6 @@ pubspec.lock
 .local-chrome/
 
 insinfo_dart_pdf/
+insinfo_dart_pdf
 build/
 referencias/

@@ -8,8 +8,16 @@ import 'pd_annotation_appearance.dart';
 import 'pd_appearance_stream.dart';
 import 'pd_border_style_dictionary.dart';
 
+import 'pd_annotation_unknown.dart';
+import 'pd_annotation_factory.dart';
+
 /// Base wrapper for annotation dictionaries (ISO 32000-1, §12.5).
-abstract class PDAnnotation {
+abstract class PDAnnotation implements COSObjectable {
+  /// Creates an annotation from a dictionary using the factory.
+  static PDAnnotation createAnnotation(COSBase obj) {
+    return PDAnnotationFactory.instance.createAnnotation(obj) ?? PDAnnotationUnknown.fromDictionary(obj is COSDictionary ? obj : COSDictionary());
+  }
+
   PDAnnotation.internal(this.dictionary) {
     if (dictionary.getNameAsString(COSName.type) != 'Annot') {
       dictionary.setName(COSName.type, 'Annot');

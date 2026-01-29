@@ -18,11 +18,10 @@ class PDActionFactory {
 
   /// Returns a typed action wrapper for the given COS representation.
   PDAction? createAction(COSBase? base) {
-    final dictionary = PDAction.dictionaryFrom(base);
-    if (dictionary == null) {
-      return null;
+    if (base is COSDictionary) {
+      return createFromDictionary(base);
     }
-    return createFromDictionary(dictionary);
+    return null;
   }
 
   /// Returns a typed action wrapper given a dictionary that is already known

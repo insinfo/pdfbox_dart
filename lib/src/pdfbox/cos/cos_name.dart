@@ -48,7 +48,6 @@ class COSName extends COSBase implements Comparable<COSName> {
   static final COSName contents = COSName('Contents');
   static final COSName border = COSName('Border');
   static final COSName bs = COSName('BS');
-  static final COSName quadPoints = COSName('QuadPoints');
   static final COSName rect = COSName('Rect');
   static final COSName resources = COSName('Resources');
   static final COSName c = COSName('C');
@@ -464,6 +463,13 @@ class COSName extends COSBase implements Comparable<COSName> {
   static final COSName strikeOut = COSName('StrikeOut');
   static final COSName text = COSName('Text');
   static final COSName underline = COSName('Underline');
+  static final COSName popup = COSName('Popup');
+  static final COSName irt = COSName('IRT');
+  static final COSName rt = COSName('RT');
+  static final COSName exData = COSName('ExData');
+  static final COSName path = COSName('Path');
+  static final COSName quadPoints = COSName('QuadPoints');
+  static final COSName fs = COSName('FS');
 
   @override
   int compareTo(COSName other) => name.compareTo(other.name);

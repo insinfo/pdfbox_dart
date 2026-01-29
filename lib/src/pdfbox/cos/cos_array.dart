@@ -64,6 +64,23 @@ class COSArray extends COSBase with IterableMixin<COSBase> {
     }
   }
 
+  void set(int index, COSObjectable value) => this[index] = value;
+
+  void setName(int index, String name) {
+    this[index] = COSName(name);
+  }
+
+  String? getName(int index, [String? defaultValue]) {
+    if (index < 0 || index >= _items.length) {
+      return defaultValue;
+    }
+    final item = _resolve(_items[index]);
+    if (item is COSName) {
+      return item.name;
+    }
+    return defaultValue;
+  }
+
   List<double> toDoubleList() {
     final result = <double>[];
     for (final element in _items) {
