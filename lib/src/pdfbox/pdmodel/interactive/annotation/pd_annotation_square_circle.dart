@@ -2,6 +2,7 @@ import '../../../cos/cos_array.dart';
 import '../../../cos/cos_dictionary.dart';
 import '../../../cos/cos_float.dart';
 import '../../../cos/cos_name.dart';
+import '../../pd_document.dart';
 import '../../common/pd_rectangle.dart';
 import '../../graphics/color/pd_color.dart';
 import '../../graphics/color/pd_color_space.dart';
@@ -24,8 +25,8 @@ abstract class PDAnnotationSquareCircle extends PDAnnotationMarkup {
     dictionary.setName(COSName.subtype, subType);
   }
 
-  // abstract void constructAppearances();
-  void constructAppearances();
+  @override
+  void constructAppearances([PDDocument? document]);
 
   /// This will set interior color of the drawn area color is in DeviceRGB colorspace.
   void setInteriorColor(PDColor ic) {

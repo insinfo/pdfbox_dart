@@ -469,6 +469,12 @@ class COSName extends COSBase implements Comparable<COSName> {
   static final COSName exData = COSName('ExData');
   static final COSName path = COSName('Path');
   static final COSName quadPoints = COSName('QuadPoints');
+  static final COSName annotation = COSName('Annotation');
+  static final COSName operation = COSName('Operation');
+  static final COSName volume = COSName('Volume');
+  static final COSName synchronous = COSName('Synchronous');
+  static final COSName repeat = COSName('Repeat');
+  static final COSName mix = COSName('Mix');
   static final COSName fs = COSName('FS');
 
   @override

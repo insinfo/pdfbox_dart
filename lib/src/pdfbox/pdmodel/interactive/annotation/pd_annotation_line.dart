@@ -6,6 +6,7 @@ import '../../pd_document.dart';
 import '../../graphics/color/pd_color.dart';
 import '../../graphics/color/pd_color_space.dart';
 import '../../graphics/color/pd_device_rgb.dart';
+import 'handlers/pd_line_appearance_handler.dart';
 import 'pd_annotation_markup.dart';
 
 /// This is the class that represents a line annotation. Introduced in PDF 1.3 specification.
@@ -224,7 +225,12 @@ class PDAnnotationLine extends PDAnnotationMarkup {
   }
 
   // TODO: setCustomAppearanceHandler, constructAppearances
+  @override
   void constructAppearances([PDDocument? document]) {
-    // Implement PDLineAppearanceHandler logic when handlers are ported
+    if (getCustomAppearanceHandler() == null) {
+      PDLineAppearanceHandler(this, document).generateAppearanceStreams();
+    } else {
+      getCustomAppearanceHandler()?.generateAppearanceStreams();
+    }
   }
 }

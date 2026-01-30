@@ -177,7 +177,8 @@ class PDAnnotationMarkup extends PDAnnotation {
   }
 
   /// This will retrieve the border array, specifying the width and dash pattern used in drawing the line.
-  COSArray? get border => dictionary.getCOSArray(COSName.border);
+  @override
+  COSArray get border => dictionary.getCOSArray(COSName.border) ?? COSArray();
 
   /// This will set the border array, specifying the width and dash pattern used in drawing the line.
   set border(COSArray? border) {

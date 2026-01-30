@@ -6,6 +6,7 @@ import '../pd_annotation_circle.dart';
 import '../pd_border_effect_dictionary.dart';
 import '../../../common/pd_rectangle.dart';
 
+import 'cloudy_border.dart';
 import 'pd_abstract_appearance_handler.dart';
 
 /// Handler to generate the circle annotations appearance.
@@ -36,16 +37,17 @@ class PDCircleAppearanceHandler extends PDAbstractAppearanceHandler {
       
       if (borderEffect != null &&
           borderEffect.getStyle() == PDBorderEffectDictionary.STYLE_CLOUDY) {
-          // TODO: Implement CloudyBorder
-           // Fallback
-           // We need to implement handleBorderBox for Circle too or reuse logic
-           // The Java method signature was handleBorderBox(PDAnnotationSquareCircle, float)
-           // In Dart PDAnnotationCircle extends PDAnnotationSquareCircle.
-           
-           final borderBox = handleBorderBox(annotation, lineWidth);
-           if (borderBox != null) {
-              _drawCircle(contentStream, borderBox);
-           }
+          final rect = getRectangle();
+          if (rect != null) {
+              final cloudyBorder = CloudyBorder(contentStream, borderEffect.getIntensity(), lineWidth, rect);
+              cloudyBorder.createCloudyEllipse(annotation.getRectDifference());
+              annotation.setRectangle(cloudyBorder.getRectangle());
+              annotation.setRectDifference(cloudyBorder.getRectDifference());
+              final pdAppearanceStream = annotation.getNormalAppearanceStream();
+              if (pdAppearanceStream != null) {
+                  pdAppearanceStream.boundingBox = cloudyBorder.getBBox();
+              }
+          }
       } else {
         final borderBox = handleBorderBox(annotation, lineWidth);
         if (borderBox != null) {
@@ -119,7 +121,7 @@ class PDCircleAppearanceHandler extends PDAbstractAppearanceHandler {
     }
 
     final borderCharacteristics = annotation.border;
-    if (borderCharacteristics != null && borderCharacteristics.length >= 3) {
+    if (borderCharacteristics.length >= 3) {
       final base = borderCharacteristics.getObject(2);
       if (base is COSNumber) {
         return base.doubleValue;

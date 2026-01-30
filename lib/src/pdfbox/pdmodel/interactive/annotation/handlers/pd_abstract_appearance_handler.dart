@@ -29,6 +29,13 @@ abstract class PDAbstractAppearanceHandler implements PDAppearanceHandler {
   final PDDocument? document;
   PDFont? _defaultFont;
 
+  @override
+  void generateAppearanceStreams() {
+    generateNormalAppearance();
+    generateRolloverAppearance();
+    generateDownAppearance();
+  }
+
   /// Line ending styles where the line has to be drawn shorter (minus line width).
   static const Set<String> shortStyles = <String>{
     PDAnnotationLine.leOpenArrow,

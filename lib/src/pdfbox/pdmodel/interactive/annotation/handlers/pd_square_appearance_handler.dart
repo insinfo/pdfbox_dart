@@ -6,6 +6,7 @@ import '../pd_annotation_markup.dart';
 import '../pd_annotation_square.dart';
 import '../pd_border_effect_dictionary.dart';
 
+import 'cloudy_border.dart';
 import 'pd_abstract_appearance_handler.dart';
 
 /// Handler to generate the square annotations appearance.
@@ -33,13 +34,17 @@ class PDSquareAppearanceHandler extends PDAbstractAppearanceHandler {
       
       if (borderEffect != null &&
           borderEffect.getStyle() == PDBorderEffectDictionary.STYLE_CLOUDY) {
-          // TODO: Implement CloudyBorder
-          // For now, fall back to simple rect
-           final borderBox = handleBorderBox(annotation, lineWidth);
-           if (borderBox != null) {
-              contentStream.addRect(borderBox.lowerLeftX, borderBox.lowerLeftY,
-                  borderBox.width, borderBox.height);
-           }
+          final rect = getRectangle();
+          if (rect != null) {
+              final cloudyBorder = CloudyBorder(contentStream, borderEffect.getIntensity(), lineWidth, rect);
+              cloudyBorder.createCloudyRectangle(annotation.getRectDifference());
+              annotation.setRectangle(cloudyBorder.getRectangle());
+              annotation.setRectDifference(cloudyBorder.getRectDifference());
+              final pdAppearanceStream = annotation.getNormalAppearanceStream();
+              if (pdAppearanceStream != null) {
+                  pdAppearanceStream.boundingBox = cloudyBorder.getBBox();
+              }
+          }
       } else {
         final borderBox = handleBorderBox(annotation, lineWidth);
         if (borderBox != null) {
@@ -84,7 +89,7 @@ class PDSquareAppearanceHandler extends PDAbstractAppearanceHandler {
     }
 
     final borderCharacteristics = annotation.border;
-    if (borderCharacteristics != null && borderCharacteristics.length >= 3) {
+    if (borderCharacteristics.length >= 3) {
       final base = borderCharacteristics.getObject(2);
       if (base is COSNumber) {
         return base.doubleValue;

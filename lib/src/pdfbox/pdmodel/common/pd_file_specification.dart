@@ -29,6 +29,9 @@ abstract class PDFileSpecification implements COSObjectable {
     }
     return null;
   }
+  static PDFileSpecification? createFS(COSBase? base) {
+    return fromCOS(base);
+  }
 }
 
 /// String based file specification.

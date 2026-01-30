@@ -3,10 +3,17 @@ import '../../../cos/cos_dictionary.dart';
 import '../../../cos/cos_name.dart';
 import 'pd_action.dart';
 import 'pd_action_go_to.dart';
+import 'pd_action_hide.dart';
+import 'pd_action_import_data.dart';
 import 'pd_action_java_script.dart';
 import 'pd_action_launch.dart';
+import 'pd_action_movie.dart';
 import 'pd_action_named.dart';
 import 'pd_action_remote_go_to.dart';
+import 'pd_action_reset_form.dart';
+import 'pd_action_sound.dart';
+import 'pd_action_submit_form.dart';
+import 'pd_action_thread.dart';
 import 'pd_action_unknown.dart';
 import 'pd_action_uri.dart';
 
@@ -42,9 +49,22 @@ class PDActionFactory {
         return PDActionURI(dictionary: dictionary);
       case 'Named':
         return PDActionNamed(dictionary: dictionary);
+      case 'Hide':
+        return PDActionHide.fromDictionary(dictionary);
+      case 'ImportData':
+        return PDActionImportData.fromDictionary(dictionary);
+      case 'Movie':
+        return PDActionMovie.fromDictionary(dictionary);
+      case 'ResetForm':
+        return PDActionResetForm.fromDictionary(dictionary);
+      case 'Sound':
+        return PDActionSound.fromDictionary(dictionary);
+      case 'SubmitForm':
+        return PDActionSubmitForm.fromDictionary(dictionary);
+      case 'Thread':
+        return PDActionThread.fromDictionary(dictionary);
       default:
         return PDActionUnknown(dictionary);
     }
   }
 }
-

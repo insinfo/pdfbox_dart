@@ -3,6 +3,7 @@ import '../../../cos/cos_dictionary.dart';
 import '../../../cos/cos_float.dart';
 import '../../../cos/cos_name.dart';
 import '../../pd_document.dart';
+import 'handlers/pd_ink_appearance_handler.dart';
 import 'pd_annotation_markup.dart';
 
 /// This is the class that represents a Ink annotation.
@@ -60,8 +61,12 @@ class PDAnnotationInk extends PDAnnotationMarkup {
     return <List<double>>[];
   }
 
-  // TODO: setCustomAppearanceHandler, constructAppearances
+  @override
   void constructAppearances([PDDocument? document]) {
-    // Implement PDInkAppearanceHandler logic when handlers are ported
+    if (getCustomAppearanceHandler() == null) {
+      PDInkAppearanceHandler(this, document).generateAppearanceStreams();
+    } else {
+      getCustomAppearanceHandler()?.generateAppearanceStreams();
+    }
   }
 }

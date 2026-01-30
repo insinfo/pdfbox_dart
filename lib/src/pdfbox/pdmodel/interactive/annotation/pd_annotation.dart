@@ -8,8 +8,10 @@ import 'pd_annotation_appearance.dart';
 import 'pd_appearance_stream.dart';
 import 'pd_border_style_dictionary.dart';
 
-import 'pd_annotation_unknown.dart';
+import '../../pd_document.dart';
+import 'handlers/pd_appearance_handler.dart';
 import 'pd_annotation_factory.dart';
+import 'pd_annotation_unknown.dart';
 
 /// Base wrapper for annotation dictionaries (ISO 32000-1, §12.5).
 abstract class PDAnnotation implements COSObjectable {
@@ -161,6 +163,12 @@ abstract class PDAnnotation implements COSObjectable {
     }
   }
 
+  /// Returns the /Border array if present, otherwise an empty COSArray.
+  COSArray get border {
+    final array = dictionary.getCOSArray(COSName.border);
+    return array ?? COSArray();
+  }
+
   PDBorderStyleDictionary? get borderStyle {
     final cached = _borderStyleCache;
     if (cached != null) {
@@ -195,6 +203,15 @@ abstract class PDAnnotation implements COSObjectable {
     final r = rect;
     if (r == null || r.length < 4) return null;
     return PDRectangle(r[0], r[1], r[2] - r[0], r[3] - r[1]);
+  }
+
+  /// Sets the rectangle for this annotation (`/Rect`).
+  void setRectangle(PDRectangle? rectangle) {
+    if (rectangle == null) {
+      dictionary.removeItem(COSName.rect);
+    } else {
+      rect = rectangle.toCOSArray().toDoubleList();
+    }
   }
 
   /// Returns the normal appearance stream for this annotation.
@@ -257,6 +274,28 @@ abstract class PDAnnotation implements COSObjectable {
   bool get isNoRotate {
     final flags = dictionary.getInt(COSName.f) ?? 0;
     return (flags & 0x10) != 0; // NoRotate flag
+  }
+
+  PDAppearanceHandler? _customAppearanceHandler;
+
+  /// Sets a custom appearance handler.
+  void setCustomAppearanceHandler(PDAppearanceHandler? appearanceHandler) {
+    _customAppearanceHandler = appearanceHandler;
+  }
+
+  /// Returns the custom appearance handler.
+  PDAppearanceHandler? getCustomAppearanceHandler() {
+    return _customAppearanceHandler;
+  }
+
+  /// Constructs the appearance of this annotation.
+  /// If a custom appearance handler is set, it will be used.
+  /// Otherwise, subclasses should implement this method if they support appearance generation.
+  void constructAppearances([PDDocument? document]) {
+    final handler = getCustomAppearanceHandler();
+    if (handler != null) {
+      handler.generateAppearanceStreams();
+    }
   }
 
   void _setFlag(int flag, bool value) {

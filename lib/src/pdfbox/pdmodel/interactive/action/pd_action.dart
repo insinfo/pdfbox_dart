@@ -35,6 +35,12 @@ abstract class PDAction implements PDDestinationOrAction {
   /// The action dictionary.
   final COSDictionary dictionary;
 
+  /// Compatibility getter for subclasses using 'action'.
+  COSDictionary get action => dictionary;
+  
+  /// Constructor from an existing dictionary.
+  PDAction.fromDictionary(COSDictionary dictionary) : this(dictionary);
+
   @override
   COSDictionary get cosObject => dictionary;
 

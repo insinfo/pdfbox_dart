@@ -139,6 +139,43 @@ class PDFormContentStream {
     _write('${_formatNumber(c)} ${_formatNumber(m)} ${_formatNumber(y)} ${_formatNumber(k)} K\n');
   }
 
+  /// Appends a cubic Bézier curve (`c` operator) defined by two control points
+  /// and an end point.
+  void curveTo(double x1, double y1, double x2, double y2, double x3, double y3) {
+    _ensureOpen();
+    _write('${_formatNumber(x1)} ${_formatNumber(y1)} '
+        '${_formatNumber(x2)} ${_formatNumber(y2)} '
+        '${_formatNumber(x3)} ${_formatNumber(y3)} c\n');
+  }
+
+  /// Draws a Form XObject.
+  void drawForm(PDFormXObject form) {
+    _ensureOpen();
+    final name = _resources.add(form);
+    _write('/${name.name} Do\n');
+  }
+
+  /// Alias for rectangle. Adds a rectangle to the path.
+  void addRect(double x, double y, double width, double height) {
+    rectangle(x, y, width, height);
+  }
+
+  /// Sets non-stroking color from a PDColor object.
+  void setNonStrokingColorRGB(dynamic color) {
+    // Accept PDColor or similar object with components property
+    _ensureOpen();
+    if (color == null) return;
+    final components = color.components as List<double>?;
+    if (components == null || components.isEmpty) return;
+    if (components.length == 1) {
+      setNonStrokingColorGray(components[0]);
+    } else if (components.length == 3) {
+      setNonStrokingColor(components[0], components[1], components[2]);
+    } else if (components.length == 4) {
+      setNonStrokingColorCMYK(components[0], components[1], components[2], components[3]);
+    }
+  }
+
   void close() {
     if (_closed) {
       return;

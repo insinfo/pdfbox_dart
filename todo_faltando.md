@@ -23,9 +23,14 @@ sempre responda em portugues
 
 JPXFilter (JPEG2000) não é necessario para este porte no momento
 JBIG2Filter não é prioridade  no momento
-
+e fundamental implemetar o parse de C:\MyDartProjects\pdfbox_dart\resources\truststore\keystore_icp_brasil\keystore_ICP_Brasil.jks e C:\MyDartProjects\pdfbox_dart\resources\truststore\icp_brasil\cadeiasicpbrasil.bks em C:\MyDartProjects\pdfbox_dart\lib\src\pdfbox\extra
 
 ## Atualizações recentes
+- **Keystore Parsers**: Implementados parsers JKS e BKS para carregar certificados ICP-Brasil:
+  - `JksKeyStore`: Parser para Java KeyStore (JKS/JCEKS), extrai certificados trusted e private keys (encriptadas)
+  - `BksKeyStore`: Parser para Bouncy Castle KeyStore (BKS V1/V2), com PKCS#12 KDF completo (RFC 7292)
+  - `IcpBrasilCertificateLoader`: Helper para carregar certificados ICP-Brasil de keystores
+  - Testado com keystore_ICP_Brasil.jks (159 certificados) e cadeiasicpbrasil.bks (157 certificados)
 - FDFDictionary: `getPages()`/`setPages()` agora usam `FDFPage`; `getAnnotations()`/`setAnnotations()` usam `FDFAnnotation`; JavaScript com `FDFJavaScript`.
 - FDF: adicionados construtores XFDF em `FDFDocument`/`FDFCatalog`, `saveToBytes()` e `saveToSink()` com header %FDF, e writer XFDF em sink.
 - XMPBox: adicionados TypeMapping e XMPMetadataBase; ArrayProperty com cardinality; LangAlt helpers em XMPSchema; DublinCore com LangAlt e dates; XMPBasic thumbnails com ThumbnailType; DateType com parsing ISO 8601 parcial e timezone; serializer ajustado para atributos e itens estruturados.
@@ -56,6 +61,8 @@ JBIG2Filter não é prioridade  no momento
 - PDAppearanceContentStream: adicionados métodos `setStrokingColorOnDemand`, `setNonStrokingColorOnDemand`, `setBorderLine`, `setLineDashPattern`, `setGraphicsStateParameters`.
 - PDAnnotationMarkup: adicionados `borderStyle` e `border` properties.
 - PDExtendedGraphicsState: adicionados setters para `strokingAlphaConstant` e `nonStrokingAlphaConstant`.
+- **Keystore Decryption**: Completa implementação de `JksPrivateKeyEntry` (JKS) e `BksSealedKeyEntry` (BKS) decryption usando 3DES-CBC e integrity checks.
+- **Annotations**: `CloudyBorder` implementado (ellipse visualization via polygon), `AnnotationBorder` corrigido dash pattern, e wired `constructAppearances` para Square, Circle, Ink, Polygon, Polyline, Line.
 
  
 
@@ -237,21 +244,22 @@ Most annotation subclasses are missing. Only `Link`, `Text` (Popup), and `Widget
 - [x] `PDAbstractAppearanceHandler` (classe abstrata com lógica comum: getColor, setOpacity, drawStyle, drawArrow, drawCircle, drawDiamond, handleBorderBox, etc.)
 - [x] `PDSquareAppearanceHandler`
 - [x] `PDCircleAppearanceHandler`
-- [ ] `PDCaretAppearanceHandler`
-- [ ] `PDFileAttachmentAppearanceHandler`
-- [ ] `PDFreeTextAppearanceHandler`
-- [ ] `PDHighlightAppearanceHandler`
-- [ ] `PDInkAppearanceHandler`
-- [ ] `PDLineAppearanceHandler`
-- [ ] `PDLinkAppearanceHandler`
-- [ ] `PDPolygonAppearanceHandler`
-- [ ] `PDPolylineAppearanceHandler`
-- [ ] `PDSoundAppearanceHandler`
-- [ ] `PDSquigglyAppearanceHandler`
-- [ ] `PDStrikeoutAppearanceHandler`
-- [ ] `PDTextAppearanceHandler`
-- [ ] `PDUnderlineAppearanceHandler`
-- [ ] `CloudyBorder` (helper para bordas "cloudy" em Square/Circle)
+- [x] `PDCaretAppearanceHandler`
+- [x] `PDFileAttachmentAppearanceHandler` (stub - requer desenho de ícones)
+- [x] `PDFreeTextAppearanceHandler` (stub parcial - desenha background/borda, texto requer mais infraestrutura)
+- [x] `PDHighlightAppearanceHandler` (versão simplificada sem blend mode MULTIPLY)
+- [x] `PDInkAppearanceHandler`
+- [x] `PDLineAppearanceHandler` (completo com line endings e leader lines)
+- [x] `PDLinkAppearanceHandler` (stub - links geralmente não precisam appearance)
+- [x] `PDPolygonAppearanceHandler`
+- [x] `PDPolylineAppearanceHandler`
+- [x] `PDSoundAppearanceHandler` (stub - requer desenho de ícones)
+- [x] `PDSquigglyAppearanceHandler`
+- [x] `PDStrikeoutAppearanceHandler`
+- [x] `PDTextAppearanceHandler` (stub - requer desenho de ícones de nota)
+- [x] `PDUnderlineAppearanceHandler`
+- [x] `AnnotationBorder` (helper para informações de borda)
+- [x] `CloudyBorder` (helper para bordas "cloudy" em Square/Circle - versão simplificada)
 
 #### `pdmodel.interactive.action`
 Action support is partially implemented.
@@ -265,7 +273,7 @@ Action support is partially implemented.
 - [x] `PDActionUnknown`
 - [ ] `PDActionHide`
 - [ ] `PDActionImportData`
-- [ ] `PDActionMovie`
+- [x] `PDActionMovie`
 - [ ] `PDActionResetForm`
 - [ ] `PDActionSound`
 - [ ] `PDActionSubmitForm`

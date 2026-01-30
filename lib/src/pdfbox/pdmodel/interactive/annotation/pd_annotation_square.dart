@@ -1,5 +1,6 @@
 import '../../../cos/cos_dictionary.dart';
 import '../../pd_document.dart';
+import 'handlers/pd_square_appearance_handler.dart';
 import 'pd_annotation_square_circle.dart';
 
 /// This is the class that represents a rectangular annotation.
@@ -15,11 +16,10 @@ class PDAnnotationSquare extends PDAnnotationSquareCircle {
 
   @override
   void constructAppearances([PDDocument? document]) {
-    // TODO: Implement appearance generation using PDSquareAppearanceHandler
-    // if (customAppearanceHandler == null) {
-    //   PDSquareAppearanceHandler(this, document).generateAppearanceStreams();
-    // } else {
-    //   customAppearanceHandler.generateAppearanceStreams();
-    // }
+    if (getCustomAppearanceHandler() == null) {
+      PDSquareAppearanceHandler(this, document).generateAppearanceStreams();
+    } else {
+      getCustomAppearanceHandler()?.generateAppearanceStreams();
+    }
   }
 }

@@ -7,6 +7,7 @@ import '../../graphics/color/pd_color.dart';
 import '../../graphics/color/pd_color_space.dart';
 import '../../graphics/color/pd_device_rgb.dart';
 import 'pd_annotation_markup.dart';
+import 'handlers/pd_polyline_appearance_handler.dart';
 import 'pd_annotation_line.dart';
 
 /// This is the class that represents a polyline annotation.
@@ -98,8 +99,12 @@ class PDAnnotationPolyline extends PDAnnotationMarkup {
     dictionary.setItem(COSName.vertices, array);
   }
 
-  // TODO: setCustomAppearanceHandler, constructAppearances
+  @override
   void constructAppearances([PDDocument? document]) {
-    // Implement PDPolylineAppearanceHandler logic when handlers are ported
+    if (getCustomAppearanceHandler() == null) {
+      PDPolylineAppearanceHandler(this, document).generateAppearanceStreams();
+    } else {
+      getCustomAppearanceHandler()?.generateAppearanceStreams();
+    }
   }
 }

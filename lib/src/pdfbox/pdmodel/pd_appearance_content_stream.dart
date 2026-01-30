@@ -158,6 +158,24 @@ class PDAppearanceContentStream {
     _write('] ${_formatNumber(phase)} d\n');
   }
 
+  /// Sets stroking color from a PDColor object.
+  void setStrokingColorPD(PDColor color) {
+    setStrokingColor(color.components);
+  }
+
+  /// Sets non-stroking color from a PDColor object.
+  void setNonStrokingColorPD(PDColor color) {
+    setNonStrokingColor(color.components);
+  }
+
+  /// Draws a Form XObject.
+  void drawForm(dynamic form) {
+    _ensureOpen();
+    // form should be a PDFormXObject with a resources.add method pattern
+    final name = _resources.add(form);
+    _write('/${name.name} Do\n');
+  }
+
   bool setStrokingColorOnDemand(PDColor? color) {
     if (color == null) {
       return false;
@@ -194,6 +212,111 @@ class PDAppearanceContentStream {
     }
     
     setLineWidth(lineWidth);
+  }
+
+  /// Saves the current graphics state onto the stack (q operator).
+  void saveGraphicsState() {
+    _ensureOpen();
+    _writeOperator('q');
+  }
+
+  /// Restores the graphics state from the stack (Q operator).
+  void restoreGraphicsState() {
+    _ensureOpen();
+    _writeOperator('Q');
+  }
+
+  /// Concatenates the given matrix to the current transformation matrix (cm operator).
+  void transform(double a, double b, double c, double d, double e, double f) {
+    _ensureOpen();
+    _write('${_formatNumber(a)} ${_formatNumber(b)} ${_formatNumber(c)} '
+        '${_formatNumber(d)} ${_formatNumber(e)} ${_formatNumber(f)} cm\n');
+  }
+
+  /// Begins a text object (BT operator).
+  void beginText() {
+    _ensureOpen();
+    _writeOperator('BT');
+  }
+
+  /// Ends a text object (ET operator).
+  void endText() {
+    _ensureOpen();
+    _writeOperator('ET');
+  }
+
+  /// Sets the font and size for text operations.
+  void setFont(dynamic font, double size) {
+    _ensureOpen();
+    final name = _resources.add(font);
+    _write('/${name.name} ${_formatNumber(size)} Tf\n');
+  }
+
+  /// Moves to the start of the next line, offset from the start of the current line.
+  void newLineAtOffset(double tx, double ty) {
+    _ensureOpen();
+    _write('${_formatNumber(tx)} ${_formatNumber(ty)} Td\n');
+  }
+
+  /// Shows the given text string.
+  void showText(String text) {
+    _ensureOpen();
+    // Escape special characters in PDF string
+    final escaped = text
+        .replaceAll('\\', '\\\\')
+        .replaceAll('(', '\\(')
+        .replaceAll(')', '\\)');
+    _write('($escaped) Tj\n');
+  }
+
+  /// Set the line cap style.
+  void setLineCapStyle(int style) {
+    _ensureOpen();
+    _write('$style J\n');
+  }
+
+  /// Set the line join style.
+  void setLineJoinStyle(int style) {
+    _ensureOpen();
+    _write('$style j\n');
+  }
+
+  /// Set the miter limit.
+  void setMiterLimit(double limit) {
+    _ensureOpen();
+    _write('${_formatNumber(limit)} M\n');
+  }
+
+  /// Clip (W operator) using non-zero winding rule.
+  void clip() {
+    _ensureOpen();
+    _writeOperator('W');
+  }
+
+  /// Clip using even-odd rule (W* operator).
+  void clipEvenOdd() {
+    _ensureOpen();
+    _writeOperator('W*');
+  }
+
+  /// End path without stroking or filling (n operator).
+  void endPath() {
+    _ensureOpen();
+    _writeOperator('n');
+  }
+
+  /// Appends a tiling pattern to the resources and returns its name.
+  void setStrokingPattern(dynamic pattern) {
+    _ensureOpen();
+    final name = _resources.add(pattern);
+    _write('/Pattern CS /${name.name} SCN\n');
+  }
+
+  /// Sets the non-stroking pattern.
+  void setNonStrokingPattern(dynamic pattern) {
+    _ensureOpen();
+    final name = _resources.add(pattern);
+    _write('/Pattern cs /${name.name} scn\n');
   }
 
   void close() {

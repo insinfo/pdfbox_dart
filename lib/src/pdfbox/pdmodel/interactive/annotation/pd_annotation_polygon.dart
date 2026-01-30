@@ -7,6 +7,7 @@ import '../../graphics/color/pd_color.dart';
 import '../../graphics/color/pd_color_space.dart';
 import '../../graphics/color/pd_device_rgb.dart';
 import 'pd_annotation_markup.dart';
+import 'handlers/pd_polygon_appearance_handler.dart';
 import 'pd_border_effect_dictionary.dart';
 
 /// This is the class that represents a polygon annotation.
@@ -82,7 +83,12 @@ class PDAnnotationPolygon extends PDAnnotationMarkup {
   }
 
   // TODO: setCustomAppearanceHandler, constructAppearances
+  @override
   void constructAppearances([PDDocument? document]) {
-    // Implement PDPolygonAppearanceHandler logic when handlers are ported
+    if (getCustomAppearanceHandler() == null) {
+      PDPolygonAppearanceHandler(this, document).generateAppearanceStreams();
+    } else {
+      getCustomAppearanceHandler()?.generateAppearanceStreams();
+    }
   }
 }
