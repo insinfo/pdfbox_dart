@@ -280,8 +280,44 @@ Action support is partially implemented.
 - [ ] `PDActionThread`
 - [ ] `PDTargetDirectory`, `PDWindowsLaunchParams`
 
-#### `pdmodel.interactive.documentnavigation`
-- [ ] Destination subclasses (e.g., `PDPageFitHeightDestination`, `PDPageFitWidthDestination`) if not covered by a generic implementation.
+#### `pdmodel.interactive.form` (AcroForms)
+- [ ] `AppearanceGeneratorHelper` robusto:
+    - [ ] Suporte a `/Qu` (Alinhamento: Left, Center, Right)
+    - [ ] Lógica de Auto-font size (fontSize = 0)
+    - [ ] Campos multilinha (`/Ff` Multiline)
+    - [ ] Campos com pente (`/Ff` Comb)
+    - [ ] Suporte a Rich Text (`/RV`, `/DS`)
+    - [ ] Geração de aparência para Checkbox e Radio Buttons (desenhar o checkmark/radio-mark)
+    - [ ] Suporte a `/DA` (Default Appearance) complexo (cores, múltiplos comandos)
+- [ ] `PDAcroForm.flatten()` robusto:
+    - [ ] "Queimar" a aparência em todas as páginas onde o widget aparece
+    - [ ] Sincronização de recursos (fontes/imagens) ao achatar
+
+### Assinatura Eletrônica (Porte Demoiselle e PDFBox Advanced)
+
+#### Assinatura Visível (`org.apache.pdfbox.pdmodel.interactive.digitalsignature.visible`)
+- [ ] `PDVisibleSignDesigner` (Configuração de página, coordenadas, imagem, rotação)
+- [ ] `PDFTemplateCreator` (Orquestração das camadas n0, n1, n2 da aparência)
+- [ ] `PDFTemplateBuilder` / `PDVisibleSigBuilder` (Passos de construção do template de assinatura)
+- [ ] `PDFTemplateStructure` (Estrutura de dados para o template)
+
+#### PAdES e LTV (Long Term Validation)
+- [ ] **Document Time-stamp (DTS)**: Suporte a assinaturas de carimbo de tempo de documento (subfiltro `ETSI.RFC3161`) via update incremental (necessário para PAdES-LTA).
+- [ ] Associação robusta de VRI (Validation Related Information) para assinaturas específicas.
+- [ ] Suporte a níveis PAdES: `PAdES-B-B`, `PAdES-B-T`, `PAdES-B-LT`, `PAdES-B-LTA`.
+
+#### CAdES e Políticas ICP-Brasil (Demoiselle Signer)
+- [ ] `SigningPolicyID`: Suporte ao atributo `SignaturePolicyID` no CMS (OID da política, hash da política).
+- [ ] Implementação de Políticas ICP-Brasil: `AD-RB`, `AD-RT`, `AD-RV`, `AD-RC`.
+- [ ] Verificação de revogação avançada:
+    - [ ] Suporte a CRLs Indiretas.
+    - [ ] Validação de OCSP com Nonce.
+    - [ ] Validação completa da cadeia de confiança até a raiz (Trust Anchor).
+
+#### Outros (Assinatura)
+- [ ] `SignatureInterface` e overloads no `PDDocument.addSignature` para diferentes fluxos de assinatura.
+- [ ] `ExternalSigningSupport` completo para integração com HSMs e APIs externas (Gov.br) de forma assíncrona/streaming.
 
 ### Miscellaneous
-- [ ] `PDFTemplateCreator` (Visible digital signatures helper)
+- [ ] `Overlay` (Implementação completa do merge de páginas via XObject overlay)
+- [ ] `PDFCloneUtility` (Otimização de clonagem de objetos entre documentos para evitar duplicatas de fontes/recursos)

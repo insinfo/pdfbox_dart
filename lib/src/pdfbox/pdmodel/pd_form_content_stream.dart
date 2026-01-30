@@ -139,6 +139,21 @@ class PDFormContentStream {
     _write('${_formatNumber(c)} ${_formatNumber(m)} ${_formatNumber(y)} ${_formatNumber(k)} K\n');
   }
 
+  /// Sets stroking color from a PDColor object.
+  void setStrokingColorRGB(dynamic color) {
+    _ensureOpen();
+    if (color == null) return;
+    final components = color.components as List<double>?;
+    if (components == null || components.isEmpty) return;
+    if (components.length == 1) {
+      setStrokingColorGray(components[0]);
+    } else if (components.length == 3) {
+      setStrokingColor(components[0], components[1], components[2]);
+    } else if (components.length == 4) {
+      setStrokingColorCMYK(components[0], components[1], components[2], components[3]);
+    }
+  }
+
   /// Appends a cubic Bézier curve (`c` operator) defined by two control points
   /// and an end point.
   void curveTo(double x1, double y1, double x2, double y2, double x3, double y3) {

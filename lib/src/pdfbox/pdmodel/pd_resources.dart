@@ -413,6 +413,12 @@ class PDResources {
     return name;
   }
 
+  /// Adds an XObject to the resources with a specific name.
+  void addXObject(COSName name, PDXObject xObject) {
+    final xObjects = _ensureXObjectDictionary();
+    xObjects[name] = xObject.cosObject;
+  }
+
   /// Adds a font to the resources and returns the name it was assigned.
   COSName addFont(PDFont font, [String prefix = "F"]) {
     final fonts = _ensureFontDictionary();

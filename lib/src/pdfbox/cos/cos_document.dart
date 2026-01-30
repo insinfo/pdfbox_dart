@@ -211,6 +211,10 @@ class COSDocument {
     _headerVersion = normalized;
   }
 
+  COSStream createCOSStream() {
+    return COSStream();
+  }
+
   void markAllClean() {
     for (final object in _objects.values) {
       object.markCleanDeep();

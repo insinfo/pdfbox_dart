@@ -109,5 +109,37 @@ class COSStream extends COSDictionary {
     }
     return const <COSName>[];
   }
+  void addFilter(COSName filter) {
+    final currentFilters = getDictionaryObject(COSName.filter);
+    if (currentFilters == null) {
+      setItem(COSName.filter, filter);
+    } else if (currentFilters is COSName) {
+      final array = COSArray();
+      array.add(currentFilters);
+      array.add(filter);
+      setItem(COSName.filter, array);
+    } else if (currentFilters is COSArray) {
+      currentFilters.add(filter);
+    }
+  }
+
+  COSOutputStream createUnfilteredOutputStream() {
+    return COSOutputStream(this);
+  }
+}
+
+class COSOutputStream {
+  final COSStream _stream;
+  final List<int> _buffer = [];
+
+  COSOutputStream(this._stream);
+
+  void write(List<int> bytes) {
+    _buffer.addAll(bytes);
+  }
+
+  void close() {
+    _stream.data = Uint8List.fromList(_buffer);
+  }
 }
 

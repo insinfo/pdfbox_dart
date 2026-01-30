@@ -9,6 +9,8 @@ import '../annotation/pd_annotation_appearance.dart';
 import '../annotation/pd_appearance_stream.dart';
 import 'pd_terminal_field.dart';
 import 'pd_variable_text.dart';
+import '../form/pd_button.dart';
+import '../../font/pdfont.dart';
 
 class AppearanceGeneratorHelper {
   final PDTerminalField _field;
@@ -16,9 +18,26 @@ class AppearanceGeneratorHelper {
   AppearanceGeneratorHelper(this._field);
 
   void setAppearanceValue(String value) {
+    if (_field is PDButton) {
+      _updateButtonAppearanceState(value);
+    }
+    
     final widgets = _field.getWidgets();
     for (final widget in widgets) {
-      _generateAppearance(widget, value);
+      if (_field is PDButton) {
+         // Buttons usually don't need content stream generation if AP is already there,
+         // but they might need it if we are creating it from scratch.
+         // For now, setting AS is enough for most cases.
+      } else {
+        _generateAppearance(widget, value);
+      }
+    }
+  }
+
+  void _updateButtonAppearanceState(String value) {
+    final widgets = _field.getWidgets();
+    for (final widget in widgets) {
+      widget.cosObject.setName(COSName('AS'), value);
     }
   }
 
@@ -35,13 +54,11 @@ class AppearanceGeneratorHelper {
     if (normalAppearance != null && normalAppearance.isStream) {
       appearanceStream = normalAppearance.appearanceStream;
     } else {
-      // Create new appearance stream
       final stream = COSStream();
       appearanceStream = PDAppearanceStream(stream);
       appearance.setNormalAppearanceStream(appearanceStream);
     }
 
-    // Set bounding box
     final rectList = widget.rect;
     final width = (rectList != null && rectList.length >= 4)
         ? rectList[2] - rectList[0]
@@ -53,14 +70,12 @@ class AppearanceGeneratorHelper {
     final bbox = PDRectangle(0, 0, width, height);
     appearanceStream.boundingBox = bbox;
 
-    // Create resources if missing
     if (appearanceStream.resources == null) {
       appearanceStream.resources = PDResources(COSDictionary());
     }
 
     final contentStream = PDFormContentStream(appearanceStream);
 
-    // Parse default appearance string
     String? da = (_field is PDVariableText)
         ? _field.getDefaultAppearance()
         : widget.defaultAppearance;
@@ -84,18 +99,15 @@ class AppearanceGeneratorHelper {
       }
     }
 
-    // Ensure font is in resources
+    PDFont? font;
     if (fontName != null) {
-      // Check if font is in appearance resources
-      var font = appearanceStream.resources?.getFont(fontName);
+      font = appearanceStream.resources?.getPDFont(fontName);
       if (font == null) {
-        // Check AcroForm default resources
         final dr = _field.acroForm.defaultResources;
         if (dr != null) {
-          font = dr.getFont(fontName);
+          font = dr.getPDFont(fontName);
           if (font != null) {
-            // Add to appearance resources
-            appearanceStream.resources?.setFont(fontName, font);
+            appearanceStream.resources?.setFont(fontName, font.cosObject);
           }
         }
       }
@@ -103,61 +115,74 @@ class AppearanceGeneratorHelper {
 
     contentStream.saveGraphicsState();
 
-    // Draw background from MK dictionary (appearance characteristics)
     final mk = widget.appearanceCharacteristics;
     if (mk != null) {
-      // Draw background color (BG)
       final bgColor = mk.background;
       if (bgColor != null) {
-        final components = bgColor.components;
-        if (components.length == 1) {
-          // Gray
-          contentStream.setNonStrokingColorGray(components[0]);
-        } else if (components.length == 3) {
-          // RGB
-          contentStream.setNonStrokingColor(
-            components[0], components[1], components[2]);
-        } else if (components.length == 4) {
-          // CMYK
-          contentStream.setNonStrokingColorCMYK(
-            components[0], components[1], components[2], components[3]);
-        }
+        contentStream.setNonStrokingColorRGB(bgColor);
         contentStream.rectangle(0, 0, width, height);
         contentStream.fill();
       }
       
-      // Draw border color (BC)
       final bcColor = mk.borderColour;
       if (bcColor != null) {
-        final components = bcColor.components;
-        if (components.length == 1) {
-          contentStream.setStrokingColorGray(components[0]);
-        } else if (components.length == 3) {
-          contentStream.setStrokingColor(
-            components[0], components[1], components[2]);
-        } else if (components.length == 4) {
-          contentStream.setStrokingColorCMYK(
-            components[0], components[1], components[2], components[3]);
-        }
+        contentStream.setStrokingColorRGB(bcColor);
         contentStream.rectangle(0.5, 0.5, width - 1, height - 1);
         contentStream.stroke();
       }
     }
 
-
-    // Draw text
-    contentStream.beginText();
-    if (fontName != null) {
-      contentStream.setFont(fontName, fontSize);
+    // Auto font size calculation
+    if (fontSize == 0 && font != null) {
+      fontSize = _calculateAutoSize(value, width, height, font);
     }
 
-    // Position text (simple padding)
-    contentStream.newLineAtOffset(2, 2);
+    contentStream.beginText();
+    if (font != null && fontName != null) {
+      contentStream.setFont(fontName, fontSize);
+    }
+    
+    // Set text color if specified in DA
+    // For now use black as default
+    contentStream.setNonStrokingColorGray(0);
+
+    // Calculate text position (centered vertically, left aligned with padding)
+    double x = 2;
+    double y = (height - fontSize) / 2;
+    
+    // Support for alignment (Q entry)
+    final quadding = (_field is PDVariableText) ? _field.q : 0;
+    if (quadding == 1) { // Center
+       final textWidth = font?.getStringWidth(value) ?? 0;
+       x = (width - (textWidth * fontSize / 1000)) / 2;
+    } else if (quadding == 2) { // Right
+       final textWidth = font?.getStringWidth(value) ?? 0;
+       x = width - (textWidth * fontSize / 1000) - 2;
+    }
+
+    contentStream.newLineAtOffset(x, y);
     contentStream.showText(value);
     contentStream.endText();
-
     contentStream.restoreGraphicsState();
+    
     contentStream.close();
   }
-}
 
+  double _calculateAutoSize(String value, double width, double height, PDFont font) {
+    // Basic auto-size logic
+    double size = 12;
+    final textWidth = font.getStringWidth(value);
+    if (textWidth > 0) {
+      size = (width - 4) * 1000 / textWidth;
+    }
+    return size.clamp(4.0, height - 4.0);
+  }
+
+  // Helper for text fields
+  void generateAppearance(String value) {
+    final widgets = _field.getWidgets();
+    for (final widget in widgets) {
+      _generateAppearance(widget, value);
+    }
+  }
+}
